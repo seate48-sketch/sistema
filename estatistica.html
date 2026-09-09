@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Estatística</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS                            -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 5. CHART.JS                            -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 6. HTML2PDF.JS                         -->
+    <!-- ======================================== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <style>
+        .indicadores-grid { margin-bottom: 24px; }
+        
+        .graficos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .grafico-card {
+            background: var(--cinza-suave);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--cinza-borda);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .grafico-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .grafico-card h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .grafico-card canvas {
+            max-height: 200px;
+            width: 100% !important;
+        }
+        .grafico-full { grid-column: 1 / -1; }
+        
+        .modal-estatistica {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+        }
+        .modal-estatistica-content {
+            background: var(--branco);
+            margin: 3% auto;
+            max-width: 95%;
+            width: 95%;
+            max-height: 90vh;
+            border-radius: 24px;
+            animation: slideDown 0.25s;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-estatistica-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 2px solid var(--cinza-borda);
+            background: var(--azul-marinho);
+            color: var(--branco);
+            border-radius: 24px 24px 0 0;
+            flex-shrink: 0;
+        }
+        .modal-estatistica-header h3 {
+            margin: 0;
+        }
+        .modal-estatistica-body {
+            padding: 22px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-estatistica-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 22px;
+            border-top: 1px solid var(--cinza-borda);
+            flex-shrink: 0;
+        }
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--branco);
+        }
+        
+        .tabela-estatistica-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .tabela-estatistica {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .tabela-estatistica th {
+            background: var(--cinza-suave);
+            color: var(--azul-marinho);
+            font-weight: 600;
+            padding: 8px 4px;
+            text-align: center;
+            border-bottom: 2px solid var(--cinza-borda);
+            white-space: nowrap;
+        }
+        .tabela-estatistica td {
+            padding: 6px 4px;
+            text-align: center;
+            border-bottom: 1px solid var(--cinza-borda);
+            vertical-align: middle;
+        }
+        .tabela-estatistica tr:hover {
+            background: var(--cinza-suave);
+        }
+        .tabela-estatistica .total-coluna {
+            background: var(--destaque);
+            color: var(--azul-marinho);
+            font-weight: 700;
+        }
+        
+        .btn-acessar-registros {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 4px 12px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-left: 10px;
+        }
+        .btn-acessar-registros:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        
+        .modal-grafico .modal-estatistica-content {
+            max-width: 800px;
+            width: 90%;
+        }
+        
+        .btn-pdf {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 30px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .btn-pdf:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .relatorio-container {
+            display: none;
+            padding: 20px;
+            background: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+        .relatorio-container h1 {
+            color: var(--azul-marinho);
+            text-align: center;
+            border-bottom: 2px solid var(--destaque);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .relatorio-container h2 {
+            color: var(--azul-institucional);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--destaque);
+            padding-left: 10px;
+        }
+        .relatorio-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+        .relatorio-container th {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .relatorio-container td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--cinza-borda);
+            text-align: center;
+        }
+        .relatorio-container .total-row {
+            font-weight: 700;
+            background: var(--cinza-suave);
+        }
+        .relatorio-container .grafico-relatorio {
+            width: 100%;
+            max-width: 600px;
+            margin: 10px auto;
+            display: block;
+        }
+        .relatorio-container .footer-relatorio {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid var(--cinza-borda);
+            font-size: 0.7rem;
+            color: #888;
+        }
+        
+        /* ===== ESTILOS DA TABELA DE RESULTADOS POR ATIVIDADE ===== */
+        .filtros-resultados {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+        .filtros-resultados .form-group {
+            flex: 1;
+            min-width: 150px;
+            margin-bottom: 0;
+        }
+        .filtros-resultados .form-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--azul-marinho);
+            margin-bottom: 4px;
+            display: block;
+        }
+        .filtros-resultados select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            font-size: 0.85rem;
+            background: var(--branco);
+            cursor: pointer;
+        }
+        .filtros-resultados select:focus {
+            outline: none;
+            border-color: var(--destaque);
+        }
+        
+        /* ===== BOTÕES UNIFICADOS ===== */
+        .btn-acao {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-exportar {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-exportar:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-relatorio {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-relatorio:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-limpar {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-limpar:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .grupo-botoes {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .tabela-resultados-container {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+        .tabela-resultados {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .tabela-resultados th {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            padding: 10px 12px;
+            text-align: center;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .tabela-resultados td {
+            padding: 8px 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--cinza-borda);
+        }
+        .tabela-resultados tr:hover {
+            background: var(--cinza-suave);
+        }
+        .tabela-resultados .total-row {
+            font-weight: 700;
+            background: var(--destaque);
+            color: var(--azul-marinho);
+        }
+        .tabela-resultados .total-row td {
+            border-top: 2px solid var(--azul-marinho);
+        }
+        .tabela-resultados .sem-dados {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .resumo-atividade {
+            background: var(--cinza-suave);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            border-left: 4px solid var(--destaque);
+        }
+        .resumo-atividade h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 8px;
+        }
+        .resumo-atividade p {
+            font-size: 0.9rem;
+            color: #444;
+            line-height: 1.6;
+            margin: 4px 0;
+        }
+        .resumo-atividade strong {
+            color: var(--azul-institucional);
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @media (max-width: 1024px) {
+            .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
+            .graficos-grid { grid-template-columns: 1fr; }
+            .filtros-resultados .form-group { min-width: 120px; }
+        }
+        @media (max-width: 768px) {
+            .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
+            .grafico-container canvas { height: 180px !important; max-height: 180px; }
+            .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
+            .filtros-resultados { flex-direction: column; }
+            .filtros-resultados .form-group { width: 100%; }
+            .grupo-botoes .btn-acao,
+            .grupo-botoes .btn-acao-exportar,
+            .grupo-botoes .btn-acao-relatorio,
+            .grupo-botoes .btn-acao-limpar { width: 100%; text-align: center; }
+        }
+        @media (max-width: 480px) {
+            .indicadores-grid { grid-template-columns: 1fr; }
+            .grafico-container canvas { height: 150px !important; max-height: 150px; }
+            .tabela-resultados { font-size: 0.7rem; }
+            .tabela-resultados th, .tabela-resultados td { padding: 4px 6px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestao e Controle - Estatisticas</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.2026</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link">Principal</a>
+            <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link">Distribuicao/Atividades</a>
+            <a href="estatistica.html" class="tab-link active">Estatistica</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-estatistica">
+            <!-- ===== BOTÃO PDF ===== -->
+            <div style="text-align:right; margin-bottom:16px;">
+                <button class="btn-pdf" onclick="gerarRelatorioPDF()">Gerar Relatorio PDF</button>
+            </div>
+            
+            <!-- ===== INDICADORES GERAIS ===== -->
+            <div class="card">
+                <h3>Indicadores Gerais</h3>
+                <div class="indicadores-grid" id="indicadoresGrid"></div>
+            </div>
+            
+            <!-- ===== ANÁLISE DE ATIVIDADES ===== -->
+            <div class="card">
+                <h3>Analise de Atividades</h3>
+                <div class="graficos-grid">
+                    <div class="grafico-card" id="graficoAnualCard">
+                        <h4>Evolucao Anual - TOTAL GERAL</h4>
+                        <canvas id="graficoAnual"></canvas>
+                    </div>
+                    
+                    <div class="grafico-card" id="graficoTop10Card">
+                        <h4 id="tituloTop10Geral">Top 10 Atividades Mais Realizadas (2022-2026)</h4>
+                        <canvas id="graficoTop10"></canvas>
+                    </div>
+                    
+                    <div class="grafico-card" id="graficoTop10ServicosAnoAtualCard">
+                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Servicos Mais Executados em 2026</h4>
+                        <canvas id="graficoTop10ServicosAnoAtual"></canvas>
+                    </div>
+                    
+                    <div class="grafico-card" id="graficoMensalAnoAtualCard">
+                        <h4 id="tituloMensalAnoAtual">Atividades Mensais - 2026 (SEATE + NAHORA)</h4>
+                        <canvas id="graficoMensalAnoAtual"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ============================================================ -->
+            <!-- ===== RESULTADOS POR ATIVIDADE ===== -->
+            <!-- ============================================================ -->
+            <div class="card" id="cardResultadosAtividade">
+                <h3>Resultados por Atividade</h3>
+                
+                <!-- Filtros -->
+                <div class="filtros-resultados">
+                    <div class="form-group">
+                        <label>Ano</label>
+                        <select id="selectAnoResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mes</label>
+                        <select id="selectMesResultado">
+                            <option value="todos">Todos</option>
+                            <option value="0">Janeiro</option>
+                            <option value="1">Fevereiro</option>
+                            <option value="2">Marco</option>
+                            <option value="3">Abril</option>
+                            <option value="4">Maio</option>
+                            <option value="5">Junho</option>
+                            <option value="6">Julho</option>
+                            <option value="7">Agosto</option>
+                            <option value="8">Setembro</option>
+                            <option value="9">Outubro</option>
+                            <option value="10">Novembro</option>
+                            <option value="11">Dezembro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Setor</label>
+                        <select id="selectSetorResultado">
+                            <option value="ambos">Ambos</option>
+                            <option value="SEATE">SEATE</option>
+                            <option value="NAHORA">NAHORA</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 2; min-width: 200px;">
+                        <label>Atividade</label>
+                        <select id="selectAtividadeResultado">
+                            <option value="">Selecione uma atividade...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Botões -->
+                <div class="grupo-botoes">
+                    <button class="btn-acao" onclick="filtrarResultados()">Filtrar</button>
+                    <button class="btn-acao-exportar" onclick="exportarCSV()">Exportar CSV</button>
+                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatorio Analitico</button>
+                    <button class="btn-acao-limpar" onclick="limparFiltrosResultados()">Limpar Filtros</button>
+                </div>
+                
+                <!-- Título da Atividade Selecionada -->
+                <div id="tituloResultadoAtividade" style="font-size: 1.1rem; font-weight: 700; color: var(--azul-marinho); margin-bottom: 12px;"></div>
+                
+                <!-- Tabela de Resultados -->
+                <div class="tabela-resultados-container" id="containerTabelaResultados">
+                    <div style="text-align:center; padding: 40px; color: #888;">
+                        Selecione uma atividade e clique em Filtrar para exibir os resultados.
+                    </div>
+                </div>
+                
+                <!-- Resumo Analítico da Atividade -->
+                <div id="resumoAnaliticoAtividade"></div>
+            </div>
+            <!-- ===== FIM RESULTADOS POR ATIVIDADE ===== -->
+            <!-- ============================================================ -->
+            
+            <!-- ===== ATIVIDADES MAIS ATRIBUÍDAS ===== -->
+            <div class="card">
+                <h3>Atividades Mais Atribuidas</h3>
+                <div id="rankingAtividades" class="ranking-table"></div>
+            </div>
+            
+            <!-- ===== SERVIDORES COM MAIS ATIVIDADES ===== -->
+            <div class="card">
+                <h3>Servidores com Mais Atividades</h3>
+                <div id="rankingServidores" class="ranking-table"></div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
+</div>
+
+<!-- ===== MODAL ESTATÍSTICA COM BOTÃO ANALISAR ===== -->
+<div id="modalEstatistica" class="modal-estatistica">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3><span id="modalEstatisticaTitulo">Dados Estatisticos - 2022</span></h3>
+            <span class="modal-close" onclick="fecharModalEstatistica()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div id="listaAtividadesEstatistica"></div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-primary" onclick="fecharModalEstatistica(); abrirModalAnaliseAtividade(anoEstatisticaSelecionado);" style="background:var(--destaque); color:var(--azul-marinho);">Analisar Atividades</button>
+            <button class="btn btn-neutral" onclick="fecharModalEstatistica()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL GRÁFICO EVOLUÇÃO ANUAL ===== -->
+<div id="modalGraficoEvolucao" class="modal-estatistica modal-grafico">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3>Evolucao Anual - TOTAL GERAL</h3>
+            <span class="modal-close" onclick="fecharModalGraficoEvolucao()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div class="grafico-container">
+                <canvas id="graficoEvolucaoAnual"></canvas>
+            </div>
+            <div style="margin-top:12px; text-align:center; font-size:0.75rem; color:#888;">
+                Clique nas barras para ver os detalhes de cada ano
+            </div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="fecharModalGraficoEvolucao()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Container para o relatório PDF -->
+<div id="conteudoRelatorio" class="relatorio-container">
+    <!-- O conteúdo será preenchido dinamicamente -->
+</div>
+
+<script>
+// ==================== DADOS DOS RELATÓRIOS ====================
+const dadosRelatorios = {
+    totalAnual: {
+        "2022": { "Sede II": 100944, "Sede III": 9742, "NAHORA": 7929, "Total": 118615 },
+        "2023": { "Sede II": 79741, "Sede III": 19900, "NAHORA": 9722, "Total": 109363 },
+        "2024": { "Sede II": 67213, "Sede III": 20767, "NAHORA": 10930, "Total": 98910 },
+        "2025": { "Sede II": 80561, "Sede III": 12333, "NAHORA": 9955, "Total": 102849 },
+        "2026": { "Sede II": 0, "Sede III": 0, "NAHORA": 0, "Total": 0 }
+    }
+};
+
+// ==================== DADOS FIXOS (2022 a 2025) ====================
+const dadosFixos = {
+    "2022": {
+        seate: 110686,
+        nahora: 7929,
+        totalGeral: 118615
+    },
+    "2023": {
+        seate: 99641,
+        nahora: 9722,
+        totalGeral: 109363
+    },
+    "2024": {
+        seate: 87980,
+        nahora: 10930,
+        totalGeral: 98910
+    },
+    "2025": {
+        seate: 92894,
+        nahora: 9955,
+        totalGeral: 102849
+    }
+};
+
+// ==================== DADOS ESTATÍSTICOS PRÉ-PREENCHIDOS (PARA DETALHAMENTO) ====================
+const dadosPreenchidos = {
+    "2022": {
+        "SEATE": {
+            "ATEND TELEFONICO": 28553,
+            "ATEND PRESENCIAL": 2455,
+            "ATEND POR E-MAIL": 9184,
+            "CAD PARTES E ADV NO PJE-E-PROC": 2411,
+            "BAIXA ARQUIVOS E-PROC": 0,
+            "CERT DE MILITANCIA": 857,
+            "CERT DE OBJETO E PE": 95,
+            "CERT DE AUTOR": 915,
+            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 20675,
+            "ANALISE PROCESSUAL": 0,
+            "DESARQUIVAMENTO DE PROCESSOS": 461,
+            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 121,
+            "ANALISE DEVOLUCAO DE CUSTAS": 0,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 30006,
+            "CONSULTA PROCESSUAL": 0,
+            "PESQUISA ORACLE-PROCESSUAL": 0,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 4988,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 699,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 7895,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0,
+            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 368,
+            "REQUERIMENTO DE JUNTADA": 0,
+            "JUNTADA DE PETICOES": 0,
+            "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 280,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 102,
+            "MALOTE DIGITAL": 0,
+            "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0,
+            "JUNTADA E ASSINATURA DE DOC PJE": 0,
+            "DEVOLUCAO DE PROCESSOS": 0,
+            "DIVISAO PASTAS SERVIDORES": 0,
+            "PASTA P SEI": 0,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 256,
+            "TERMO DE COMPARECIMENTO": 365
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 7929,
+            "ATERMACAO": 0,
+            "CERTIDOES ORACLE-PJE": 0,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 0,
+            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMACOES GERAIS": 0
+        }
+    },
+    "2023": {
+        "SEATE": {
+            "ATEND TELEFONICO": 31072,
+            "ATEND PRESENCIAL": 10052,
+            "ATEND POR E-MAIL": 6645,
+            "CAD PARTES E ADV NO PJE-E-PROC": 2647,
+            "BAIXA ARQUIVOS E-PROC": 0,
+            "CERT DE MILITANCIA": 476,
+            "CERT DE OBJETO E PE": 127,
+            "CERT DE AUTOR": 5790,
+            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 13449,
+            "ANALISE PROCESSUAL": 0,
+            "DESARQUIVAMENTO DE PROCESSOS": 698,
+            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 23,
+            "ANALISE DEVOLUCAO DE CUSTAS": 0,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 11127,
+            "CONSULTA PROCESSUAL": 0,
+            "PESQUISA ORACLE-PROCESSUAL": 0,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 5458,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 771,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 8974,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0,
+            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 469,
+            "REQUERIMENTO DE JUNTADA": 0,
+            "JUNTADA DE PETICOES": 0,
+            "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 324,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 92,
+            "MALOTE DIGITAL": 0,
+            "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0,
+            "JUNTADA E ASSINATURA DE DOC PJE": 0,
+            "DEVOLUCAO DE PROCESSOS": 0,
+            "DIVISAO PASTAS SERVIDORES": 0,
+            "PASTA P SEI": 0,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 821,
+            "TERMO DE COMPARECIMENTO": 626
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 9722,
+            "ATERMACAO": 0,
+            "CERTIDOES ORACLE-PJE": 0,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 0,
+            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMACOES GERAIS": 0
+        }
+    },
+    "2024": {
+        "SEATE": {
+            "ATEND TELEFONICO": [2486, 2599, 2435, 2936, 2272, 2863, 2308, 3049, 3315, 3315, 2769, 2127],
+            "ATEND PRESENCIAL": [439, 369, 351, 391, 317, 408, 425, 414, 401, 396, 352, 241],
+            "ATEND POR E-MAIL": [263, 517, 572, 471, 348, 466, 466, 894, 987, 872, 860, 500],
+            "CAD PARTES E ADV NO PJE-E-PROC": [262, 344, 356, 285, 225, 198, 178, 240, 149, 216, 145, 406],
+            "BAIXA ARQUIVOS E-PROC": [0, 0, 0, 0, 0, 0, 0, 0, 33, 90, 670, 423],
+            "CERT DE MILITANCIA": [9, 4, 32, 11, 4, 4, 22, 30, 50, 93, 95, 37],
+            "CERT DE OBJETO E PE": [5, 357, 34, 6, 1, 2, 19, 23, 16, 3, 8, 20],
+            "CERT DE AUTOR": [56, 553, 609, 774, 703, 5, 30, 64, 807, 7, 13, 40],
+            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": [911, 999, 1150, 1276, 970, 1256, 2165, 5605, 714, 1346, 1222, 1306],
+            "ANALISE PROCESSUAL": [0, 0, 0, 0, 0, 68, 419, 751, 573, 390, 231, 191],
+            "DESARQUIVAMENTO DE PROCESSOS": [84, 37, 79, 113, 53, 16, 10, 157, 221, 113, 37, 21],
+            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": [2, 3, 12, 5, 0, 0, 16, 7, 7, 1, 0, 1],
+            "ANALISE DEVOLUCAO DE CUSTAS": [0, 0, 0, 0, 0, 3, 38, 115, 17, 6, 8, 13],
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "CONSULTA PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 67, 44, 238, 191, 63],
+            "PESQUISA ORACLE-PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 432, 91, 165, 1, 0],
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": [268, 319, 537, 500, 220, 119, 76, 119, 138, 335, 167, 81],
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": [26, 8, 5, 12, 40, 15, 11, 9, 8, 0, 0, 23],
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": [195, 428, 1, 600, 242, 0, 560, 43, 0, 5, 920, 224],
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0],
+            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": [117, 15, 0, 81, 85, 74, 60, 50, 17, 0, 0, 0],
+            "REQUERIMENTO DE JUNTADA": [12, 6, 0, 1, 0, 4, 4, 0, 0, 1, 0, 0],
+            "JUNTADA DE PETICOES": [111, 107, 95, 130, 100, 116, 123, 128, 127, 134, 307, 91],
+            "DIGITALIZACAO DE PROCESSOS / PETICOES": [0, 0, 0, 0, 16, 13, 30, 29, 41, 12, 23, 10],
+            "ATEND SEI": [0, 0, 0, 0, 0, 69, 28, 19, 5, 19, 20, 14],
+            "ATEND TEAMS": [0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0],
+            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": [0, 0, 0, 0, 0, 6, 28, 11, 6, 7, 0, 0],
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": [12, 12, 10, 10, 21, 13, 10, 16, 13, 19, 0, 0],
+            "MALOTE DIGITAL": [0, 0, 0, 0, 0, 1, 4, 10, 2, 2, 0, 0],
+            "PROCESSOS SEI": [0, 0, 0, 0, 0, 80, 43, 117, 105, 83, 0, 0],
+            "CONSULTA SEEU": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "JUNTADA E ASSINATURA DE DOC PJE": [0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0],
+            "DEVOLUCAO DE PROCESSOS": [0, 0, 0, 0, 0, 0, 7, 79, 67, 228, 0, 0],
+            "DIVISAO PASTAS SERVIDORES": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": [43, 35, 34, 26, 26, 40, 20, 20, 35, 26, 44, 27],
+            "TERMO DE COMPARECIMENTO": [93, 65, 31, 36, 35, 44, 40, 37, 29, 34, 31, 38]
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": [911, 802, 924, 1125, 372, 402, 409, 412, 348, 439, 401, 327],
+            "ATERMACAO": [35, 32, 51, 46, 56, 50, 59, 51, 0, 0, 0, 0],
+            "CERTIDOES ORACLE-PJE": [448, 600, 522, 437, 251, 323, 169, 229, 0, 0, 0, 0],
+            "RECEBIMENTO DE PROCESSOS-PETICOES": [7, 8, 12, 21, 23, 20, 10, 2, 0, 0, 0, 0],
+            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": [42, 18, 54, 50, 63, 52, 28, 30, 0, 0, 0, 0],
+            "INFORMACOES GERAIS": [34, 16, 23, 33, 41, 43, 37, 32, 0, 0, 0, 0]
+        }
+    },
+    "2025": {
+        "SEATE": {
+            "ATEND TELEFONICO": 34815,
+            "ATEND PRESENCIAL": 4630,
+            "ATEND POR E-MAIL": 8471,
+            "CAD PARTES E ADV NO PJE-E-PROC": 1576,
+            "BAIXA ARQUIVOS E-PROC": 997,
+            "CERT DE MILITANCIA": 617,
+            "CERT DE OBJETO E PE": 166,
+            "CERT DE AUTOR": 151,
+            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 18908,
+            "ANALISE PROCESSUAL": 5910,
+            "DESARQUIVAMENTO DE PROCESSOS": 1201,
+            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 84,
+            "ANALISE DEVOLUCAO DE CUSTAS": 1276,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 0,
+            "CONSULTA PROCESSUAL": 5599,
+            "PESQUISA ORACLE-PROCESSUAL": 495,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 1812,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 95,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 886,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 52,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 332,
+            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 413,
+            "REQUERIMENTO DE JUNTADA": 197,
+            "JUNTADA DE PETICOES": 907,
+            "DIGITALIZACAO DE PROCESSOS / PETICOES": 69,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 23,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 144,
+            "MALOTE DIGITAL": 66,
+            "PROCESSOS SEI": 988,
+            "CONSULTA SEEU": 60,
+            "JUNTADA E ASSINATURA DE DOC PJE": 280,
+            "DEVOLUCAO DE PROCESSOS": 460,
+            "DIVISAO PASTAS SERVIDORES": 223,
+            "PASTA P SEI": 42,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 564,
+            "TERMO DE COMPARECIMENTO": 385
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 6253,
+            "ATERMACAO": 252,
+            "CERTIDOES ORACLE-PJE": 2622,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 98,
+            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 397,
+            "INFORMACOES GERAIS": 333
+        }
+    }
+};
+
+// ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
+async function calcularDadosMensaisAnoAtual() {
+    var totais = await obterTotaisAnoAtual();
+    return totais.porMes;
+}
+
+// ==================== FUNÇÃO: GERAR CORES EM DEGRADÊ ====================
+function gerarCoresDegrade(inicio, fim, quantidade) {
+    var cores = [];
+    for (var i = 0; i < quantidade; i++) {
+        var t = quantidade > 1 ? i / (quantidade - 1) : 0;
+        var r = Math.round(inicio.r + (fim.r - inicio.r) * t);
+        var g = Math.round(inicio.g + (fim.g - inicio.g) * t);
+        var b = Math.round(inicio.b + (fim.b - inicio.b) * t);
+        cores.push('rgb(' + r + ',' + g + ',' + b + ')');
+    }
+    return cores;
+}
+
+// ==================== PLUGIN: EXIBIR VALORES FORA DAS BARRAS ====================
+const valorTopoPlugin = {
+    id: 'valorTopo',
+    afterDraw: function(chart) {
+        var ctx = chart.ctx;
+        var isHorizontal = chart.config.options.indexAxis === 'y';
+        
+        chart.data.datasets.forEach(function(dataset, datasetIndex) {
+            var meta = chart.getDatasetMeta(datasetIndex);
+            meta.data.forEach(function(bar, index) {
+                var data = dataset.data[index];
+                if (data > 0) {
+                    ctx.fillStyle = '#0F2D52';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    
+                    if (isHorizontal) {
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        var x = bar.x + 6;
+                        var y = bar.y;
+                        ctx.fillStyle = '#0F2D52';
+                        ctx.fillText(data.toLocaleString(), x, y);
+                    } else {
+                        var x = bar.x;
+                        var y = bar.y - 6;
+                        ctx.fillStyle = '#0F2D52';
+                        ctx.fillText(data.toLocaleString(), x, y);
+                    }
+                }
+            });
+        });
+    }
+};
+
+// ==================== RENDERIZAR INDICADORES ====================
+async function renderizarIndicadores() {
+    var container = document.getElementById("indicadoresGrid");
+    var anos = getAnosDisponiveis();
+    var cores = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
+    var html = '';
+    
+    var totalSeateGeral = 0;
+    var totalNahoraGeral = 0;
+    
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        seateTotal = totaisAno.seateTotal;
+        nahoraTotal = totaisAno.nahoraTotal;
+        
+        totalSeateGeral += seateTotal;
+        totalNahoraGeral += nahoraTotal;
+    }
+    
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var cor = cores[i % cores.length];
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
+        var totaisAno2 = await obterSeateNahoraPorAno(ano);
+        seateTotal = totaisAno2.seateTotal;
+        nahoraTotal = totaisAno2.nahoraTotal;
+        
+        var totalGeral = seateTotal + nahoraTotal;
+        
+        html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
+        html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
+        html += '<div class="indicador-valor">' + (totalGeral > 0 ? totalGeral.toLocaleString() : '--') + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + seateTotal.toLocaleString() + ' | NAHORA: ' + nahoraTotal.toLocaleString() + '</div>';
+        html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        html += '</div>';
+    }
+    
+    var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
+    html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
+    html += '<div class="indicador-titulo">TOTAL GERAL</div>';
+    html += '<div class="indicador-valor">' + totalGeralFinal.toLocaleString() + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + totalSeateGeral.toLocaleString() + ' | NAHORA: ' + totalNahoraGeral.toLocaleString() + '</div>';
+    html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// ==================== ABRIR MODAL INDICADOR ====================
+async function abrirModalIndicador(ano, setor) {
+    try {
+        var isAnoAtual = (ano === ANO_ATUAL);
+        var titulo = ano;
+        if (setor === "SEATE") {
+            titulo = ano + " - SEATE";
+        } else if (setor === "NAHORA") {
+            titulo = ano + " - NAHORA";
+        } else {
+            titulo = ano + " - SEATE + NAHORA";
+        }
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + titulo;
+        
+        var container = document.getElementById("listaAtividadesEstatistica");
+        var html = '';
+        
+        var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        
+        if (isAnoAtual) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            var seateTotais = totaisAnoAtual.porAtividadeSeate;
+            var nahoraTotais = totaisAnoAtual.porAtividadeNahora;
+            
+            var seateTotal = 0;
+            var nahoraTotal = 0;
+            
+            var mostrarSeate = (setor === null || setor === "SEATE");
+            var mostrarNahora = (setor === null || setor === "NAHORA");
+            
+            if (mostrarSeate) {
+                html += '<div class="titulo-secao">SEATE</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
+                var seateItems = [];
+                for (var ativ in seateTotais) {
+                    seateItems.push({ nome: ativ, total: seateTotais[ativ] });
+                    seateTotal += seateTotais[ativ];
+                }
+                seateItems.sort(function(a, b) { return b.total - a.total; });
+                
+                if (seateItems.length === 0) {
+                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para SEATE em ' + ano + '</td></tr>';
+                } else {
+                    for (var i = 0; i < seateItems.length; i++) {
+                        var item = seateItems[i];
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + item.total.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr>';
+                html += '</tbody></table></div>';
+            }
+            
+            if (mostrarNahora) {
+                html += '<div class="titulo-secao">NAHORA</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
+                var nahoraItems = [];
+                for (var ativ in nahoraTotais) {
+                    nahoraItems.push({ nome: ativ, total: nahoraTotais[ativ] });
+                    nahoraTotal += nahoraTotais[ativ];
+                }
+                nahoraItems.sort(function(a, b) { return b.total - a.total; });
+                
+                if (nahoraItems.length === 0) {
+                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para NAHORA em ' + ano + '</td></tr>';
+                } else {
+                    for (var i = 0; i < nahoraItems.length; i++) {
+                        var item = nahoraItems[i];
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + item.total.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr>';
+                html += '</tbody></table></div>';
+            }
+            
+            if (setor === null) {
+                var totalGeralAnoAtual = seateTotal + nahoraTotal;
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + totalGeralAnoAtual.toLocaleString();
+                html += '</div>';
+                html += '<div style="margin-top:8px; text-align:right; font-size:0.75rem; color:#888;">Dados herdados automaticamente dos registros dos servidores.</div>';
+            }
+            
+            container.innerHTML = html;
+            
+        } else {
+            var dadosAno = (ano === "2024") ? true : dadosFixos[ano];
+            if (!dadosAno) {
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados nao disponiveis para este ano.</p>';
+                document.getElementById("modalEstatistica").style.display = "block";
+                return;
+            }
+            
+            var dadosPre = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
+            var seateTotal = 0;
+            var nahoraTotal = 0;
+            
+            var mostrarSeate = (setor === null || setor === "SEATE");
+            var mostrarNahora = (setor === null || setor === "NAHORA");
+            
+            if (mostrarSeate) {
+                html += '<div class="titulo-secao">SEATE</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
+                if (dadosPre && dadosPre["SEATE"]) {
+                    var seateData = dadosPre["SEATE"];
+                    for (var ativ in seateData) {
+                        var valor = seateData[ativ];
+                        if (Array.isArray(valor)) {
+                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        } else if (valor && typeof valor === 'object') {
+                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        }
+                        seateTotal += valor;
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr>';
+                html += '</tbody></table></div>';
+            }
+            
+            if (mostrarNahora) {
+                html += '<div class="titulo-secao">NAHORA</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
+                if (dadosPre && dadosPre["NAHORA"]) {
+                    var nahoraData = dadosPre["NAHORA"];
+                    for (var ativ in nahoraData) {
+                        var valor = nahoraData[ativ];
+                        if (Array.isArray(valor)) {
+                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        } else if (valor && typeof valor === 'object') {
+                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        }
+                        nahoraTotal += valor;
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr>';
+                html += '</tbody></table></div>';
+            }
+            
+            if (setor === null) {
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (seateTotal + nahoraTotal).toLocaleString();
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        document.getElementById("modalEstatistica").style.display = "block";
+        anoEstatisticaSelecionado = ano;
+        
+    } catch(e) {
+        console.warn('Erro ao abrir modal indicador:', e.message);
+        feedback("Erro ao abrir modal!");
+    }
+}
+
+function fecharModalEstatistica() {
+    document.getElementById("modalEstatistica").style.display = "none";
+}
+
+// ==================== FUNÇÃO AUXILIAR ====================
+function getLotacaoServidorPorNome(nome) {
+    var idx = servidores.indexOf(nome);
+    if (idx !== -1) {
+        return lotacoes[idx] || "SEATE";
+    }
+    return "SEATE";
+}
+
+// ============================================================
+// GRÁFICO DE EVOLUÇÃO ANUAL
+// ============================================================
+function criarGraficoEvolucao() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
+    var anos = getAnosDisponiveis();
+    var valoresTotais = [];
+    
+    async function montar() {
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+    }
+    
+    var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
+    
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
+    }
+    
+    window.chartEvolucao = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: anos,
+            datasets: [{
+                label: 'TOTAL GERAL (SEATE + NAHORA)',
+                data: valoresTotais,
+                backgroundColor: cores,
+                borderColor: cores.map(c => c),
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: { 
+                        boxWidth: 14, 
+                        padding: 12, 
+                        font: { size: 11, weight: 'bold' },
+                        color: '#0F2D52'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 10 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 11, weight: 'bold' } }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    var index = elements[0].index;
+                    var anos = getAnosDisponiveis();
+                    var ano = anos[index];
+                    abrirModalIndicador(ano, null);
+                }
+            }
+        }
+    });
+    }
+    montar();
+}
+
+function abrirModalGraficoEvolucao() {
+    try {
+        document.getElementById("modalGraficoEvolucao").style.display = "block";
+        setTimeout(function() {
+            criarGraficoEvolucao();
+        }, 300);
+    } catch(e) {
+        console.warn('Erro ao abrir grafico evolucao:', e.message);
+        feedback("Erro ao abrir grafico!");
+    }
+}
+
+function fecharModalGraficoEvolucao() {
+    document.getElementById("modalGraficoEvolucao").style.display = "none";
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
+    }
+}
+
+// ============================================================
+// GRÁFICO ANUAL
+// ============================================================
+function criarGraficoAnual() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoAnual').getContext('2d');
+    var anos = getAnosDisponiveis();
+    var valoresTotais = [];
+    
+    async function montar() {
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+    }
+    
+    var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
+    
+    if (window.chartAnual) { window.chartAnual.destroy(); }
+    
+    window.chartAnual = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: anos,
+            datasets: [{
+                label: 'TOTAL GERAL (SEATE + NAHORA)',
+                data: valoresTotais,
+                backgroundColor: cores,
+                borderColor: cores.map(c => c),
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: { 
+                        boxWidth: 14, 
+                        padding: 12, 
+                        font: { size: 11, weight: 'bold' },
+                        color: '#0F2D52'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 10 } }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    var index = elements[0].index;
+                    var anos = getAnosDisponiveis();
+                    var ano = anos[index];
+                    abrirModalIndicador(ano, null);
+                }
+            }
+        }
+    });
+    }
+    montar();
+}
+
+// ============================================================
+// GRÁFICO TOP 10 ATIVIDADES (2022-2026)
+// ============================================================
+async function criarGraficoTop10() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoTop10').getContext('2d');
+    
+    var todasAtividades = {};
+    var anos = getAnosDisponiveis();
+    var totaisAnoAtual = await obterTotaisAnoAtual();
+    
+    for (var a = 0; a < anos.length; a++) {
+        var ano = anos[a];
+        
+        if (ano === ANO_ATUAL) {
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) {
+                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                todasAtividades[ativ] += totaisAnoAtual.porAtividadeSeate[ativ];
+            }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) {
+                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                todasAtividades[ativ] += totaisAnoAtual.porAtividadeNahora[ativ];
+            }
+            continue;
+        }
+        
+        var dadosAno = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
+        if (!dadosAno) continue;
+        
+        if (dadosAno["SEATE"]) {
+            for (var ativ in dadosAno["SEATE"]) {
+                var valor = dadosAno["SEATE"][ativ];
+                if (Array.isArray(valor)) {
+                    valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                } else if (valor && typeof valor === 'object') {
+                    valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
+                }
+                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                todasAtividades[ativ] += valor;
+            }
+        }
+        
+        if (dadosAno["NAHORA"]) {
+            for (var ativ in dadosAno["NAHORA"]) {
+                var valor = dadosAno["NAHORA"][ativ];
+                if (Array.isArray(valor)) {
+                    valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                } else if (valor && typeof valor === 'object') {
+                    valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
+                }
+                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                todasAtividades[ativ] += valor;
+            }
+        }
+    }
+    
+    var items = [];
+    for (var ativ in todasAtividades) {
+        items.push({ nome: ativ, total: todasAtividades[ativ] });
+    }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+    
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    
+    var coresTop10 = gerarCoresDegrade(
+        { r: 220, g: 38, b: 38 },
+        { r: 123, g: 31, b: 162 },
+        valores.length
+    );
+    
+    if (window.chartTop10) { window.chartTop10.destroy(); }
+    
+    window.chartTop10 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total (2022-' + ANO_ATUAL + ')',
+                data: valores,
+                backgroundColor: coresTop10,
+                borderColor: coresTop10.map(function(c) { return c; }),
+                borderWidth: 1
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + context.parsed.x.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { font: { size: 8 } }
+                },
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 9 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ============================================================
+// GRÁFICO TOP 10 SERVIÇOS 2026
+// ============================================================
+async function criarGraficoTop10ServicosAnoAtual() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoTop10ServicosAnoAtual').getContext('2d');
+    
+    var totaisAnoAtual = await obterTotaisAnoAtual();
+    var totaisAtividades = {};
+    for (var ativ in totaisAnoAtual.porAtividadeSeate) {
+        totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ];
+    }
+    for (var ativ in totaisAnoAtual.porAtividadeNahora) {
+        totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ];
+    }
+    
+    var items = [];
+    for (var ativ in totaisAtividades) {
+        items.push({ nome: ativ, total: totaisAtividades[ativ] });
+    }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+    
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    
+    var coresTop10 = gerarCoresDegrade(
+        { r: 255, g: 179, b: 71 },
+        { r: 220, g: 38, b: 38 },
+        valores.length
+    );
+    
+    if (window.chartTop10ServicosAnoAtual) { window.chartTop10ServicosAnoAtual.destroy(); }
+    
+    window.chartTop10ServicosAnoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total ' + ANO_ATUAL,
+                data: valores,
+                backgroundColor: coresTop10,
+                borderColor: coresTop10.map(function(c) { return c; }),
+                borderWidth: 1
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + context.parsed.x.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { font: { size: 8 } }
+                },
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 9 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ============================================================
+// GRÁFICO MENSAL DO ANO ATUAL
+// ============================================================
+async function criarGraficoMensalAnoAtual() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoMensalAnoAtual').getContext('2d');
+    var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    var mesesCompletos = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    
+    var dadosMensais = await calcularDadosMensaisAnoAtual();
+    var valores = [];
+    
+    for (var i = 0; i < mesesCompletos.length; i++) {
+        valores.push(dadosMensais[mesesCompletos[i]] || 0);
+    }
+    
+    var coresMensal = ['#B3D4F0','#8BB8E0','#639CD0','#3B80C0','#1A5EA8','#0F2D52','#1A5EA8','#3B80C0','#639CD0','#8BB8E0','#B3D4F0','#D0E8F5'];
+    
+    if (window.chartMensalAnoAtual) { window.chartMensalAnoAtual.destroy(); }
+    
+    window.chartMensalAnoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Atividades ' + ANO_ATUAL + ' (SEATE + NAHORA)',
+                data: valores,
+                backgroundColor: coresMensal,
+                borderColor: coresMensal,
+                borderWidth: 1
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 9 } }
+                }
+            }
+        }
+    });
+}
+
+// ============================================================
+// FUNÇÕES: RESULTADOS POR ATIVIDADE
+// ============================================================
+
+// Variáveis para armazenar os dados filtrados atuais
+var dadosFiltradosAtuais = {};
+
+// ==================== CARREGAR ATIVIDADES NO SELECT ====================
+// ==================== CARREGAR ANOS NO SELECT DE RESULTADOS ====================
+function renderizarSelectAnoResultado() {
+    var select = document.getElementById("selectAnoResultado");
+    if (!select) return;
+    var anos = getAnosDisponiveis();
+    var html = '';
+    for (var i = 0; i < anos.length; i++) {
+        var selecionado = (anos[i] === ANO_ATUAL) ? ' selected' : '';
+        html += '<option value="' + anos[i] + '"' + selecionado + '>' + anos[i] + '</option>';
+    }
+    select.innerHTML = html;
+}
+
+function carregarAtividadesSelect() {
+    var select = document.getElementById("selectAtividadeResultado");
+    if (!select) return;
+    
+    var html = '<option value="">Selecione uma atividade...</option>';
+    for (var i = 0; i < atividades.length; i++) {
+        html += '<option value="' + escapeHtml(atividades[i]) + '">' + escapeHtml(atividades[i]) + '</option>';
+    }
+    select.innerHTML = html;
+}
+
+// ==================== FILTRAR RESULTADOS ====================
+async function filtrarResultados() {
+    var atividade = document.getElementById("selectAtividadeResultado").value;
+    var ano = parseInt(document.getElementById("selectAnoResultado").value);
+    var mes = document.getElementById("selectMesResultado").value;
+    var setor = document.getElementById("selectSetorResultado").value;
+    
+    if (!atividade) {
+        feedback("Selecione uma atividade!");
+        return;
+    }
+    
+    var tituloElement = document.getElementById("tituloResultadoAtividade");
+    tituloElement.textContent = "RESULTADOS: " + atividade + " (" + ano + ")";
+    
+    var dadosAtividade = await buscarDadosAtividade(atividade, ano, mes, setor);
+    dadosFiltradosAtuais = dadosAtividade;
+    
+    renderizarTabelaResultados(dadosAtividade, atividade, setor);
+    renderizarResumoAnalitico(dadosAtividade, atividade, setor);
+}
+
+// ==================== BUSCAR DADOS DA ATIVIDADE ====================
+async function buscarDadosAtividade(atividade, ano, mes, setor) {
+    var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    var resultados = [];
+    var totalSeate = 0;
+    var totalNahora = 0;
+    var totalGeral = 0;
+    var isAnoAtual = (ano === parseInt(ANO_ATUAL));
+    var totaisAnoAtual = isAnoAtual ? await obterTotaisAnoAtual() : null;
+    
+    var mesesExibir = [];
+    if (mes === "todos") {
+        for (var i = 0; i < 12; i++) {
+            mesesExibir.push(i);
+        }
+    } else {
+        mesesExibir.push(parseInt(mes));
+    }
+    
+    for (var m = 0; m < mesesExibir.length; m++) {
+        var mesIndex = mesesExibir[m];
+        var mesNome = meses[mesIndex];
+        var valorSeate = 0;
+        var valorNahora = 0;
+        
+        if (isAnoAtual) {
+            var porMesSeate = totaisAnoAtual.porAtividadeMesSeate[atividade] || {};
+            var porMesNahora = totaisAnoAtual.porAtividadeMesNahora[atividade] || {};
+            valorSeate = porMesSeate[mesNome] || 0;
+            valorNahora = porMesNahora[mesNome] || 0;
+        } else if (ano === 2024) {
+            var dados2024 = await obterDados2024();
+            var seateData2024 = dados2024["SEATE"] || {};
+            var nahoraData2024 = dados2024["NAHORA"] || {};
+            valorSeate = (seateData2024[atividade] && seateData2024[atividade][mesNome]) || 0;
+            valorNahora = (nahoraData2024[atividade] && nahoraData2024[atividade][mesNome]) || 0;
+        } else {
+            var dadosAno = dadosPreenchidos[ano];
+            if (dadosAno) {
+                var seateData = dadosAno["SEATE"] || {};
+                var nahoraData = dadosAno["NAHORA"] || {};
+                
+                if (seateData[atividade] !== undefined) {
+                    var val = seateData[atividade];
+                    if (Array.isArray(val)) {
+                        valorSeate = val[mesIndex] || 0;
+                    } else {
+                        // Dados anuais - mostrar apenas no primeiro mês (Janeiro) ou distribuir?
+                        if (mesIndex === 0) {
+                            valorSeate = val;
+                        }
+                    }
+                }
+                
+                if (nahoraData[atividade] !== undefined) {
+                    var val = nahoraData[atividade];
+                    if (Array.isArray(val)) {
+                        valorNahora = val[mesIndex] || 0;
+                    } else {
+                        if (mesIndex === 0) {
+                            valorNahora = val;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (setor === "SEATE") {
+            valorNahora = 0;
+        } else if (setor === "NAHORA") {
+            valorSeate = 0;
+        }
+        
+        var total = valorSeate + valorNahora;
+        
+        resultados.push({
+            ano: ano,
+            mes: mesIndex,
+            mesNome: mesNome,
+            seate: valorSeate,
+            nahora: valorNahora,
+            total: total,
+            key: ano + "-" + String(mesIndex + 1).padStart(2, "0")
+        });
+        
+        totalSeate += valorSeate;
+        totalNahora += valorNahora;
+        totalGeral += total;
+    }
+    
+    resultados.sort(function(a, b) { return a.mes - b.mes; });
+    
+    return {
+        dados: resultados,
+        totalSeate: totalSeate,
+        totalNahora: totalNahora,
+        totalGeral: totalGeral
+    };
+}
+
+// ==================== RENDERIZAR TABELA DE RESULTADOS ====================
+function renderizarTabelaResultados(dadosAtividade, atividade, setor) {
+    var container = document.getElementById("containerTabelaResultados");
+    var dados = dadosAtividade.dados;
+    
+    if (dados.length === 0 || dadosAtividade.totalGeral === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhum dado encontrado para os filtros selecionados.</div>';
+        return;
+    }
+    
+    var acumulado = 0;
+    var html = '<table class="tabela-resultados">';
+    html += '<thead><tr>';
+    html += '<th>Ano/Mes</th>';
+    
+    if (setor === "ambos" || setor === "SEATE") {
+        html += '<th>SEATE</th>';
+    }
+    if (setor === "ambos" || setor === "NAHORA") {
+        html += '<th>NAHORA</th>';
+    }
+    html += '<th>TOTAL</th>';
+    html += '<th>ACUMULADO</th>';
+    html += '</tr></thead><tbody>';
+    
+    for (var i = 0; i < dados.length; i++) {
+        var item = dados[i];
+        acumulado += item.total;
+        
+        // Pular meses com zero se não for 2026 (dados anuais)
+        if (dadosAtividade.totalGeral > 0) {
+            html += '<tr>';
+            html += '<td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
+            
+            if (setor === "ambos" || setor === "SEATE") {
+                html += '<td>' + item.seate.toLocaleString() + '</td>';
+            }
+            if (setor === "ambos" || setor === "NAHORA") {
+                html += '<td>' + item.nahora.toLocaleString() + '</td>';
+            }
+            html += '<td>' + item.total.toLocaleString() + '</td>';
+            html += '<td>' + acumulado.toLocaleString() + '</td>';
+            html += '</tr>';
+        }
+    }
+    
+    // Linha de total
+    html += '<tr class="total-row">';
+    html += '<td><strong>TOTAL</strong></td>';
+    
+    if (setor === "ambos" || setor === "SEATE") {
+        html += '<td>' + dadosAtividade.totalSeate.toLocaleString() + '</td>';
+    }
+    if (setor === "ambos" || setor === "NAHORA") {
+        html += '<td>' + dadosAtividade.totalNahora.toLocaleString() + '</td>';
+    }
+    html += '<td>' + dadosAtividade.totalGeral.toLocaleString() + '</td>';
+    html += '<td>' + acumulado.toLocaleString() + '</td>';
+    html += '</tr>';
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// ==================== RENDERIZAR RESUMO ANALÍTICO ====================
+function renderizarResumoAnalitico(dadosAtividade, atividade, setor) {
+    var container = document.getElementById("resumoAnaliticoAtividade");
+    var dados = dadosAtividade.dados;
+    
+    if (dados.length === 0 || dadosAtividade.totalGeral === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    var total = dadosAtividade.totalGeral;
+    var totalSeate = dadosAtividade.totalSeate;
+    var totalNahora = dadosAtividade.totalNahora;
+    var media = dados.length > 0 ? Math.round(total / dados.length) : 0;
+    
+    var maior = dados.reduce(function(a, b) { return a.total > b.total ? a : b; });
+    var menor = dados.reduce(function(a, b) { return a.total < b.total ? a : b; });
+    
+    var primeiro = dados[0];
+    var ultimo = dados[dados.length - 1];
+    var variacao = primeiro.total > 0 ? Math.round(((ultimo.total - primeiro.total) / primeiro.total) * 100) : 0;
+    
+    var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
+    var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
+    
+    var tendencia = '';
+    if (variacao > 10) tendencia = 'Crescimento significativo';
+    else if (variacao > 0) tendencia = 'Crescimento moderado';
+    else if (variacao < -10) tendencia = 'Declinio significativo';
+    else if (variacao < 0) tendencia = 'Declinio moderado';
+    else tendencia = 'Estavel';
+    
+    var html = '<div class="resumo-atividade">';
+    html += '<h4>Resumo Analitico: ' + escapeHtml(atividade) + '</h4>';
+    html += '<p><strong>Total de registros:</strong> ' + total.toLocaleString() + '</p>';
+    html += '<p><strong>Media mensal:</strong> ' + media.toLocaleString() + '</p>';
+    html += '<p><strong>Maior mes:</strong> ' + maior.ano + '-' + maior.mesNome + ' com ' + maior.total.toLocaleString() + ' registros</p>';
+    html += '<p><strong>Menor mes:</strong> ' + menor.ano + '-' + menor.mesNome + ' com ' + menor.total.toLocaleString() + ' registros</p>';
+    html += '<p><strong>Variacao:</strong> ' + (variacao > 0 ? '+' : '') + variacao + '% (' + tendencia + ')</p>';
+    html += '<p><strong>Distribuicao:</strong> SEATE ' + percentSeate + '% | NAHORA ' + percentNahora + '%</p>';
+    html += '<p><strong>Destaque:</strong> ';
+    
+    if (totalSeate > totalNahora) {
+        html += 'O setor SEATE responde por ' + percentSeate + '% das atividades, sendo o principal responsavel.';
+    } else if (totalNahora > totalSeate) {
+        html += 'O setor NAHORA responde por ' + percentNahora + '% das atividades, sendo o principal responsavel.';
+    } else {
+        html += 'Os setores SEATE e NAHORA tem participacao equilibrada.';
+    }
+    html += '</p>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// ==================== LIMPAR FILTROS ====================
+function limparFiltrosResultados() {
+    document.getElementById("selectAnoResultado").value = ANO_ATUAL;
+    document.getElementById("selectMesResultado").value = "todos";
+    document.getElementById("selectSetorResultado").value = "ambos";
+    document.getElementById("selectAtividadeResultado").value = "";
+    document.getElementById("tituloResultadoAtividade").textContent = "";
+    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding: 40px; color: #888;">Selecione uma atividade e clique em Filtrar para exibir os resultados.</div>';
+    document.getElementById("resumoAnaliticoAtividade").innerHTML = '';
+    dadosFiltradosAtuais = {};
+    feedback("Filtros limpos!");
+}
+
+// ==================== EXPORTAR CSV ====================
+function exportarCSV() {
+    var dados = dadosFiltradosAtuais.dados;
+    var atividade = document.getElementById("selectAtividadeResultado").value;
+    var setor = document.getElementById("selectSetorResultado").value;
+    var ano = document.getElementById("selectAnoResultado").value;
+    
+    if (!dados || dados.length === 0 || dadosFiltradosAtuais.totalGeral === 0) {
+        feedback("Nao ha dados para exportar. Aplique os filtros primeiro.");
+        return;
+    }
+    
+    var csv = "Ano/Mes";
+    if (setor === "ambos" || setor === "SEATE") csv += ";SEATE";
+    if (setor === "ambos" || setor === "NAHORA") csv += ";NAHORA";
+    csv += ";TOTAL;ACUMULADO\n";
+    
+    var acumulado = 0;
+    for (var i = 0; i < dados.length; i++) {
+        var item = dados[i];
+        acumulado += item.total;
+        csv += item.ano + "-" + item.mesNome;
+        if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
+        if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
+        csv += ";" + item.total + ";" + acumulado + "\n";
+    }
+    
+    csv += "TOTAL";
+    if (setor === "ambos" || setor === "SEATE") csv += ";" + dadosFiltradosAtuais.totalSeate;
+    if (setor === "ambos" || setor === "NAHORA") csv += ";" + dadosFiltradosAtuais.totalNahora;
+    csv += ";" + dadosFiltradosAtuais.totalGeral + ";" + acumulado + "\n";
+    
+    var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "resultados_" + atividade + "_" + ano + "_" + new Date().toISOString().slice(0,10) + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    feedback("CSV exportado com sucesso!");
+}
+
+// ============================================================
+// FUNÇÃO: GERAR RELATÓRIO ANALÍTICO (TODAS AS ATIVIDADES)
+// ============================================================
+async function gerarRelatorioAnalitico() {
+    try {
+        if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
+        feedback("Gerando relatorio analitico...");
+        
+        var ano = parseInt(document.getElementById("selectAnoResultado").value);
+        var mes = document.getElementById("selectMesResultado").value;
+        var setor = document.getElementById("selectSetorResultado").value;
+        
+        var todasAtividades = atividades.slice();
+        if (todasAtividades.length === 0) {
+            feedback("Nenhuma atividade cadastrada!");
+            return;
+        }
+        
+        var html = `
+            <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto;">
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Analitico por Atividade</h1>
+                <p style="text-align: center; color: #666; margin-bottom: 5px;">Ano: ${ano} | Setor: ${setor === 'ambos' ? 'Ambos' : setor}</p>
+                <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                <div style="border-bottom: 2px solid #D1D5DB; margin-bottom: 20px;"></div>
+        `;
+        
+        var totalGeralGeral = 0;
+        var atividadesComDados = 0;
+        var atividadeMaior = { nome: '', total: 0 };
+        var totalSeateGeralRel = 0;
+        var totalNahoraGeralRel = 0;
+        
+        for (var a = 0; a < todasAtividades.length; a++) {
+            var atividade = todasAtividades[a];
+            var dadosAtividade = await buscarDadosAtividade(atividade, ano, mes, setor);
+            var dados = dadosAtividade.dados;
+            
+            if (dadosAtividade.totalGeral === 0) continue;
+            
+            atividadesComDados++;
+            totalGeralGeral += dadosAtividade.totalGeral;
+            totalSeateGeralRel += dadosAtividade.totalSeate;
+            totalNahoraGeralRel += dadosAtividade.totalNahora;
+            
+            if (dadosAtividade.totalGeral > atividadeMaior.total) {
+                atividadeMaior.nome = atividade;
+                atividadeMaior.total = dadosAtividade.totalGeral;
+            }
+            
+            var total = dadosAtividade.totalGeral;
+            var totalSeate = dadosAtividade.totalSeate;
+            var totalNahora = dadosAtividade.totalNahora;
+            var media = dados.length > 0 ? Math.round(total / dados.length) : 0;
+            
+            var maior = dados.length > 0 ? dados.reduce(function(a, b) { return a.total > b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
+            var menor = dados.length > 0 ? dados.reduce(function(a, b) { return a.total < b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
+            
+            var primeiro = dados.length > 0 ? dados[0] : { total: 0 };
+            var ultimo = dados.length > 0 ? dados[dados.length - 1] : { total: 0 };
+            var variacao = primeiro.total > 0 ? Math.round(((ultimo.total - primeiro.total) / primeiro.total) * 100) : 0;
+            
+            var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
+            var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
+            
+            var tendencia = '';
+            if (variacao > 10) tendencia = 'Crescimento significativo';
+            else if (variacao > 0) tendencia = 'Crescimento moderado';
+            else if (variacao < -10) tendencia = 'Declinio significativo';
+            else if (variacao < 0) tendencia = 'Declinio moderado';
+            else tendencia = 'Estavel';
+            
+            html += `
+                <div style="background: #F9FAFB; border-radius: 12px; padding: 16px 20px; margin-bottom: 25px; border: 1px solid #D1D5DB;">
+                    <h3 style="color: #0F2D52; margin-bottom: 12px; border-left: 4px solid #FFB347; padding-left: 12px;">${atividade}</h3>
+            `;
+            
+            if (dados.length > 0 && dadosAtividade.totalGeral > 0) {
+                var acumulado = 0;
+                html += `<div style="overflow-x: auto; margin-bottom: 12px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">Ano/Mes</th>
+                                ${setor === 'ambos' || setor === 'SEATE' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">SEATE</th>' : ''}
+                                ${setor === 'ambos' || setor === 'NAHORA' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">NAHORA</th>' : ''}
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">TOTAL</th>
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">ACUMULADO</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (var i = 0; i < dados.length; i++) {
+                    var item = dados[i];
+                    if (item.total === 0 && item.ano !== parseInt(ANO_ATUAL)) continue;
+                    acumulado += item.total;
+                    html += `<tr>
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;"><strong>${item.ano}-${item.mesNome}</strong></td>
+                        ${setor === 'ambos' || setor === 'SEATE' ? '<td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + item.seate.toLocaleString() + '</td>' : ''}
+                        ${setor === 'ambos' || setor === 'NAHORA' ? '<td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + item.nahora.toLocaleString() + '</td>' : ''}
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">${item.total.toLocaleString()}</td>
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 600;">${acumulado.toLocaleString()}</td>
+                    </tr>`;
+                }
+                
+                html += `
+                        <tr style="font-weight: 700; background: #FFB347;">
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">TOTAL</td>
+                            ${setor === 'ambos' || setor === 'SEATE' ? '<td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + totalSeate.toLocaleString() + '</td>' : ''}
+                            ${setor === 'ambos' || setor === 'NAHORA' ? '<td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + totalNahora.toLocaleString() + '</td>' : ''}
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${total.toLocaleString()}</td>
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${acumulado.toLocaleString()}</td>
+                        </tr>
+                    </tbody></table>
+                </div>`;
+            }
+            
+            html += `
+                    <div style="background: white; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0F2D52;">
+                        <strong style="color: #0F2D52;">Analise:</strong><br>
+                        • <strong>Total de registros:</strong> ${total.toLocaleString()}<br>
+                        • <strong>Media mensal:</strong> ${media.toLocaleString()}<br>
+                        • <strong>Maior mes:</strong> ${maior.ano}-${maior.mesNome} com ${maior.total.toLocaleString()} registros<br>
+                        • <strong>Menor mes:</strong> ${menor.ano}-${menor.mesNome} com ${menor.total.toLocaleString()} registros<br>
+                        • <strong>Variacao:</strong> ${variacao > 0 ? '+' : ''}${variacao}% (${tendencia})<br>
+                        • <strong>Distribuicao:</strong> SEATE ${percentSeate}% | NAHORA ${percentNahora}%<br>
+                        • <strong>Destaque:</strong> ${totalSeate > totalNahora ? 'O setor SEATE responde por ' + percentSeate + '% das atividades.' : totalNahora > totalSeate ? 'O setor NAHORA responde por ' + percentNahora + '% das atividades.' : 'Os setores tem participacao equilibrada.'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (atividadesComDados > 0) {
+            var percentSeateGeral = totalGeralGeral > 0 ? Math.round((totalSeateGeralRel / totalGeralGeral) * 100) : 0;
+            html += `
+                <div style="background: #0F2D52; color: white; border-radius: 12px; padding: 20px 24px; margin-top: 20px;">
+                    <h3 style="color: #FFB347; margin-bottom: 12px;">RESUMO GERAL DO RELATORIO</h3>
+                    <p>• Total de atividades analisadas: <strong style="color: #FFB347;">${atividadesComDados}</strong></p>
+                    <p>• Total geral de registros: <strong style="color: #FFB347;">${totalGeralGeral.toLocaleString()}</strong></p>
+                    <p>• Atividade com maior volume: <strong style="color: #FFB347;">"${atividadeMaior.nome}"</strong> com ${atividadeMaior.total.toLocaleString()} registros</p>
+                    <p>• Distribuicao geral: SEATE <strong style="color: #FFB347;">${percentSeateGeral}%</strong> | NAHORA <strong style="color: #FFB347;">${100 - percentSeateGeral}%</strong></p>
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="text-align:center; padding: 30px; color: #888;">
+                    Nenhuma atividade com dados no periodo selecionado.
+                </div>
+            `;
+        }
+        
+        html += `
+                <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #D1D5DB; text-align: center; font-size: 0.7rem; color: #888;">
+                    SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF
+                </div>
+            </div>
+        `;
+        
+        var container = document.getElementById("conteudoRelatorio");
+        container.innerHTML = html;
+        container.style.display = "block";
+        
+        var opt = {
+            margin: 10,
+            filename: 'Relatorio_Analitico_SEATE_' + new Date().toISOString().slice(0,10) + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                width: 1100
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(container).save().then(function() {
+            container.style.display = "none";
+            feedback("Relatorio analitico gerado com sucesso!");
+        }).catch(function(erroPdf) {
+            container.style.display = "none";
+            console.warn('Erro ao gerar PDF do relatorio analitico:', erroPdf.message);
+            feedback("Erro ao gerar o PDF. Tente novamente.");
+        });
+        
+    } catch(e) {
+        console.warn('Erro ao gerar relatorio analitico:', e.message);
+        feedback("Erro ao gerar relatorio analitico!");
+    }
+}
+
+// ==================== ATUALIZAR ESTATÍSTICAS ====================
+function atualizarEstatisticas() {
+    var totalServidores = servidores.length;
+    var totalAtividades = atividades.length;
+    var totalAtribuicoes = 0;
+    for (var a in atribuicoes) {
+        totalAtribuicoes += atribuicoes[a].length;
+    }
+    
+    var countAtiv = {};
+    for (var a in atribuicoes) {
+        countAtiv[a] = atribuicoes[a].length;
+    }
+    var rankAtiv = Object.entries(countAtiv).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+    var htmlAtiv = '<table class="ranking-table"><thead><tr><th>Atividade</th><th>Quantidade</th></tr></thead><tbody>';
+    for (var i = 0; i < rankAtiv.length; i++) {
+        htmlAtiv += '<tr><td>' + escapeHtml(rankAtiv[i][0]) + '</td><td>' + rankAtiv[i][1] + '</td></tr>';
+    }
+    if (rankAtiv.length === 0) htmlAtiv += '<tr><td colspan="2" style="text-align:center;">Nenhuma atribuicao cadastrada</td></tr>';
+    htmlAtiv += '</tbody></table>';
+    document.getElementById("rankingAtividades").innerHTML = htmlAtiv;
+    
+    var countServ = {};
+    for (var a in atribuicoes) {
+        for (var j = 0; j < atribuicoes[a].length; j++) {
+            var serv = atribuicoes[a][j];
+            countServ[serv] = (countServ[serv] || 0) + 1;
+        }
+    }
+    var rankServ = Object.entries(countServ).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+    var htmlServ = '<table class="ranking-table"><thead><tr><th>Servidor</th><th>Quantidade</th><th>Acoes</th></tr></thead><tbody>';
+    for (var i = 0; i < rankServ.length; i++) {
+        var servidor = rankServ[i][0];
+        var quantidade = rankServ[i][1];
+        htmlServ += '<tr><td>' + escapeHtml(servidor) + '</td><td>' + quantidade + '</td>';
+        htmlServ += '<td><button class="btn-acessar-registros" onclick="acessarAtribuicoesServidor(\'' + servidor.replace(/'/g, "\\'") + '\')">Acessar Atividades</button></td>';
+        htmlServ += '</tr>';
+    }
+    if (rankServ.length === 0) htmlServ += '<tr><td colspan="3" style="text-align:center;">Nenhuma atribuicao cadastrada</td></tr>';
+    htmlServ += '</tbody></table>';
+    document.getElementById("rankingServidores").innerHTML = htmlServ;
+}
+
+function acessarAtribuicoesServidor(nome) {
+    try {
+        localStorage.setItem("seate_servidor_selecionado", nome);
+        window.location.href = "atribuicoes.html";
+    } catch(e) {
+        console.warn('Erro ao acessar atribuicoes:', e.message);
+        feedback("Erro ao acessar atribuicoes!");
+    }
+}
+
+// ============================================================
+// GERAR RELATÓRIO PDF (EXISTENTE)
+// ============================================================
+async function gerarRelatorioPDF() {
+    try {
+        if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
+        feedback("Gerando relatorio...");
+        
+        var dadosMensaisAnoAtual = await calcularDadosMensaisAnoAtual();
+        var totaisAnoAtual = await obterTotaisAnoAtual();
+        var meses = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        
+        var totalSeateGeral = 0;
+        var totalNahoraGeral = 0;
+        var anos = getAnosDisponiveis();
+        var dadosAnuais = [];
+        
+        for (var i = 0; i < anos.length; i++) {
+            var ano = anos[i];
+            var totaisAno = await obterSeateNahoraPorAno(ano);
+            var seateTotal = totaisAno.seateTotal;
+            var nahoraTotal = totaisAno.nahoraTotal;
+            totalSeateGeral += seateTotal;
+            totalNahoraGeral += nahoraTotal;
+            dadosAnuais.push({ ano: ano, seate: seateTotal, nahora: nahoraTotal, total: seateTotal + nahoraTotal });
+        }
+        
+        var maiorAno = dadosAnuais.reduce(function(a, b) { return a.total > b.total ? a : b; });
+        var menorAno = dadosAnuais.reduce(function(a, b) { return a.total < b.total ? a : b; });
+        var ultimoAno = dadosAnuais[dadosAnuais.length - 1];
+        var primeiroAno = dadosAnuais[0];
+        var variacaoTotal = primeiroAno.total > 0 ? Math.round(((ultimoAno.total - primeiroAno.total) / primeiroAno.total) * 100) : 0;
+        
+        var analiseEvolucao = `
+            <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #0F2D52;">
+                <strong>Analise da Evolucao Anual:</strong><br>
+                • O ano de <strong>${maiorAno.ano}</strong> registrou o maior volume de atividades com <strong>${maiorAno.total.toLocaleString()}</strong> registros.<br>
+                • O ano de <strong>${menorAno.ano}</strong> registrou o menor volume com <strong>${menorAno.total.toLocaleString()}</strong> registros.<br>
+                • Comparando ${primeiroAno.ano} com ${ultimoAno.ano}, houve uma variacao de <strong>${variacaoTotal > 0 ? '+' : ''}${variacaoTotal}%</strong> no total de atividades.<br>
+                • Em media, o SEATE realizou <strong>${Math.round(totalSeateGeral / dadosAnuais.length).toLocaleString()}</strong> atividades por ano, enquanto o NAHORA realizou <strong>${Math.round(totalNahoraGeral / dadosAnuais.length).toLocaleString()}</strong>.
+            </div>
+        `;
+        
+        var todasAtividades = {};
+        for (var a = 0; a < anos.length; a++) {
+            var ano = anos[a];
+            var dadosAno = dadosPreenchidos[ano];
+            if (!dadosAno) continue;
+            if (dadosAno["SEATE"]) {
+                for (var ativ in dadosAno["SEATE"]) {
+                    var valor = dadosAno["SEATE"][ativ];
+                    if (Array.isArray(valor)) {
+                        valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                    }
+                    if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                    todasAtividades[ativ] += valor;
+                }
+            }
+            if (dadosAno["NAHORA"]) {
+                for (var ativ in dadosAno["NAHORA"]) {
+                    var valor = dadosAno["NAHORA"][ativ];
+                    if (Array.isArray(valor)) {
+                        valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                    }
+                    if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                    todasAtividades[ativ] += valor;
+                }
+            }
+        }
+        var items = [];
+        for (var ativ in todasAtividades) {
+            items.push({ nome: ativ, total: todasAtividades[ativ] });
+        }
+        items.sort(function(a, b) { return b.total - a.total; });
+        var top5 = items.slice(0, 5);
+        var top1 = top5.length > 0 ? top5[0] : null;
+        var totalGeralAtividades = items.reduce(function(s, item) { return s + item.total; }, 0);
+        
+        var analiseTop10 = '';
+        if (top1) {
+            var percentTop1 = totalGeralAtividades > 0 ? Math.round((top1.total / totalGeralAtividades) * 100) : 0;
+            analiseTop10 = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #DC2626;">
+                    <strong>Analise do Top 10 Atividades (2022-${ANO_ATUAL}):</strong><br>
+                    • A atividade mais realizada foi <strong>"${top1.nome}"</strong> com <strong>${top1.total.toLocaleString()}</strong> registros, representando <strong>${percentTop1}%</strong> do total.<br>
+                    • As 5 atividades mais realizadas acumulam <strong>${top5.reduce(function(s, item) { return s + item.total; }, 0).toLocaleString()}</strong> registros.
+                </div>
+            `;
+        } else {
+            analiseTop10 = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #DC2626;">
+                    <strong>Analise do Top 10 Atividades:</strong><br>
+                    • Nenhum dado disponivel para analise.
+                </div>
+            `;
+        }
+        
+        var totaisAtividadesAnoAtual = {};
+        var totalAnoAtual = 0;
+        for (var ativ in totaisAnoAtual.porAtividadeSeate) {
+            totaisAtividadesAnoAtual[ativ] = (totaisAtividadesAnoAtual[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ];
+            totalAnoAtual += totaisAnoAtual.porAtividadeSeate[ativ];
+        }
+        for (var ativ in totaisAnoAtual.porAtividadeNahora) {
+            totaisAtividadesAnoAtual[ativ] = (totaisAtividadesAnoAtual[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ];
+            totalAnoAtual += totaisAnoAtual.porAtividadeNahora[ativ];
+        }
+        var itemsAnoAtual = [];
+        for (var ativ in totaisAtividadesAnoAtual) {
+            itemsAnoAtual.push({ nome: ativ, total: totaisAtividadesAnoAtual[ativ] });
+        }
+        itemsAnoAtual.sort(function(a, b) { return b.total - a.total; });
+        var top5AnoAtual = itemsAnoAtual.slice(0, 5);
+        var top1AnoAtual = top5AnoAtual.length > 0 ? top5AnoAtual[0] : null;
+        
+        var analiseTopAnoAtual = '';
+        if (top1AnoAtual && totalAnoAtual > 0) {
+            var percentTop1AnoAtual = Math.round((top1AnoAtual.total / totalAnoAtual) * 100);
+            analiseTopAnoAtual = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
+                    <strong>Analise do Top 10 Servicos ${ANO_ATUAL}:</strong><br>
+                    • O servico mais executado em ${ANO_ATUAL} foi <strong>"${top1AnoAtual.nome}"</strong> com <strong>${top1AnoAtual.total.toLocaleString()}</strong> registros, representando <strong>${percentTop1AnoAtual}%</strong> do total.<br>
+                    • Os 5 servicos mais executados totalizam <strong>${top5AnoAtual.reduce(function(s, item) { return s + item.total; }, 0).toLocaleString()}</strong> registros.<br>
+                    • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${totalAnoAtual.toLocaleString()}</strong>.
+                </div>
+            `;
+        } else {
+            analiseTopAnoAtual = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
+                    <strong>Analise do Top 10 Servicos ${ANO_ATUAL}:</strong><br>
+                    • Nenhum dado disponivel para analise.
+                </div>
+            `;
+        }
+        
+        var totalMensal = 0;
+        var mesMaisAlto = '';
+        var valorMaisAlto = 0;
+        var mesMaisBaixo = '';
+        var valorMaisBaixo = Infinity;
+        
+        for (var i = 0; i < meses.length; i++) {
+            var valor = dadosMensaisAnoAtual[meses[i]] || 0;
+            totalMensal += valor;
+            if (valor > valorMaisAlto) {
+                valorMaisAlto = valor;
+                mesMaisAlto = meses[i];
+            }
+            if (valor < valorMaisBaixo && valor > 0) {
+                valorMaisBaixo = valor;
+                mesMaisBaixo = meses[i];
+            }
+        }
+        var mediaMensal = meses.length > 0 ? Math.round(totalMensal / meses.length) : 0;
+        
+        var analiseMensal = '';
+        if (totalMensal > 0) {
+            analiseMensal = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1F4E79;">
+                    <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
+                    • O mes com maior volume de atividades foi <strong>${mesMaisAlto}</strong> com <strong>${valorMaisAlto.toLocaleString()}</strong> registros.<br>
+                    • O mes com menor volume foi <strong>${mesMaisBaixo}</strong> com <strong>${valorMaisBaixo.toLocaleString()}</strong> registros.<br>
+                    • A media mensal de atividades em ${ANO_ATUAL} foi de <strong>${mediaMensal.toLocaleString()}</strong> registros.<br>
+                    • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${totalMensal.toLocaleString()}</strong>.
+                </div>
+            `;
+        } else {
+            analiseMensal = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1F4E79;">
+                    <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
+                    • Nenhum dado disponivel para analise.
+                </div>
+            `;
+        }
+        
+        var canvasAnual = document.getElementById('graficoAnual');
+        var canvasTop10 = document.getElementById('graficoTop10');
+        var canvasTop10ServicosAnoAtual = document.getElementById('graficoTop10ServicosAnoAtual');
+        var canvasMensal = document.getElementById('graficoMensalAnoAtual');
+        
+        var imgAnual = canvasAnual ? canvasAnual.toDataURL('image/png', 0.95) : '';
+        var imgTop10 = canvasTop10 ? canvasTop10.toDataURL('image/png', 0.95) : '';
+        var imgTop10ServicosAnoAtual = canvasTop10ServicosAnoAtual ? canvasTop10ServicosAnoAtual.toDataURL('image/png', 0.95) : '';
+        var imgMensal = canvasMensal ? canvasMensal.toDataURL('image/png', 0.95) : '';
+        
+        var html = `
+            <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto;">
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Estatistico</h1>
+                <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Resumo Geral</h2>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9rem;">
+                    <thead>
+                        <tr><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Ano</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">SEATE</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">NAHORA</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">TOTAL</th></tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (var i = 0; i < dadosAnuais.length; i++) {
+            var d = dadosAnuais[i];
+            html += `<tr><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;"><strong>${d.ano}</strong></td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${d.seate.toLocaleString()}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${d.nahora.toLocaleString()}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 700;">${d.total.toLocaleString()}</td></tr>`;
+        }
+        
+        html += `
+                    <tr style="font-weight: 700; background: #F3F4F6;">
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">TOTAL GERAL</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${totalSeateGeral.toLocaleString()}</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${totalNahoraGeral.toLocaleString()}</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${(totalSeateGeral + totalNahoraGeral).toLocaleString()}</td>
+                    </tr>
+                </tbody></table>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Top 5 Atividades Mais Realizadas (2022-${ANO_ATUAL})</h2>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9rem;">
+                    <thead>
+                        <tr><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Posicao</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: left;">Atividade</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Total</th></tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (var i = 0; i < top5.length; i++) {
+            var item = top5[i];
+            html += `<tr><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${i+1}</td><td style="padding: 8px 10px; text-align: left; border-bottom: 1px solid #D1D5DB;">${escapeHtml(item.nome)}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 600;">${item.total.toLocaleString()}</td></tr>`;
+        }
+        
+        html += `
+                    </tbody></table>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #0F2D52; padding-left: 12px;">Analise: Evolucao Anual</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgAnual}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseEvolucao}
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #DC2626; padding-left: 12px;">Analise: Top 10 Atividades (2022-${ANO_ATUAL})</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgTop10}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseTop10}
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Analise: Top 10 Servicos ${ANO_ATUAL}</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgTop10ServicosAnoAtual}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseTopAnoAtual}
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #1F4E79; padding-left: 12px;">Analise: Atividades Mensais ${ANO_ATUAL}</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgMensal}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseMensal}
+                
+                <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #D1D5DB; text-align: center; font-size: 0.7rem; color: #888;">
+                    SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF
+                </div>
+            </div>
+        `;
+        
+        var container = document.getElementById("conteudoRelatorio");
+        container.innerHTML = html;
+        container.style.display = "block";
+        
+        var opt = {
+            margin: 10,
+            filename: 'Relatorio_SEATE_' + new Date().toISOString().slice(0,10) + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                width: 1000
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(container).save().then(function() {
+            container.style.display = "none";
+            feedback("Relatorio gerado com sucesso!");
+        }).catch(function(erroPdf) {
+            container.style.display = "none";
+            console.warn('Erro ao gerar PDF do relatorio:', erroPdf.message);
+            feedback("Erro ao gerar o PDF. Tente novamente.");
+        });
+        
+    } catch(e) {
+        console.warn('Erro ao gerar relatorio:', e.message);
+        feedback("Erro ao gerar relatorio: " + e.message);
+    }
+}
+
+// ==================== INICIALIZAÇÃO ====================
+async function iniciarPagina() {
+    var sessao = await exigirAutenticacao();
+    if (!sessao) return;
+    document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
+    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Servicos Mais Executados em " + ANO_ATUAL;
+    document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
+    renderizarSelectAnoResultado();
+    await carregarDados();
+    renderizarIndicadores();
+    criarGraficoAnual();
+    criarGraficoTop10();
+    criarGraficoTop10ServicosAnoAtual();
+    criarGraficoMensalAnoAtual();
+    atualizarEstatisticas();
+    atualizarDisplayMes();
+    carregarAtividadesSelect();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
+</script>
+</body>
+</html>

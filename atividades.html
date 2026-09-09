@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Atividades</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .dragging {
+            opacity: 0.5;
+            background-color: var(--cinza-claro);
+        }
+        .drag-over {
+            border-bottom: 2px solid var(--destaque);
+        }
+        .drag-handle {
+            cursor: move;
+            display: inline-block;
+            margin-right: 8px;
+            color: var(--cinza-borda);
+            font-size: 1.1rem;
+        }
+        .drag-handle:hover {
+            color: var(--azul-institucional);
+        }
+        .mover-botoes {
+            display: none;
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .drag-handle { display: none; }
+            .mover-botoes { display: inline-flex; flex-direction: column; gap: 2px; }
+            .btn-mover {
+                background: var(--cinza-suave);
+                border: 1px solid var(--cinza-borda);
+                border-radius: 6px;
+                width: 26px;
+                height: 22px;
+                font-size: 0.7rem;
+                cursor: pointer;
+                color: var(--azul-marinho);
+                line-height: 1;
+            }
+            .btn-mover:disabled {
+                opacity: 0.35;
+                cursor: not-allowed;
+            }
+        }
+        .atividade-linha {
+            cursor: grab;
+        }
+        .atividade-linha:active {
+            cursor: grabbing;
+        }
+
+        /* ===== AJUSTE DE COLUNAS ===== */
+        #tabelaAtividades {
+            width: 100%;
+            table-layout: fixed;
+        }
+        #tabelaAtividades colgroup .col-codigo {
+            width: 4%;
+        }
+        #tabelaAtividades colgroup .col-arraste {
+            width: 3%;
+        }
+        #tabelaAtividades colgroup .col-nome {
+            width: 31%;
+        }
+        #tabelaAtividades colgroup .col-acoes {
+            width: 62%;
+        }
+        /* ===== FIM AJUSTE DE COLUNAS ===== */
+
+        /* ===== CORREÇÃO DO SELECT ATRIBUIR - TUDO NA MESMA LINHA COM FONTES MAIORES ===== */
+        .atribuicao-rapida-container {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
+        .atribuicao-rapida-container.mostrar {
+            display: inline-flex !important;
+        }
+        .atribuicao-rapida-container select {
+            width: 100px;
+            min-width: 80px;
+            max-width: 120px;
+            padding: 2px 5px;
+            border: 1px solid var(--cinza-borda);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            background: var(--branco);
+            cursor: pointer;
+            box-sizing: border-box;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .atribuicao-rapida-container .btn-atribuir-ok {
+            background: var(--verde);
+            border: none;
+            border-radius: 12px;
+            padding: 2px 12px;
+            color: var(--branco);
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            height: 24px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            line-height: 20px;
+        }
+        .atribuicao-rapida-container .btn-atribuir-ok:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .atribuicao-rapida-container .btn-cancelar-pequeno {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 12px;
+            padding: 2px 12px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            height: 24px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            line-height: 20px;
+        }
+        .atribuicao-rapida-container .btn-cancelar-pequeno:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        .acoes-cell {
+            white-space: nowrap !important;
+        }
+        .acoes-cell .btn-editar,
+        .acoes-cell .btn-excluir-circular,
+        .acoes-cell .btn-atribuir-rapido {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            margin: 1px 2px;
+            white-space: nowrap;
+            border-radius: 14px;
+            display: inline-block;
+            vertical-align: middle;
+            height: 26px;
+            line-height: 20px;
+        }
+        .acoes-cell .btn-excluir-circular {
+            background: var(--perigo);
+            border: none;
+            border-radius: 14px;
+            padding: 3px 10px;
+            color: var(--branco);
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .acoes-cell .btn-excluir-circular:hover {
+            background: #b91c1c;
+            transform: scale(1.02);
+        }
+        .acoes-cell .btn-editar {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 14px;
+            padding: 3px 10px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .acoes-cell .btn-editar:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        .acoes-cell .btn-atribuir-rapido {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 14px;
+            padding: 3px 10px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .acoes-cell .btn-atribuir-rapido:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        /* ===== FIM CORREÇÃO ===== */
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestão e Controle - Cadastro de Atividades</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.2026</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link">Principal</a>
+            <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link active">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link">Distribuicao/Atividades</a>
+            <a href="estatistica.html" class="tab-link">Estatistica</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-atividades">
+            <div class="card">
+                <h3>Adicionar Nova Atividade</h3>
+                <div class="form-group">
+                    <label>Nome da Atividade</label>
+                    <input type="text" id="novaAtividade" placeholder="Digite o nome da atividade">
+                </div>
+                <button class="btn btn-primary" onclick="adicionarAtividade()">Adicionar Atividade</button>
+            </div>
+            <div class="card">
+                <h3>Lista de Atividades Cadastradas</h3>
+                <div class="search-box">
+                    <input type="text" id="searchAtividade" placeholder="Buscar atividade..." onkeyup="filtrarAtividades()">
+                </div>
+                <div class="tabela-container">
+                    <table id="tabelaAtividades" style="width:100%; table-layout:fixed;">
+                        <colgroup>
+                            <col class="col-codigo">
+                            <col class="col-arraste">
+                            <col class="col-nome">
+                            <col class="col-acoes">
+                        </colgroup>
+                        <thead>
+                            <tr><th style="text-align:center;">Código</th><th style="text-align:center;"></th><th style="text-align:left;">Nome da Atividade</th><th style="text-align:left;">Ações</th></tr>
+                        </thead>
+                        <tbody id="corpoAtividades"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.7rem; color: #888; text-align: center;">
+                    <span>⣿</span> Arraste as linhas com o mouse para reordenar as atividades
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
+</div>
+
+<div id="modalEdicaoAtividade" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEdicao()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Servidor</label><input type="text" id="modalServidorNome" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Atividade Atual</label><input type="text" id="modalAtividadeAtual" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Substituir por</label><select id="modalNovaAtividade" class="select-atribuir-rapido" style="width:100%;padding:10px;"></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEdicao()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoAtividade()">Salvar</button></div></div></div>
+
+<script src="common.js"></script>
+<script>
+// Lista canônica de atividades já vem de common.js (const atividadesPadrao), evitando
+// manter aqui uma segunda cópia que poderia divergir com o tempo.
+
+var draggingIndex = null;
+var atividadeOriginal = null;
+
+function salvarOrdemAtividades() {
+    localStorage.setItem("seate_ordem_atividades", JSON.stringify(atividades));
+}
+
+function carregarOrdemAtividades() {
+    var storedOrdem = localStorage.getItem("seate_ordem_atividades");
+    if(storedOrdem) {
+        var ordemSalva = JSON.parse(storedOrdem);
+        var atividadesSet = new Set(atividades);
+        var ordemSet = new Set(ordemSalva);
+        var ordemValida = true;
+        for(var i = 0; i < atividades.length; i++) {
+            if(!ordemSet.has(atividades[i])) {
+                ordemValida = false;
+                break;
+            }
+        }
+        if(ordemValida && ordemSalva.length === atividades.length) {
+            atividades = ordemSalva;
+        }
+    }
+}
+
+// ============================================================
+// CORREÇÃO: Renderizar Atividades com select melhorado
+// ============================================================
+function renderizarAtividades() {
+    var tbody = document.getElementById("corpoAtividades");
+    var searchTerm = document.getElementById("searchAtividade")?.value.toLowerCase() || "";
+    var filtradas = [];
+    var indicesFiltrados = [];
+    for(var i = 0; i < atividades.length; i++) {
+        if(atividades[i].toLowerCase().indexOf(searchTerm) !== -1) {
+            filtradas.push(atividades[i]);
+            indicesFiltrados.push(i);
+        }
+    }
+    var html = "";
+    for(var f = 0; f < filtradas.length; f++) {
+        var ativ = filtradas[f];
+        var idx = atividades.indexOf(ativ);
+        var posicaoReal = idx + 1;
+        html += '<tr draggable="true" data-index="' + idx + '" data-atividade="' + escapeHtml(ativ) + '" class="atividade-linha" ondragstart="dragStart(event)" ondragend="dragEnd(event)" ondragover="dragOver(event)" ondrop="drop(event)">';
+        html += '<td style="text-align:center;">' + posicaoReal + '</td>';
+        html += '<td style="text-align:center; cursor:move; font-size:0.8rem;">';
+        html += '<span class="drag-handle">⣿⣿</span>';
+        html += '<span class="mover-botoes">';
+        html += '<button type="button" class="btn-mover" onclick="moverAtividade(' + idx + ', -1)"' + (idx === 0 ? ' disabled' : '') + '>▲</button>';
+        html += '<button type="button" class="btn-mover" onclick="moverAtividade(' + idx + ', 1)"' + (idx === atividades.length - 1 ? ' disabled' : '') + '>▼</button>';
+        html += '</span>';
+        html += '</td>';
+        html += '<td style="word-break:break-word;">' + escapeHtml(ativ) + '</td>';
+        html += '<td class="acoes-cell">';
+        html += '<button class="btn-editar" onclick="editarAtividade(' + idx + ')">Editar</button>';
+        html += '<button class="btn-excluir-circular" onclick="excluirAtividade(' + idx + ')">Excluir</button>';
+        html += '<button class="btn-atribuir-rapido" onclick="mostrarSelectAtribuicao(' + idx + ')">Atribuir</button>';
+        html += '<span id="atrib-select-' + idx + '" class="atribuicao-rapida-container">';
+        
+        // ============================================================
+        // CORREÇÃO: Select com status do servidor e lotação
+        // ============================================================
+        html += '<select id="selectFunc-' + idx + '">';
+        html += '<option value="">Selecione</option>';
+        for(var j = 0; j < servidores.length; j++) {
+            var servNome = servidores[j];
+            var estaBloqueado = bloqueios[servNome] === true;
+            var lotacao = lotacoes[j] || "SEATE";
+            var label = escapeHtml(servNome) + " (" + escapeHtml(lotacao) + ")";
+            if(estaBloqueado) {
+                label += " 🔒";
+            }
+            html += '<option value="' + escapeHtml(servNome) + '"' + (estaBloqueado ? ' style="color:#999;font-style:italic;"' : '') + '>' + label + '</option>';
+        }
+        html += '</select>';
+        // ============================================================
+        // FIM DA CORREÇÃO
+        // ============================================================
+        
+        html += '<button class="btn-atribuir-ok" onclick="confirmarAtribuicaoRapida(' + idx + ', \'' + ativ.replace(/'/g, "\\'") + '\')">OK</button>';
+        html += '<button class="btn-cancelar-pequeno" onclick="cancelarAtribuicaoRapida(' + idx + ')">Cancelar</button>';
+        html += '</span>';
+        html += '</td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+// ============================================================
+// FIM DA CORREÇÃO
+// ============================================================
+
+function dragStart(event) {
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    draggingIndex = parseInt(linha.getAttribute('data-index'));
+    atividadeOriginal = linha.getAttribute('data-atividade');
+    event.dataTransfer.setData('text/plain', draggingIndex);
+    event.dataTransfer.effectAllowed = 'move';
+    linha.classList.add('dragging');
+}
+
+function dragEnd(event) {
+    var linha = event.target.closest('tr');
+    if(linha) { linha.classList.remove('dragging'); }
+    var todasLinhas = document.querySelectorAll('#corpoAtividades tr');
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+    draggingIndex = null;
+    atividadeOriginal = null;
+}
+
+function dragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndex !== null && draggingIndex !== targetIndex) {
+        var todasLinhas = document.querySelectorAll('#corpoAtividades tr');
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        linha.classList.add('drag-over');
+    }
+}
+
+function drop(event) {
+    event.preventDefault();
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndex === null || draggingIndex === targetIndex) {
+        var todasLinhas = document.querySelectorAll('#corpoAtividades tr');
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        return;
+    }
+    var atividadeMovida = atividades[draggingIndex];
+    atividades.splice(draggingIndex, 1);
+    var novoIndex = targetIndex;
+    if(draggingIndex < targetIndex) { novoIndex = targetIndex - 1; }
+    atividades.splice(novoIndex, 0, atividadeMovida);
+    salvarOrdemAtividades();
+    salvarAtividades();
+    var novasAtribuicoes = {};
+    for(var a in atribuicoes) { novasAtribuicoes[a] = atribuicoes[a]; }
+    atribuicoes = novasAtribuicoes;
+    salvarAtribuicoes();
+    renderizarAtividades();
+    atualizarSelects();
+    if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    feedback("Atividade movida com sucesso!");
+    var todasLinhas = document.querySelectorAll('#corpoAtividades tr');
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+}
+
+// ==================== MOVER ATIVIDADE (ALTERNATIVA TOUCH AO ARRASTAR) ====================
+function moverAtividade(idx, direcao) {
+    var novoIndex = idx + direcao;
+    if(novoIndex < 0 || novoIndex >= atividades.length) return;
+    var temp = atividades[idx];
+    atividades[idx] = atividades[novoIndex];
+    atividades[novoIndex] = temp;
+    salvarOrdemAtividades();
+    salvarAtividades();
+    renderizarAtividades();
+    atualizarSelects();
+    if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    feedback("Atividade movida com sucesso!");
+}
+
+function adicionarAtividade() { 
+    var nova = document.getElementById("novaAtividade").value.trim(); 
+    if(!nova) { feedback("Digite o nome!"); return; } 
+    if(atividades.indexOf(nova) !== -1) { feedback("Ja cadastrada!"); return; } 
+    atividades.push(nova); 
+    salvarAtividades(); 
+    salvarOrdemAtividades();
+    renderizarAtividades(); 
+    atualizarSelects(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    atualizarSelectVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+    document.getElementById("novaAtividade").value = ""; 
+    feedback("Adicionada!"); 
+}
+
+function editarAtividade(idx) { 
+    var novo = prompt("Novo nome:", atividades[idx]); 
+    if(novo && novo.trim()) { 
+        novo = novo.trim(); 
+        if(atividades.indexOf(novo) !== -1 && atividades[idx] !== novo) { feedback("Nome ja existe!"); return; } 
+        var antigo = atividades[idx]; 
+        atividades[idx] = novo; 
+        if(atribuicoes[antigo]) { 
+            atribuicoes[novo] = atribuicoes[antigo]; 
+            delete atribuicoes[antigo]; 
+            salvarAtribuicoes(); 
+        } 
+        salvarAtividades(); 
+        salvarOrdemAtividades();
+        renderizarAtividades(); 
+        atualizarSelects(); 
+        renderizarListaServidoresAtribuicoes(); 
+        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+        if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
+        if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+        feedback("Editada!"); 
+    } 
+}
+
+function excluirAtividade(idx) { 
+    var nome = atividades[idx]; 
+    if(confirm("Excluir \"" + nome + "\"?")) { 
+        atividades.splice(idx,1); 
+        if(atribuicoes[nome]) delete atribuicoes[nome]; 
+        salvarAtividades(); 
+        salvarOrdemAtividades();
+        salvarAtribuicoes(); 
+        renderizarAtividades(); 
+        atualizarSelects(); 
+        renderizarListaServidoresAtribuicoes(); 
+        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+        if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
+        if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+        feedback("Excluida!"); 
+    } 
+}
+
+function filtrarAtividades() { renderizarAtividades(); }
+
+function mostrarSelectAtribuicao(idx) { 
+    var divSelect = document.getElementById("atrib-select-" + idx);
+    if(divSelect) {
+        if(divSelect.style.display === "none" || divSelect.style.display === "") {
+            divSelect.style.display = "inline-flex";
+        } else {
+            divSelect.style.display = "none";
+        }
+    }
+}
+
+function cancelarAtribuicaoRapida(idx) { 
+    var divSelect = document.getElementById("atrib-select-" + idx);
+    if(divSelect) divSelect.style.display = "none";
+}
+
+// ============================================================
+// CORREÇÃO: Função confirmarAtribuicaoRapida com validações
+// ============================================================
+function confirmarAtribuicaoRapida(idx, nomeAtividade) { 
+    var serv = document.getElementById("selectFunc-" + idx).value; 
+    if(!serv) { feedback("⚠️ Selecione um servidor!"); return; } 
+    
+    // VALIDAÇÃO 1: Verificar se o servidor existe na lista
+    if(servidores.indexOf(serv) === -1) {
+        feedback("⚠️ Servidor não encontrado na lista de cadastrados!");
+        cancelarAtribuicaoRapida(idx);
+        return;
+    }
+    
+    // VALIDAÇÃO 2: Verificar se o servidor está bloqueado
+    var storedBloqueios = localStorage.getItem("seate_bloqueios");
+    var bloqueios = storedBloqueios ? JSON.parse(storedBloqueios) : {};
+    if(bloqueios[serv] === true) {
+        feedback("⚠️ Servidor \"" + serv + "\" está BLOQUEADO! Não é possível atribuir.");
+        cancelarAtribuicaoRapida(idx);
+        return;
+    }
+    
+    // VALIDAÇÃO 3: Verificar se já está atribuída
+    var lista = atribuicoes[nomeAtividade] || []; 
+    if(lista.indexOf(serv) !== -1) { 
+        feedback("⚠️ Atividade já atribuída a \"" + serv + "\"!"); 
+        cancelarAtribuicaoRapida(idx); 
+        return; 
+    } 
+    
+    // ATRIBUIÇÃO VÁLIDA
+    lista.push(serv); 
+    atribuicoes[nomeAtividade] = lista; 
+    salvarAtribuicoes(); 
+    feedback("✅ Atividade atribuída a \"" + serv + "\" com sucesso!"); 
+    cancelarAtribuicaoRapida(idx); 
+    renderizarListaServidoresAtribuicoes(); 
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+}
+// ============================================================
+// FIM DA CORREÇÃO
+// ============================================================
+
+async function carregarDadosCompletos() {
+    await carregarDados();
+    var storedAtividades = localStorage.getItem("seate_atividades");
+    if(!storedAtividades) {
+        atividades = [...atividadesPadrao];
+        salvarAtividades();
+        salvarOrdemAtividades();
+    } else {
+        carregarOrdemAtividades();
+    }
+}
+
+async function iniciarPagina() {
+    var sessao = await exigirAutenticacao();
+    if (!sessao) return;
+    await carregarDadosCompletos();
+    renderizarAtividades();
+    atualizarSelects();
+    atualizarSelectVisualizacao();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    atualizarDisplayMes();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
+</script>
+</body>
+</html>

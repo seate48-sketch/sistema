@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Migrar Dados para Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 900px; margin: 0 auto; background: #f5f5f5; }
+        .ok { color: green; font-weight: bold; }
+        .erro { color: red; font-weight: bold; }
+        .info { color: blue; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #1F4E79; color: white; border: none; border-radius: 8px; margin: 5px; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; background: white; }
+        .titulo { color: #0F2D52; border-bottom: 3px solid #FFB347; padding-bottom: 10px; }
+        .log { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; margin-top: 15px; }
+        .log-erro { color: #ff4444; }
+        .log-ok { color: #00ff00; }
+        .log-info { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <h1 class="titulo">📤 Migrar Dados para Supabase</h1>
+    <p>Este script vai transferir os dados do <strong>localStorage</strong> para o <strong>Supabase</strong>.</p>
+
+    <div>
+        <button onclick="verificarDados()">🔍 Verificar Dados</button>
+        <button onclick="migrarDados()" id="btnMigrar">🚀 Iniciar Migração</button>
+        <button onclick="testarConexao()">🔌 Testar Conexão</button>
+        <button onclick="limparLog()">🗑️ Limpar Log</button>
+    </div>
+
+    <div id="resultado" style="margin-top: 20px;"></div>
+    <div id="log" class="log">📋 Aguardando ações...</div>
+
+    <script>
+        // ============================================================
+        // COLE A SUA CHAVE ANON AQUI (copiada do Supabase Settings → API)
+        // ============================================================
+        const SUPABASE_URL = 'https://jkkmwdqvevbqxpxcojgn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impra213ZHF2ZXZicXhweGNvamduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTY3MDEsImV4cCI6MjA5ODE3MjcwMX0.Zok9UHWIn7k9GdcvEVTjy5AoNLHzaavTHcsbileeHX0'; // ← SUBSTITUA PELA CHAVE COMPLETA!
+
+        // ===== VARIÁVEIS GLOBAIS =====
+        let supabaseClient = null;
+        let logDiv = document.getElementById('log');
+
+        // ===== FUNÇÃO DE LOG =====
+        function log(mensagem, tipo) {
+            if (!logDiv) logDiv = document.getElementById('log');
+            const data = new Date().toLocaleTimeString();
+            let cor = '';
+            let prefixo = 'ℹ️';
+            if (tipo === 'ok') { cor = 'log-ok'; prefixo = '✅'; }
+            else if (tipo === 'erro') { cor = 'log-erro'; prefixo = '❌'; }
+            else if (tipo === 'info') { cor = 'log-info'; prefixo = '⚠️'; }
+            const linha = `[${data}] ${prefixo} ${mensagem}`;
+            logDiv.innerHTML += `<div class="${cor}">${linha}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(linha);
+        }
+
+        function limparLog() {
+            logDiv.innerHTML = '📋 Log limpo.';
+        }
+
+        // ===== INICIALIZAR SUPABASE =====
+        function initSupabase() {
+            try {
+                if (typeof window.supabase === 'undefined') {
+                    log('Biblioteca Supabase não carregada! Verifique sua conexão com a internet.', 'erro');
+                    return false;
+                }
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                log('Cliente Supabase criado com sucesso!', 'ok');
+                return true;
+            } catch (e) {
+                log('Erro ao criar cliente Supabase: ' + e.message, 'erro');
+                return false;
+            }
+        }
+
+        // ===== TESTAR CONEXÃO =====
+        function testarConexao() {
+            log('Testando conexão com Supabase...', 'info');
+            if (!supabaseClient) {
+                if (!initSupabase()) return;
+            }
+            supabaseClient.from('dados_estatisticos').select('*').limit(1)
+                .then(res => {
+                    if (res.error) {
+                        log('Erro na conexão: ' + res.error.message, 'erro');
+                    } else {
+                        log('Conexão OK! Dados encontrados: ' + res.data.length, 'ok');
+                    }
+                })
+                .catch(err => {
+                    log('Erro: ' + err.message, 'erro');
+                });
+        }
+
+        // ===== VERIFICAR DADOS NO LOCALSTORAGE =====
+        function verificarDados() {
+            log('Verificando dados no localStorage...', 'info');
+            try {
+                const dadosEst = localStorage.getItem('seate_dados_estatisticos');
+                const servidores = localStorage.getItem('seate_servidores');
+                const lotacoes = localStorage.getItem('seate_lotacoes');
+                const atividades = localStorage.getItem('seate_atividades');
+                const atribuicoes = localStorage.getItem('seate_atribuicoes');
+
+                log('📅 dados_estatisticos: ' + (dadosEst ? '✅ Encontrado' : '❌ Não encontrado'), dadosEst ? 'ok' : 'erro');
+                log('👤 servidores: ' + (servidores ? '✅ Encontrado' : '❌ Não encontrado'), servidores ? 'ok' : 'erro');
+                log('📋 lotacoes: ' + (lotacoes ? '✅ Encontrado' : '❌ Não encontrado'), lotacoes ? 'ok' : 'erro');
+                log('📋 atividades: ' + (atividades ? '✅ Encontrado' : '❌ Não encontrado'), atividades ? 'ok' : 'erro');
+                log('🔗 atribuicoes: ' + (atribuicoes ? '✅ Encontrado' : '❌ Não encontrado'), atribuicoes ? 'ok' : 'erro');
+
+                // Mostrar resumo
+                let html = '<div class="card"><h3>📊 Resumo dos dados no localStorage</h3>';
+                html += `<p>📅 dados_estatisticos: ${dadosEst ? '✅ Encontrado' : '❌ Não encontrado'}</p>`;
+                html += `<p>👤 servidores: ${servidores ? '✅ Encontrado' : '❌ Não encontrado'}</p>`;
+                html += `<p>📋 lotacoes: ${lotacoes ? '✅ Encontrado' : '❌ Não encontrado'}</p>`;
+                html += `<p>📋 atividades: ${atividades ? '✅ Encontrado' : '❌ Não encontrado'}</p>`;
+                html += `<p>🔗 atribuicoes: ${atribuicoes ? '✅ Encontrado' : '❌ Não encontrado'}</p>`;
+
+                if (servidores) {
+                    const lista = JSON.parse(servidores);
+                    html += `<p><strong>Servidores cadastrados:</strong> ${lista.length}</p>`;
+                    html += `<ul>`;
+                    for (const s of lista) {
+                        html += `<li>${s}</li>`;
+                    }
+                    html += `</ul>`;
+                }
+                html += '</div>';
+                document.getElementById('resultado').innerHTML = html;
+
+                log('Verificação concluída!', 'ok');
+            } catch (e) {
+                log('Erro ao verificar dados: ' + e.message, 'erro');
+            }
+        }
+
+        // ===== MIGRAR DADOS =====
+        async function migrarDados() {
+            const btn = document.getElementById('btnMigrar');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Migrando...';
+            log('🚀 Iniciando migração de dados...', 'info');
+
+            if (!supabaseClient) {
+                if (!initSupabase()) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 Iniciar Migração';
+                    return;
+                }
+            }
+
+            try {
+                // 1. MIGRAR SERVIDORES
+                const servidoresStr = localStorage.getItem('seate_servidores');
+                if (servidoresStr) {
+                    const servidores = JSON.parse(servidoresStr);
+                    const lotacoes = JSON.parse(localStorage.getItem('seate_lotacoes') || '[]');
+                    const bloqueios = JSON.parse(localStorage.getItem('seate_bloqueios') || '{}');
+                    let count = 0;
+
+                    for (const serv of servidores) {
+                        const idx = servidores.indexOf(serv);
+                        const lotacao = lotacoes[idx] || 'SEATE';
+                        const bloqueado = bloqueios[serv] || false;
+
+                        const { error } = await supabaseClient
+                            .from('servidores')
+                            .upsert({ nome: serv, lotacao: lotacao, bloqueado: bloqueado }, { onConflict: 'nome' });
+
+                        if (error) {
+                            log('Erro ao migrar servidor ' + serv + ': ' + error.message, 'erro');
+                        } else {
+                            count++;
+                        }
+                    }
+                    log('✅ Servidores migrados: ' + count, 'ok');
+                }
+
+                // 2. MIGRAR ATIVIDADES
+                const atividadesStr = localStorage.getItem('seate_atividades');
+                if (atividadesStr) {
+                    const atividades = JSON.parse(atividadesStr);
+                    const ordem = JSON.parse(localStorage.getItem('seate_ordem_atividades') || '[]');
+                    let count = 0;
+
+                    for (const ativ of atividades) {
+                        const pos = ordem.indexOf(ativ);
+                        const { error } = await supabaseClient
+                            .from('atividades')
+                            .upsert({ nome: ativ, ordem: pos >= 0 ? pos : 0 }, { onConflict: 'nome' });
+
+                        if (error) {
+                            log('Erro ao migrar atividade ' + ativ + ': ' + error.message, 'erro');
+                        } else {
+                            count++;
+                        }
+                    }
+                    log('✅ Atividades migradas: ' + count, 'ok');
+                }
+
+                // 3. MIGRAR DADOS ESTATÍSTICOS
+                const dadosEstStr = localStorage.getItem('seate_dados_estatisticos');
+                if (dadosEstStr) {
+                    const dados = JSON.parse(dadosEstStr);
+                    let count = 0;
+                    let erros = 0;
+
+                    for (const ano in dados) {
+                        for (const atividade in dados[ano]) {
+                            const meses = dados[ano][atividade];
+                            for (const mes in meses) {
+                                if (mes !== 'Total' && mes !== 'TotalGeral' && mes !== 'TotalAnual') {
+                                    const valor = meses[mes] || 0;
+                                    if (valor > 0) {
+                                        // Determinar setor
+                                        let setor = 'SEATE';
+                                        if (atividade.includes('NAHORA') || atividade.includes('Nahora')) {
+                                            setor = 'NAHORA';
+                                        }
+                                        const { error } = await supabaseClient
+                                            .from('dados_estatisticos')
+                                            .upsert({
+                                                ano: ano,
+                                                setor: setor,
+                                                atividade: atividade,
+                                                mes: mes,
+                                                valor: valor
+                                            }, { onConflict: 'ano, setor, atividade, mes' });
+
+                                        if (error) {
+                                            erros++;
+                                            log('Erro ao migrar ' + atividade + ' (' + mes + '): ' + error.message, 'erro');
+                                        } else {
+                                            count++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    log('✅ Dados estatísticos migrados: ' + count + ' (erros: ' + erros + ')', 'ok');
+                }
+
+                // 4. MIGRAR ATRIBUIÇÕES
+                const atribuicoesStr = localStorage.getItem('seate_atribuicoes');
+                if (atribuicoesStr) {
+                    const atribuicoes = JSON.parse(atribuicoesStr);
+                    let count = 0;
+
+                    for (const ativ in atribuicoes) {
+                        for (const serv of atribuicoes[ativ]) {
+                            const { error } = await supabaseClient
+                                .from('atribuicoes')
+                                .upsert({ atividade: ativ, servidor: serv }, { onConflict: 'atividade, servidor' });
+
+                            if (error) {
+                                log('Erro ao migrar atribuição ' + ativ + ' → ' + serv + ': ' + error.message, 'erro');
+                            } else {
+                                count++;
+                            }
+                        }
+                    }
+                    log('✅ Atribuições migradas: ' + count, 'ok');
+                }
+
+                log('🎉 MIGRAÇÃO CONCLUÍDA COM SUCESSO!', 'ok');
+                document.getElementById('resultado').innerHTML = '<div class="card"><h3>🎉 MIGRAÇÃO CONCLUÍDA!</h3><p>Todos os dados foram transferidos para o Supabase.</p></div>';
+
+            } catch (e) {
+                log('Erro durante a migração: ' + e.message, 'erro');
+                console.error(e);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Iniciar Migração';
+        }
+
+        // ===== INICIALIZAR =====
+        log('📋 Página carregada! Clique em "Verificar Dados" para começar.', 'info');
+        initSupabase();
+    </script>
+</body>
+</html>

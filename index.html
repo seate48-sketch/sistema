@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Painel Principal</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ===== ESTILOS COMPLETOS (mantidos) ===== */
+        .linha-busca-botao {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .linha-busca-botao .search-box { flex: 3; margin-bottom: 0; }
+        .linha-busca-botao .btn-suspender { flex: 0 0 auto; margin-bottom: 0; }
+        
+        .btn-suspender {
+            background: var(--perigo);
+            color: var(--branco);
+            border: none;
+            border-radius: 30px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: 0.2s;
+            height: 36px;
+            white-space: nowrap;
+        }
+        .btn-suspender:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-suspender.suspenso { background: var(--verde); }
+        
+        .comunicados-tres-colunas {
+            display: flex;
+            gap: 16px;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+        .comunicado-coluna {
+            flex: 1 1 33.33%;
+            min-width: 0;
+            max-width: 33.33%;
+        }
+        .comunicado-divider {
+            width: 1px;
+            background: var(--cinza-borda);
+            margin: 0;
+            flex-shrink: 0;
+        }
+        .comunicado-coluna .form-group { margin-bottom: 10px; }
+        .comunicado-coluna textarea {
+            height: 60px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            font-size: 0.85rem;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            resize: vertical;
+        }
+        .comunicado-coluna select {
+            padding: 8px;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            font-size: 0.85rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .comunicado-coluna .ultima-mensagem {
+            display: block;
+            padding: 6px 8px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            min-height: 20px;
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 6px;
+            word-wrap: break-word;
+        }
+        .comunicado-coluna .label-helper {
+            display: block;
+            font-size: 0.65rem;
+            color: #888;
+            margin-top: 2px;
+            font-style: italic;
+        }
+        .btn-enviar-individual {
+            background: var(--destaque);
+            color: var(--azul-marinho);
+            border: none;
+            border-radius: 40px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+        .btn-enviar-individual:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-acoes-coluna { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-acoes-coluna .btn { font-size: 0.7rem; padding: 5px 12px; }
+        
+        .indicadores-grid { margin-bottom: 0; }
+        
+        .acesso-rapido-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .acesso-rapido-item {
+            background: var(--cinza-suave);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--cinza-borda);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .acesso-rapido-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .acesso-rapido-nome {
+            font-weight: 600;
+            color: var(--azul-marinho);
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .acesso-rapido-status {
+            font-size: 10px;
+            margin-top: 2px;
+            margin-bottom: 6px;
+        }
+        .acesso-rapido-status.iniciado {
+            color: var(--azul-institucional);
+        }
+        .acesso-rapido-status.nao-iniciado {
+            color: var(--perigo);
+        }
+        .acesso-rapido-btn {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 4px 12px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+            align-self: flex-start;
+            margin-top: 4px;
+        }
+        .acesso-rapido-btn:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        
+        .linha-mes-referencia {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .linha-mes-referencia .form-group {
+            flex: 0 0 auto;
+            margin-bottom: 0;
+        }
+        .linha-mes-referencia .form-group select,
+        .linha-mes-referencia .form-group input {
+            width: 120px;
+            padding: 8px 10px;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            font-size: 0.85rem;
+        }
+        .linha-mes-referencia .btn {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            margin-top: 0;
+        }
+        
+        .btn-ano {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 6px 14px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-ano:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        
+        .btn-ano-atual {
+            background: var(--destaque);
+            border: 1px solid var(--destaque);
+            border-radius: 20px;
+            padding: 6px 20px;
+            color: var(--azul-marinho);
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-ano-atual:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .info-mes-atual {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+            display: block;
+        }
+        
+        .card-header-com-botao {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .card-header-com-botao h3 {
+            color: var(--azul-marinho);
+            border-left: 4px solid var(--destaque);
+            padding-left: 12px;
+            margin: 0;
+        }
+        .card-header-com-botao .btn-suspender {
+            flex-shrink: 0;
+        }
+        
+        .acoes-cell {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .acoes-cell .btn-bloquear,
+        .acoes-cell .btn-editar,
+        .acoes-cell .btn-excluir-circular {
+            padding: 4px 14px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        
+        .btn-msg-enviar {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 4px 14px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-msg-enviar:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        
+        .btn-msg-excluir {
+            background: var(--perigo);
+            border: none;
+            border-radius: 20px;
+            padding: 4px 14px;
+            color: var(--branco);
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-msg-excluir:hover {
+            background: #b91c1c;
+            transform: scale(1.02);
+        }
+        
+        .modal-estatistica {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+        }
+        .modal-estatistica-content {
+            background: var(--branco);
+            margin: 3% auto;
+            max-width: 95%;
+            width: 95%;
+            max-height: 90vh;
+            border-radius: 24px;
+            animation: slideDown 0.25s;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-estatistica-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 2px solid var(--cinza-borda);
+            background: var(--azul-marinho);
+            color: var(--branco);
+            border-radius: 24px 24px 0 0;
+            flex-shrink: 0;
+        }
+        .modal-estatistica-header h3 {
+            margin: 0;
+        }
+        .modal-estatistica-body {
+            padding: 22px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-estatistica-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 22px;
+            border-top: 1px solid var(--cinza-borda);
+            flex-shrink: 0;
+        }
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--branco);
+        }
+        
+        .tabela-estatistica-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .tabela-estatistica {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .tabela-estatistica th {
+            background: var(--cinza-suave);
+            color: var(--azul-marinho);
+            font-weight: 600;
+            padding: 8px 4px;
+            text-align: center;
+            border-bottom: 2px solid var(--cinza-borda);
+            white-space: nowrap;
+        }
+        .tabela-estatistica td {
+            padding: 6px 4px;
+            text-align: center;
+            border-bottom: 1px solid var(--cinza-borda);
+            vertical-align: middle;
+        }
+        .tabela-estatistica tr:hover {
+            background: var(--cinza-suave);
+        }
+        .tabela-estatistica .input-mes-estatistica {
+            width: 55px;
+            padding: 4px 2px;
+            text-align: center;
+            border: 1px solid var(--cinza-borda);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            background: var(--branco);
+        }
+        .tabela-estatistica .input-mes-estatistica:focus {
+            outline: none;
+            border-color: var(--azul-institucional);
+        }
+        .tabela-estatistica .input-mes-estatistica:disabled {
+            background: #f0f0f0;
+            color: #666;
+            cursor: not-allowed;
+        }
+        .tabela-estatistica .input-total-anual {
+            width: 80px;
+            padding: 4px 2px;
+            text-align: center;
+            border: 1px solid var(--cinza-borda);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            background: var(--branco);
+            font-weight: 600;
+        }
+        .tabela-estatistica .input-total-anual:focus {
+            outline: none;
+            border-color: var(--azul-institucional);
+        }
+        .tabela-estatistica .input-total-anual:disabled {
+            background: #f0f0f0;
+            color: #666;
+            cursor: not-allowed;
+        }
+        .tabela-estatistica .total-coluna {
+            background: var(--destaque);
+            color: var(--azul-marinho);
+            font-weight: 700;
+        }
+        
+        .card-duplo {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            align-items: flex-start;
+        }
+        .card-duplo .card-metade {
+            flex: 1;
+            min-width: 280px;
+            padding: 8px 16px;
+        }
+        .card-duplo .card-metade:first-child {
+            border-right: 2px solid var(--cinza-borda);
+        }
+        .card-duplo .card-metade h3 {
+            color: var(--azul-marinho);
+            margin-bottom: 12px;
+            border-left: 4px solid var(--destaque);
+            padding-left: 12px;
+        }
+        
+        .btn-travar {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 6px 16px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+        .btn-travar:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        .btn-travar.travado {
+            background: var(--perigo);
+            border-color: var(--perigo);
+            color: var(--branco);
+        }
+        .btn-travar.travado:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+        }
+        
+        .modal-grafico .modal-estatistica-content {
+            max-width: 800px;
+            width: 90%;
+        }
+        
+        @media (max-width: 768px) {
+            .card-duplo .card-metade {
+                flex: 1 1 100%;
+                padding: 8px 12px;
+            }
+            .card-duplo .card-metade:first-child {
+                border-right: none;
+                border-bottom: 2px solid var(--cinza-borda);
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
+            .comunicados-tres-colunas { flex-wrap: wrap; }
+            .comunicado-coluna { flex: 1 1 100%; max-width: 100%; }
+            .comunicado-divider { display: none; }
+            .linha-mes-referencia .form-group select,
+            .linha-mes-referencia .form-group input {
+                width: 100px;
+            }
+            .modal-estatistica-content { max-width: 98%; width: 98%; }
+        }
+        @media (max-width: 768px) {
+            .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
+            .acesso-rapido-grid { grid-template-columns: 1fr; }
+            .linha-mes-referencia .form-group select,
+            .linha-mes-referencia .form-group input {
+                width: 80px;
+            }
+            .tab-link { padding: 8px 12px; font-size: 0.85rem; }
+            .acoes-cell { gap: 4px; }
+            .acoes-cell .btn-bloquear,
+            .acoes-cell .btn-editar,
+            .acoes-cell .btn-excluir-circular {
+                padding: 3px 8px;
+                font-size: 0.6rem;
+            }
+            .btn-msg-enviar,
+            .btn-msg-excluir {
+                padding: 3px 10px;
+                font-size: 0.6rem;
+            }
+            .btn-ano { font-size: 0.65rem; padding: 4px 12px; }
+            .btn-ano-atual { font-size: 0.65rem; padding: 4px 12px; }
+            .btn-travar { font-size: 0.65rem; padding: 4px 10px; }
+            .tabela-estatistica { font-size: 0.65rem; }
+            .tabela-estatistica .input-mes-estatistica { width: 32px; font-size: 0.6rem; padding: 2px 0; }
+            .tabela-estatistica .input-total-anual { width: 50px; font-size: 0.6rem; padding: 2px 0; }
+            .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
+            .card-header-com-botao { flex-direction: column; align-items: stretch; }
+            .card-header-com-botao .btn-suspender { align-self: flex-start; }
+            .grafico-container canvas { height: 180px !important; max-height: 180px; }
+            .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
+        }
+        @media (max-width: 480px) {
+            .indicadores-grid { grid-template-columns: 1fr; }
+            .grafico-container canvas { height: 150px !important; max-height: 150px; }
+        }
+
+        /* ===== MODAL DE LOGIN ===== */
+        .app-blur {
+            filter: blur(10px);
+            transition: filter 0.25s ease;
+            pointer-events: none;
+            user-select: none;
+        }
+        .modal-login-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 45, 82, 0.35);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 16px;
+        }
+        .modal-login-card {
+            width: 100%;
+            max-width: 380px;
+            background: var(--branco);
+            border: 1px solid var(--cinza-borda);
+            border-radius: 24px;
+            padding: 32px 36px;
+            box-shadow: 0 8px 40px rgba(15, 45, 82, 0.25);
+        }
+        .modal-login-logo {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        .modal-login-logo img {
+            max-width: 200px;
+        }
+        .modal-login-card h3 {
+            text-align: center;
+            color: var(--azul-marinho);
+            margin-bottom: 22px;
+            border: none;
+            padding: 0;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            font-size: 0.95rem;
+            margin-top: 6px;
+        }
+        .login-erro {
+            color: var(--perigo);
+            font-size: 0.8rem;
+            margin-top: 10px;
+            min-height: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div id="modalLogin" class="modal-login-overlay">
+    <div class="modal-login-card">
+        <div class="modal-login-logo">
+            <img src="image.png" alt="Justica Federal - SJDF">
+        </div>
+        <h3>Acesso Administrativo</h3>
+        <form id="formLogin">
+            <div class="form-group">
+                <label>E-mail</label>
+                <input type="email" id="loginEmail" required autocomplete="username" value="admin@seate.local">
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="loginSenha" required autocomplete="current-password" value="seate2026">
+            </div>
+            <button type="submit" class="btn btn-primary btn-login" id="btnEntrar">Entrar</button>
+            <div class="login-erro" id="loginErro"></div>
+        </form>
+    </div>
+</div>
+<div class="app-container" id="appContainer">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestão e Controle</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.001</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link active">Principal</a>
+            <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link">Distribuição/Atividades</a>
+            <a href="estatistica.html" class="tab-link">Estatística</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-principal">
+            <!-- ===== CARD: MÊS DE REFERÊNCIA + DADOS ESTATÍSTICOS ===== -->
+            <div class="card card-duplo">
+                <div class="card-metade">
+                    <h3>Mês de Referência</h3>
+                    <div class="linha-mes-referencia">
+                        <div class="form-group">
+                            <label>Mês</label>
+                            <select id="configMes">
+                                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+                                <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+                                <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+                                <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ano</label>
+                            <input type="number" id="configAno" value="2025">
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="salvarConfigMes()">Salvar Configuração</button>
+                        </div>
+                    </div>
+                    <span class="info-mes-atual" id="mesConfiguradoDisplay">Mês atual: Janeiro/2025</span>
+                </div>
+                
+                <div class="card-metade">
+                    <h3>Dados Estatísticos</h3>
+                    <div class="grupo-botoes-anos" id="grupoBotoesAnos" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; border-left: none; padding-left: 0;"></div>
+                </div>
+            </div>
+            
+            <!-- ===== CARD: INDICADORES GERAIS ===== -->
+            <div class="card">
+                <h3>Indicadores Gerais</h3>
+                <div class="indicadores-grid" id="indicadoresGrid"></div>
+            </div>
+            
+            <!-- ===== CARD: STATUS DOS SERVIDORES ===== -->
+            <div class="card">
+                <div class="card-header-com-botao">
+                    <h3>Status dos Servidores / Colaboradores</h3>
+                    <button id="btnSuspenderRegistros" class="btn-suspender" onclick="alternarSuspensaoRegistros()">Suspender Registros</button>
+                </div>
+                <div id="listaFuncionariosPrincipal" class="lista-funcionarios-principal"></div>
+            </div>
+
+            <!-- ===== CARD: ACESSO RÁPIDO ===== -->
+            <div class="card">
+                <h3>Acesso Rápido aos Registros</h3>
+                <div id="acessoRapidoLista" class="acesso-rapido-grid"></div>
+            </div>
+
+            <!-- ===== CARD: COMUNICAÇÃO ===== -->
+            <div class="card">
+                <h3>Comunicação com os Funcionários</h3>
+                <div class="comunicados-tres-colunas">
+                    <div class="comunicado-coluna">
+                        <div class="form-group">
+                            <label>Comunicado Geral <span class="label-helper">Mensagem fixa no registro</span></label>
+                            <textarea id="comunicadoSupervisor" rows="3" placeholder="Digite o comunicado que será exibido para todos os servidores..."></textarea>
+                        </div>
+                        <div class="btn-acoes-coluna">
+                            <button class="btn-msg-enviar" onclick="salvarComunicado()">Enviar</button>
+                            <button class="btn-msg-excluir" onclick="deletarTodasMensagens()">Excluir Todos</button>
+                        </div>
+                        <div style="margin-top:8px; font-size:0.75rem; color:#888;">
+                            <strong>Últimos comunicados:</strong>
+                            <div id="listaComunicados" style="margin-top:4px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="comunicado-divider"></div>
+                    
+                    <div class="comunicado-coluna">
+                        <div class="form-group">
+                            <label>Mensagem Emergente <span class="label-helper">Mensagem antes da abertura do registro</span></label>
+                            <textarea id="mensagemEmergente" rows="2" placeholder="Digite a mensagem emergente..."></textarea>
+                        </div>
+                        <div class="btn-acoes-coluna">
+                            <button class="btn-msg-enviar" onclick="enviarMensagemEmergente()">Enviar para Todos</button>
+                            <button class="btn-msg-excluir" onclick="excluirMensagemEmergente()">Excluir</button>
+                        </div>
+                        <div style="margin-top:8px; font-size:0.75rem; color:#888;">
+                            <strong>Última enviada:</strong>
+                            <span id="ultimaMensagemEmergente" class="ultima-mensagem"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="comunicado-divider"></div>
+                    
+                    <div class="comunicado-coluna">
+                        <div class="form-group">
+                            <label>Mensagem Individual <span class="label-helper">Mensagem exclusiva</span></label>
+                            <select id="selectServidorIndividual">
+                                <option value="">Selecione um servidor...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="mensagemIndividual" rows="1" placeholder="Digite a mensagem para o servidor..."></textarea>
+                        </div>
+                        <div class="btn-acoes-coluna">
+                            <button class="btn-msg-enviar" onclick="enviarMensagemIndividual()">Enviar para Servidor</button>
+                            <button class="btn-msg-excluir" onclick="excluirMensagemIndividual()">Excluir</button>
+                        </div>
+                        <div style="margin-top:8px; font-size:0.75rem; color:#888;">
+                            <strong>Última enviada:</strong>
+                            <span id="ultimaMensagemIndividual" class="ultima-mensagem"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestão de Atividades | Justiça Federal - SJDF</div>
+</div>
+
+<!-- Modal Edição Servidor -->
+<div id="modalEdicaoServidor" class="modal-edicao-servidor"><div class="modal-edicao-servidor-content"><div class="modal-edicao-servidor-header"><h3>Editar Servidor</h3><span class="modal-close" onclick="fecharModalEdicaoServidor()">&times;</span></div><div class="modal-edicao-servidor-body"><div class="form-group"><label>Nome</label><input type="text" id="modalEditarNome"></div><div class="form-group"><label>Lotação</label><select id="modalEditarLotacao"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option></select></div></div><div class="modal-edicao-servidor-footer"><button class="btn btn-neutral" onclick="fecharModalEdicaoServidor()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoServidor()">Salvar</button></div></div></div>
+
+<!-- Modal Estatística -->
+<div id="modalEstatistica" class="modal-estatistica">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3><span id="modalEstatisticaTitulo">Alimentar Dados Estatísticos - 2022</span></h3>
+            <button class="btn-travar" id="btnTravarEdicao" onclick="alternarTravarEdicao()">🔒 Travar Edição</button>
+            <span class="modal-close" onclick="fecharModalEstatistica()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div id="listaAtividadesEstatistica"></div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-primary" onclick="salvarDadosEstatisticaModal()">Salvar</button>
+            <button class="btn btn-neutral" onclick="fecharModalEstatistica()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Gráfico Evolução Anual -->
+<div id="modalGraficoEvolucao" class="modal-estatistica modal-grafico">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3>📊 Evolução Anual - SEATE vs NAHORA</h3>
+            <span class="modal-close" onclick="fecharModalGraficoEvolucao()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div class="grafico-container">
+                <canvas id="graficoEvolucaoAnual"></canvas>
+            </div>
+            <div style="margin-top:12px; text-align:center; font-size:0.75rem; color:#888;">
+                Clique nas barras para ver os detalhes de cada ano e setor
+            </div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="fecharModalGraficoEvolucao()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+// ==================== DADOS DOS RELATÓRIOS ====================
+const dadosRelatorios = {
+    totalAnual: {
+        "2022": { "Sede II": 100944, "Sede III": 9742, "NAHORA": 7929, "Total": 118615 },
+        "2023": { "Sede II": 79741, "Sede III": 19900, "NAHORA": 9722, "Total": 109363 },
+        "2024": { "Sede II": 67213, "Sede III": 20767, "NAHORA": 10930, "Total": 98910 },
+        "2025": { "Sede II": 80561, "Sede III": 12333, "NAHORA": 9955, "Total": 102849 },
+        "2026": { "Sede II": 0, "Sede III": 0, "NAHORA": 0, "Total": 0 }
+    }
+};
+
+// ==================== DADOS FIXOS (2022 a 2025) ====================
+const dadosFixos = {
+    "2022": {
+        seate: 110686,
+        nahora: 7929,
+        totalGeral: 118615
+    },
+    "2023": {
+        seate: 99641,
+        nahora: 9722,
+        totalGeral: 109363
+    },
+    "2024": {
+        seate: 87980,
+        nahora: 10930,
+        totalGeral: 98910
+    },
+    "2025": {
+        seate: 92894,
+        nahora: 9955,
+        totalGeral: 102849
+    }
+};
+
+// ==================== DADOS ESTATÍSTICOS PRÉ-PREENCHIDOS (PARA DETALHAMENTO) ====================
+const dadosPreenchidos = {
+    "2022": {
+        "SEATE": {
+            "ATEND TELEFÔNICO": 28553,
+            "ATEND PRESENCIAL": 2455,
+            "ATEND POR E-MAIL": 9184,
+            "CAD /PARTES E ADV NO PJE/E-PROC": 2411,
+            "BAIXA ARQUIVOS E-PROC": 0,
+            "CERT DE MILITÂNCIA": 857,
+            "CERT DE OBJETO E PÉ": 95,
+            "CERT DE AUTOR": 915,
+            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 20675,
+            "ANÁLISE PROCESSUAL": 0,
+            "DESARQUIVAMENTO DE PROCESSOS": 461,
+            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 121,
+            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 0,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 30006,
+            "CONSULTA PROCESSUAL": 0,
+            "PESQUISA ORACLE/PROCESSUAL": 0,
+            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 4988,
+            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 699,
+            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 7895,
+            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 0,
+            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 0,
+            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 368,
+            "REQUERIMENTO DE JUNTADA": 0,
+            "JUNTADA DE PETIÇÕES": 0,
+            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 0,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 280,
+            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 102,
+            "MALOTE DIGITAL": 0,
+            "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0,
+            "JUNTADA E ASSINATURA DE DOC PjE": 0,
+            "DEVOLUÇÃO DE PROCESSOS": 0,
+            "DIVISÃO PASTAS SERVIDORES": 0,
+            "PASTA P/ SEI": 0,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 256,
+            "TERMO DE COMPARECIMENTO": 365
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 7929,
+            "ATERMAÇÃO": 0,
+            "CERTIDÕES ORACLE/PJE": 0,
+            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 0,
+            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMAÇÕES GERAIS": 0
+        }
+    },
+    "2023": {
+        "SEATE": {
+            "ATEND TELEFÔNICO": 31072,
+            "ATEND PRESENCIAL": 10052,
+            "ATEND POR E-MAIL": 6645,
+            "CAD /PARTES E ADV NO PJE/E-PROC": 2647,
+            "BAIXA ARQUIVOS E-PROC": 0,
+            "CERT DE MILITÂNCIA": 476,
+            "CERT DE OBJETO E PÉ": 127,
+            "CERT DE AUTOR": 5790,
+            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 13449,
+            "ANÁLISE PROCESSUAL": 0,
+            "DESARQUIVAMENTO DE PROCESSOS": 698,
+            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 23,
+            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 0,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 11127,
+            "CONSULTA PROCESSUAL": 0,
+            "PESQUISA ORACLE/PROCESSUAL": 0,
+            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 5458,
+            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 771,
+            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 8974,
+            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 0,
+            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 0,
+            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 469,
+            "REQUERIMENTO DE JUNTADA": 0,
+            "JUNTADA DE PETIÇÕES": 0,
+            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 0,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 324,
+            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 92,
+            "MALOTE DIGITAL": 0,
+            "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0,
+            "JUNTADA E ASSINATURA DE DOC PjE": 0,
+            "DEVOLUÇÃO DE PROCESSOS": 0,
+            "DIVISÃO PASTAS SERVIDORES": 0,
+            "PASTA P/ SEI": 0,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 821,
+            "TERMO DE COMPARECIMENTO": 626
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 9722,
+            "ATERMAÇÃO": 0,
+            "CERTIDÕES ORACLE/PJE": 0,
+            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 0,
+            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMAÇÕES GERAIS": 0
+        }
+    },
+    "2024": {
+        "SEATE": {
+            "ATEND TELEFÔNICO": [2486, 2599, 2435, 2936, 2272, 2863, 2308, 3049, 3315, 3315, 2769, 2127],
+            "ATEND PRESENCIAL": [439, 369, 351, 391, 317, 408, 425, 414, 401, 396, 352, 241],
+            "ATEND POR E-MAIL": [263, 517, 572, 471, 348, 466, 466, 894, 987, 872, 860, 500],
+            "CAD /PARTES E ADV NO PJE/E-PROC": [262, 344, 356, 285, 225, 198, 178, 240, 149, 216, 145, 406],
+            "BAIXA ARQUIVOS E-PROC": [0, 0, 0, 0, 0, 0, 0, 0, 33, 90, 670, 423],
+            "CERT DE MILITÂNCIA": [9, 4, 32, 11, 4, 4, 22, 30, 50, 93, 95, 37],
+            "CERT DE OBJETO E PÉ": [5, 357, 34, 6, 1, 2, 19, 23, 16, 3, 8, 20],
+            "CERT DE AUTOR": [56, 553, 609, 774, 703, 5, 30, 64, 807, 7, 13, 40],
+            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": [911, 999, 1150, 1276, 970, 1256, 2165, 5605, 714, 1346, 1222, 1306],
+            "ANÁLISE PROCESSUAL": [0, 0, 0, 0, 0, 68, 419, 751, 573, 390, 231, 191],
+            "DESARQUIVAMENTO DE PROCESSOS": [84, 37, 79, 113, 53, 16, 10, 157, 221, 113, 37, 21],
+            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": [2, 3, 12, 5, 0, 0, 16, 7, 7, 1, 0, 1],
+            "ANÁLISE DEVOLUÇÃO DE CUSTAS": [0, 0, 0, 0, 0, 3, 38, 115, 17, 6, 8, 13],
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "CONSULTA PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 67, 44, 238, 191, 63],
+            "PESQUISA ORACLE/PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 432, 91, 165, 1, 0],
+            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": [268, 319, 537, 500, 220, 119, 76, 119, 138, 335, 167, 81],
+            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": [26, 8, 5, 12, 40, 15, 11, 9, 8, 0, 0, 23],
+            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": [195, 428, 1, 600, 242, 0, 560, 43, 0, 5, 920, 224],
+            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0],
+            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": [117, 15, 0, 81, 85, 74, 60, 50, 17, 0, 0, 0],
+            "REQUERIMENTO DE JUNTADA": [12, 6, 0, 1, 0, 4, 4, 0, 0, 1, 0, 0],
+            "JUNTADA DE PETIÇÕES": [111, 107, 95, 130, 100, 116, 123, 128, 127, 134, 307, 91],
+            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": [0, 0, 0, 0, 16, 13, 30, 29, 41, 12, 23, 10],
+            "ATEND SEI": [0, 0, 0, 0, 0, 69, 28, 19, 5, 19, 20, 14],
+            "ATEND TEAMS": [0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0],
+            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": [0, 0, 0, 0, 0, 6, 28, 11, 6, 7, 0, 0],
+            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": [12, 12, 10, 10, 21, 13, 10, 16, 13, 19, 0, 0],
+            "MALOTE DIGITAL": [0, 0, 0, 0, 0, 1, 4, 10, 2, 2, 0, 0],
+            "PROCESSOS SEI": [0, 0, 0, 0, 0, 80, 43, 117, 105, 83, 0, 0],
+            "CONSULTA SEEU": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "JUNTADA E ASSINATURA DE DOC PjE": [0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0],
+            "DEVOLUÇÃO DE PROCESSOS": [0, 0, 0, 0, 0, 0, 7, 79, 67, 228, 0, 0],
+            "DIVISÃO PASTAS SERVIDORES": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": [43, 35, 34, 26, 26, 40, 20, 20, 35, 26, 44, 27],
+            "TERMO DE COMPARECIMENTO": [93, 65, 31, 36, 35, 44, 40, 37, 29, 34, 31, 38]
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": [911, 802, 924, 1125, 372, 402, 409, 412, 348, 439, 401, 327],
+            "ATERMAÇÃO": [35, 32, 51, 46, 56, 50, 59, 51, 0, 0, 0, 0],
+            "CERTIDÕES ORACLE/PJE": [448, 600, 522, 437, 251, 323, 169, 229, 0, 0, 0, 0],
+            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": [7, 8, 12, 21, 23, 20, 10, 2, 0, 0, 0, 0],
+            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": [42, 18, 54, 50, 63, 52, 28, 30, 0, 0, 0, 0],
+            "INFORMAÇÕES GERAIS": [34, 16, 23, 33, 41, 43, 37, 32, 0, 0, 0, 0]
+        }
+    },
+    "2025": {
+        "SEATE": {
+            "ATEND TELEFÔNICO": 34815,
+            "ATEND PRESENCIAL": 4630,
+            "ATEND POR E-MAIL": 8471,
+            "CAD /PARTES E ADV NO PJE/E-PROC": 1576,
+            "BAIXA ARQUIVOS E-PROC": 997,
+            "CERT DE MILITÂNCIA": 617,
+            "CERT DE OBJETO E PÉ": 166,
+            "CERT DE AUTOR": 151,
+            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 18908,
+            "ANÁLISE PROCESSUAL": 5910,
+            "DESARQUIVAMENTO DE PROCESSOS": 1201,
+            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 84,
+            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 1276,
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 0,
+            "CONSULTA PROCESSUAL": 5599,
+            "PESQUISA ORACLE/PROCESSUAL": 495,
+            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 1812,
+            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 95,
+            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 886,
+            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 52,
+            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 332,
+            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 413,
+            "REQUERIMENTO DE JUNTADA": 197,
+            "JUNTADA DE PETIÇÕES": 907,
+            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 69,
+            "ATEND SEI": 0,
+            "ATEND TEAMS": 0,
+            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 23,
+            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 144,
+            "MALOTE DIGITAL": 66,
+            "PROCESSOS SEI": 988,
+            "CONSULTA SEEU": 60,
+            "JUNTADA E ASSINATURA DE DOC PjE": 280,
+            "DEVOLUÇÃO DE PROCESSOS": 460,
+            "DIVISÃO PASTAS SERVIDORES": 223,
+            "PASTA P/ SEI": 42,
+            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 564,
+            "TERMO DE COMPARECIMENTO": 385
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 6253,
+            "ATERMAÇÃO": 252,
+            "CERTIDÕES ORACLE/PJE": 2622,
+            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 98,
+            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 397,
+            "INFORMAÇÕES GERAIS": 333
+        }
+    }
+};
+
+// ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
+async function calcularDadosMensaisAnoAtual() {
+    var totais = await obterTotaisAnoAtual();
+    var dadosPorAtividade = {};
+    for (var ativ in totais.porAtividadeMesSeate) {
+        dadosPorAtividade[ativ] = Object.assign({}, totais.porAtividadeMesSeate[ativ]);
+    }
+    for (var ativ in totais.porAtividadeMesNahora) {
+        if (!dadosPorAtividade[ativ]) dadosPorAtividade[ativ] = {};
+        for (var mes in totais.porAtividadeMesNahora[ativ]) {
+            dadosPorAtividade[ativ][mes] = (dadosPorAtividade[ativ][mes] || 0) + totais.porAtividadeMesNahora[ativ][mes];
+        }
+    }
+    return { totaisMensais: totais.porMes, dadosPorAtividade: dadosPorAtividade };
+}
+
+// ==================== RENDERIZAR INDICADORES ====================
+async function renderizarIndicadores() {
+    var container = document.getElementById("indicadoresGrid");
+    var anos = getAnosDisponiveis();
+    var cores = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
+    var html = '';
+    
+    var totalSeateGeral = 0;
+    var totalNahoraGeral = 0;
+    
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var isAnoAtual = (ano === ANO_ATUAL);
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        seateTotal = totaisAno.seateTotal;
+        nahoraTotal = totaisAno.nahoraTotal;
+        
+        totalSeateGeral += seateTotal;
+        totalNahoraGeral += nahoraTotal;
+    }
+    
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var cor = cores[i % cores.length];
+        var isAnoAtual = (ano === ANO_ATUAL);
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
+        var totaisAno2 = await obterSeateNahoraPorAno(ano);
+        seateTotal = totaisAno2.seateTotal;
+        nahoraTotal = totaisAno2.nahoraTotal;
+        
+        var totalGeral = seateTotal + nahoraTotal;
+        
+        html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
+        html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
+        html += '<div class="indicador-valor">' + (totalGeral > 0 ? totalGeral.toLocaleString() : '--') + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + seateTotal.toLocaleString() + ' | NAHORA: ' + nahoraTotal.toLocaleString() + '</div>';
+        html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        html += '</div>';
+    }
+    
+    var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
+    html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
+    html += '<div class="indicador-titulo">TOTAL GERAL</div>';
+    html += '<div class="indicador-valor">' + totalGeralFinal.toLocaleString() + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + totalSeateGeral.toLocaleString() + ' | NAHORA: ' + totalNahoraGeral.toLocaleString() + '</div>';
+    html += '<div class="indicador-status">Clique para ver evolução anual</div>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// ==================== ABRIR MODAL INDICADOR ====================
+// Variáveis de trava INDIVIDUAIS para cada ano
+var edicaoTravada2022 = false;
+var edicaoTravada2023 = false;
+var edicaoTravada2024 = false;
+var edicaoTravada2025 = false;
+// Anos seguintes usam window['edicaoTravada' + ano] dinamicamente (ver abrirModalIndicador), sem necessidade de declarar cada um.
+
+async function abrirModalIndicador(ano, setor) {
+    try {
+        var isMensal = (ano === "2024" || ano === ANO_ATUAL);
+        var isAnual = (ano === "2022" || ano === "2023" || ano === "2025");
+        var titulo = ano;
+        if (setor === "SEATE") {
+            titulo = ano + " - SEATE";
+        } else if (setor === "NAHORA") {
+            titulo = ano + " - NAHORA";
+        } else {
+            titulo = ano + " - SEATE + NAHORA";
+        }
+        
+        if (isMensal) {
+            titulo = titulo + " (Mensal)";
+        } else if (isAnual) {
+            titulo = titulo + " (Total Anual)";
+        }
+        document.getElementById("modalEstatisticaTitulo").innerText = "Alimentar Dados Estatísticos - " + titulo;
+        
+        var container = document.getElementById("listaAtividadesEstatistica");
+        var html = '';
+        
+        var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        var totalGeralSeate = 0;
+        var totalGeralNahora = 0;
+        
+        var dadosSalvos = localStorage.getItem("seate_dados_estatisticos");
+        var dadosLocais = {};
+        if (dadosSalvos) {
+            dadosLocais = JSON.parse(dadosSalvos);
+        }
+        
+        var dadosAno = null;
+        if (ano === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            
+            var seateData = {};
+            var nahoraData = {};
+            
+            var atividadesSeate = dadosPreenchidos["2025"]["SEATE"];
+            var atividadesNahora = dadosPreenchidos["2025"]["NAHORA"];
+            
+            for (var ativ in atividadesSeate) {
+                seateData[ativ] = {};
+                for (var j = 0; j < meses.length; j++) {
+                    seateData[ativ][meses[j]] = (totaisAnoAtual.porAtividadeMesSeate[ativ] && totaisAnoAtual.porAtividadeMesSeate[ativ][meses[j]]) || 0;
+                }
+                seateData[ativ]["Total"] = totaisAnoAtual.porAtividadeSeate[ativ] || 0;
+            }
+            for (var ativ in atividadesNahora) {
+                nahoraData[ativ] = {};
+                for (var j = 0; j < meses.length; j++) {
+                    nahoraData[ativ][meses[j]] = (totaisAnoAtual.porAtividadeMesNahora[ativ] && totaisAnoAtual.porAtividadeMesNahora[ativ][meses[j]]) || 0;
+                }
+                nahoraData[ativ]["Total"] = totaisAnoAtual.porAtividadeNahora[ativ] || 0;
+            }
+            
+            dadosAno = {
+                "SEATE": seateData,
+                "NAHORA": nahoraData
+            };
+        } else if (ano === "2024") {
+            // 2024 é editável e vive no Supabase (não mais no localStorage nem fixo no código)
+            dadosAno = await obterDados2024();
+        } else {
+            dadosAno = dadosPreenchidos[ano];
+        }
+        
+        if (!dadosAno) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
+            document.getElementById("modalEstatistica").style.display = "block";
+            return;
+        }
+        
+        var mostrarSeate = (setor === null || setor === "SEATE");
+        var mostrarNahora = (setor === null || setor === "NAHORA");
+        
+        if (mostrarSeate) {
+            html += '<div class="titulo-secao">📍 SEATE</div>';
+            html += '<div class="tabela-estatistica-container">';
+            html += '<table class="tabela-estatistica">';
+            html += '<thead><tr>';
+            html += '<th style="text-align:left; min-width:180px;">Atividade</th>';
+            
+            if (isMensal) {
+                html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
+                html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
+                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
+            } else {
+                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">Total Anual</th>';
+            }
+            html += '</tr></thead><tbody>';
+            
+            var seateData = dadosAno["SEATE"];
+            for (var ativ in seateData) {
+                var totalAtiv = 0;
+                
+                html += '<tr>';
+                html += `<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">${escapeHtml(ativ)}</td>`;
+                
+                if (isMensal) {
+                    for (var j = 0; j < meses.length; j++) {
+                        var valorMes = 0;
+                        if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ][meses[j]] !== undefined) {
+                            valorMes = dadosLocais[ano][ativ][meses[j]];
+                        } else if (seateData[ativ] && seateData[ativ][meses[j]] !== undefined) {
+                            valorMes = seateData[ativ][meses[j]];
+                        }
+                        totalAtiv += valorMes;
+                        html += `<td><input type="number" class="input-mes-estatistica" data-atividade="${escapeHtml(ativ)}" data-mes="${meses[j]}" value="${valorMes}" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>`;
+                    }
+                    html += `<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);">${totalAtiv}</td>`;
+                } else {
+                    var valorAnual = 0;
+                    if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ]["Total"] !== undefined) {
+                        valorAnual = dadosLocais[ano][ativ]["Total"];
+                    } else if (typeof seateData[ativ] === 'number') {
+                        valorAnual = seateData[ativ];
+                    }
+                    totalAtiv = valorAnual;
+                    html += `<td><input type="number" class="input-total-anual" data-atividade="${escapeHtml(ativ)}" value="${valorAnual}" min="0" style="width:80px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem; font-weight:600;"></td>`;
+                }
+                totalGeralSeate += totalAtiv;
+                html += '</tr>';
+            }
+            
+            html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
+            html += `<td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td>`;
+            if (isMensal) {
+                var totaisMensaisSeate = {};
+                for (var j = 0; j < meses.length; j++) {
+                    totaisMensaisSeate[meses[j]] = 0;
+                }
+                var inputsSeate = document.querySelectorAll('.input-mes-estatistica');
+                for (var j = 0; j < inputsSeate.length; j++) {
+                    var inp = inputsSeate[j];
+                    var ativ = inp.getAttribute('data-atividade');
+                    var mes = inp.getAttribute('data-mes');
+                    var val = parseInt(inp.value) || 0;
+                    if (seateData[ativ] !== undefined) {
+                        totaisMensaisSeate[mes] = (totaisMensaisSeate[mes] || 0) + val;
+                    }
+                }
+                for (var j = 0; j < meses.length; j++) {
+                    html += `<td style="text-align:center; background:var(--cinza-suave);">${totaisMensaisSeate[meses[j]]}</td>`;
+                }
+                html += `<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralSeate}</td>`;
+            } else {
+                html += `<td colspan="1" style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralSeate}</td>`;
+            }
+            html += '</tr>';
+            html += '</tbody></table></div>';
+        }
+        
+        if (mostrarNahora) {
+            html += '<div class="titulo-secao">📍 NAHORA</div>';
+            html += '<div class="tabela-estatistica-container">';
+            html += '<table class="tabela-estatistica">';
+            html += '<thead><tr>';
+            html += '<th style="text-align:left; min-width:180px;">Atividade</th>';
+            
+            if (isMensal) {
+                html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
+                html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
+                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
+            } else {
+                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">Total Anual</th>';
+            }
+            html += '</tr></thead><tbody>';
+            
+            var nahoraData = dadosAno["NAHORA"];
+            for (var ativ in nahoraData) {
+                var totalAtiv = 0;
+                
+                html += '<tr>';
+                html += `<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">${escapeHtml(ativ)}</td>`;
+                
+                if (isMensal) {
+                    for (var j = 0; j < meses.length; j++) {
+                        var valorMes = 0;
+                        if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ][meses[j]] !== undefined) {
+                            valorMes = dadosLocais[ano][ativ][meses[j]];
+                        } else if (nahoraData[ativ] && nahoraData[ativ][meses[j]] !== undefined) {
+                            valorMes = nahoraData[ativ][meses[j]];
+                        }
+                        totalAtiv += valorMes;
+                        html += `<td><input type="number" class="input-mes-estatistica" data-atividade="${escapeHtml(ativ)}" data-mes="${meses[j]}" value="${valorMes}" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>`;
+                    }
+                    html += `<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);">${totalAtiv}</td>`;
+                } else {
+                    var valorAnual = 0;
+                    if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ]["Total"] !== undefined) {
+                        valorAnual = dadosLocais[ano][ativ]["Total"];
+                    } else if (typeof nahoraData[ativ] === 'number') {
+                        valorAnual = nahoraData[ativ];
+                    }
+                    totalAtiv = valorAnual;
+                    html += `<td><input type="number" class="input-total-anual" data-atividade="${escapeHtml(ativ)}" value="${valorAnual}" min="0" style="width:80px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem; font-weight:600;"></td>`;
+                }
+                totalGeralNahora += totalAtiv;
+                html += '</tr>';
+            }
+            
+            html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
+            html += `<td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td>`;
+            if (isMensal) {
+                var totaisMensaisNahora = {};
+                for (var j = 0; j < meses.length; j++) {
+                    totaisMensaisNahora[meses[j]] = 0;
+                }
+                var inputsNahora = document.querySelectorAll('.input-mes-estatistica');
+                for (var j = 0; j < inputsNahora.length; j++) {
+                    var inp = inputsNahora[j];
+                    var ativ = inp.getAttribute('data-atividade');
+                    var mes = inp.getAttribute('data-mes');
+                    var val = parseInt(inp.value) || 0;
+                    if (nahoraData[ativ] !== undefined) {
+                        totaisMensaisNahora[mes] = (totaisMensaisNahora[mes] || 0) + val;
+                    }
+                }
+                for (var j = 0; j < meses.length; j++) {
+                    html += `<td style="text-align:center; background:var(--cinza-suave);">${totaisMensaisNahora[meses[j]]}</td>`;
+                }
+                html += `<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralNahora}</td>`;
+            } else {
+                html += `<td colspan="1" style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralNahora}</td>`;
+            }
+            html += '</tr>';
+            html += '</tbody></table></div>';
+        }
+        
+        if (setor === null) {
+            html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+            html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (totalGeralSeate + totalGeralNahora).toLocaleString();
+            html += '</div>';
+        }
+        
+        if (isMensal) {
+            html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">';
+            html += '💡 Os totais são calculados automaticamente ao salvar.';
+            html += '</div>';
+        } else {
+            html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">';
+            html += '💡 Informe o total anual para cada atividade.';
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+        
+        // ============================================================
+        // RESTAURAR ESTADO DE TRAVAMENTO PARA O ANO ATUAL
+        // ============================================================
+        var travaVar = 'edicaoTravada' + ano;
+        var travaAtual = window[travaVar] || false;
+        var btn = document.getElementById("btnTravarEdicao");
+        var inputs = document.querySelectorAll('#listaAtividadesEstatistica input');
+        
+        if (travaAtual) {
+            btn.innerHTML = '🔓 Liberar Edição';
+            btn.classList.add('travado');
+            for (var i = 0; i < inputs.length; i++) {
+                inputs[i].disabled = true;
+                inputs[i].style.backgroundColor = '#f0f0f0';
+                inputs[i].style.cursor = 'not-allowed';
+            }
+        } else {
+            btn.innerHTML = '🔒 Travar Edição';
+            btn.classList.remove('travado');
+            for (var i = 0; i < inputs.length; i++) {
+                inputs[i].disabled = false;
+                inputs[i].style.backgroundColor = '';
+                inputs[i].style.cursor = '';
+            }
+        }
+        // ============================================================
+        
+        if (isMensal) {
+            var inputs = document.querySelectorAll('.input-mes-estatistica');
+            for (var i = 0; i < inputs.length; i++) {
+                inputs[i].addEventListener('input', function() {
+                    recalcularTotalLinha(this);
+                });
+            }
+        }
+        
+        document.getElementById("modalEstatistica").style.display = "block";
+        anoEstatisticaSelecionado = ano;
+        
+    } catch(e) {
+        console.warn('Erro ao abrir modal indicador:', e.message);
+        feedback("Erro ao abrir modal!");
+    }
+}
+
+function salvarDadosEstatisticaModal() {
+    try {
+        var ano = anoEstatisticaSelecionado || "2024";
+        var isMensal = (ano === "2024" || ano === ANO_ATUAL);
+        var isAnual = (ano === "2022" || ano === "2023" || ano === "2025");
+        
+        if (isMensal) {
+            var inputs = document.querySelectorAll('.input-mes-estatistica');
+            var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+            var dadosSalvos = {};
+            
+            for (var i = 0; i < inputs.length; i++) {
+                var inp = inputs[i];
+                var atividade = inp.getAttribute('data-atividade');
+                var mes = inp.getAttribute('data-mes');
+                var valor = parseInt(inp.value) || 0;
+                
+                if (!dadosSalvos[ano]) dadosSalvos[ano] = {};
+                if (!dadosSalvos[ano][atividade]) dadosSalvos[ano][atividade] = {};
+                dadosSalvos[ano][atividade][mes] = valor;
+            }
+            
+            for (var ativ in dadosSalvos[ano]) {
+                var total = 0;
+                for (var j = 0; j < meses.length; j++) {
+                    total += dadosSalvos[ano][ativ][meses[j]] || 0;
+                }
+                dadosSalvos[ano][ativ]["Total"] = total;
+            }
+            
+            if (ano === "2024") {
+                // 2024 é editável de verdade: grava no Supabase, separado por setor
+                var atividadesSeate2024 = dadosPreenchidos["2025"]["SEATE"];
+                var dadosSeate2024 = {};
+                var dadosNahora2024 = {};
+                for (var ativ in dadosSalvos[ano]) {
+                    var alvo = (atividadesSeate2024[ativ] !== undefined) ? dadosSeate2024 : dadosNahora2024;
+                    alvo[ativ] = {};
+                    for (var j = 0; j < meses.length; j++) {
+                        alvo[ativ][meses[j]] = dadosSalvos[ano][ativ][meses[j]] || 0;
+                    }
+                }
+                dbSalvarDados2024(dadosSeate2024, dadosNahora2024);
+                invalidarCacheDados2024();
+            } else {
+                var dadosExistentes = localStorage.getItem("seate_dados_estatisticos");
+                var dadosCompletos = dadosExistentes ? JSON.parse(dadosExistentes) : {};
+                for (var ativ in dadosSalvos[ano]) {
+                    if (!dadosCompletos[ano]) dadosCompletos[ano] = {};
+                    dadosCompletos[ano][ativ] = dadosSalvos[ano][ativ];
+                }
+                localStorage.setItem("seate_dados_estatisticos", JSON.stringify(dadosCompletos));
+            }
+            
+        } else if (isAnual) {
+            var inputsTotal = document.querySelectorAll('.input-total-anual');
+            var dadosSalvos = {};
+            
+            for (var i = 0; i < inputsTotal.length; i++) {
+                var inp = inputsTotal[i];
+                var atividade = inp.getAttribute('data-atividade');
+                var valor = parseInt(inp.value) || 0;
+                
+                if (!dadosSalvos[ano]) dadosSalvos[ano] = {};
+                if (!dadosSalvos[ano][atividade]) dadosSalvos[ano][atividade] = {};
+                dadosSalvos[ano][atividade]["Total"] = valor;
+                
+                var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+                var valorMensal = Math.round(valor / 12);
+                for (var j = 0; j < meses.length; j++) {
+                    dadosSalvos[ano][atividade][meses[j]] = valorMensal;
+                }
+                var somaMeses = 0;
+                for (var j = 0; j < meses.length; j++) {
+                    somaMeses += dadosSalvos[ano][atividade][meses[j]];
+                }
+                if (somaMeses !== valor && valor > 0) {
+                    var diferenca = valor - somaMeses;
+                    dadosSalvos[ano][atividade]["Dezembro"] += diferenca;
+                }
+            }
+            
+            var dadosExistentes = localStorage.getItem("seate_dados_estatisticos");
+            var dadosCompletos = dadosExistentes ? JSON.parse(dadosExistentes) : {};
+            for (var ativ in dadosSalvos[ano]) {
+                if (!dadosCompletos[ano]) dadosCompletos[ano] = {};
+                dadosCompletos[ano][ativ] = dadosSalvos[ano][ativ];
+            }
+            localStorage.setItem("seate_dados_estatisticos", JSON.stringify(dadosCompletos));
+        }
+        
+        feedback("Dados salvos com sucesso!");
+        fecharModalEstatistica();
+        
+        if (typeof atualizarEstatisticas === 'function') {
+            atualizarEstatisticas();
+        }
+        
+    } catch(e) {
+        console.warn('Erro ao salvar dados estatísticos:', e.message);
+        feedback("Erro ao salvar dados!");
+    }
+}
+
+// ==================== FUNÇÃO PARA ALTERNAR TRAVAR EDIÇÃO (INDIVIDUAL) ====================
+function alternarTravarEdicao() {
+    var ano = anoEstatisticaSelecionado || "2024";
+    var travaVar = 'edicaoTravada' + ano;
+    var travaAtual = window[travaVar] || false;
+    travaAtual = !travaAtual;
+    window[travaVar] = travaAtual;
+    
+    var btn = document.getElementById("btnTravarEdicao");
+    var inputs = document.querySelectorAll('#listaAtividadesEstatistica input');
+    
+    if (travaAtual) {
+        btn.innerHTML = '🔓 Liberar Edição';
+        btn.classList.add('travado');
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].disabled = true;
+            inputs[i].style.backgroundColor = '#f0f0f0';
+            inputs[i].style.cursor = 'not-allowed';
+        }
+        feedback("Campos travados para edição!");
+    } else {
+        btn.innerHTML = '🔒 Travar Edição';
+        btn.classList.remove('travado');
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].disabled = false;
+            inputs[i].style.backgroundColor = '';
+            inputs[i].style.cursor = '';
+        }
+        feedback("Campos liberados para edição!");
+    }
+}
+
+// ==================== FUNÇÃO PARA ABRIR MODAL ESTATÍSTICA (BOTÕES) ====================
+function abrirModalEstatistica(ano) {
+    anoEstatisticaSelecionado = ano;
+    abrirModalIndicador(ano, null);
+}
+
+// ==================== FUNÇÃO AUXILIAR ====================
+function getLotacaoServidorPorNome(nome) {
+    var idx = servidores.indexOf(nome);
+    if (idx !== -1) {
+        return lotacoes[idx] || "SEATE";
+    }
+    return "SEATE";
+}
+
+function fecharModalEstatistica() {
+    document.getElementById("modalEstatistica").style.display = "none";
+}
+
+// ==================== FUNÇÃO PARA ABRIR GRÁFICO EVOLUÇÃO ANUAL ====================
+function abrirModalGraficoEvolucao() {
+    try {
+        document.getElementById("modalGraficoEvolucao").style.display = "block";
+        setTimeout(function() {
+            criarGraficoEvolucao();
+        }, 300);
+    } catch(e) {
+        console.warn('Erro ao abrir gráfico evolução:', e.message);
+        feedback("Erro ao abrir gráfico!");
+    }
+}
+
+function fecharModalGraficoEvolucao() {
+    document.getElementById("modalGraficoEvolucao").style.display = "none";
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
+    }
+}
+
+function criarGraficoEvolucao() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+    var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
+    var anos = getAnosDisponiveis();
+    var seateValues = [];
+    var nahoraValues = [];
+    
+    async function montar() {
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        seateValues.push(totaisAno.seateTotal);
+        nahoraValues.push(totaisAno.nahoraTotal);
+    }
+    
+    var coresSeate = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
+    var coresNahora = ['#B30000', '#CC3333', '#E66666', '#FF9999', '#FFCCCC'];
+    
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
+    }
+    
+    window.chartEvolucao = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: anos,
+            datasets: [
+                {
+                    label: 'SEATE',
+                    data: seateValues,
+                    backgroundColor: coresSeate,
+                    borderColor: coresSeate.map(c => c),
+                    borderWidth: 1,
+                    datasetIndex: 0
+                },
+                {
+                    label: 'NAHORA',
+                    data: nahoraValues,
+                    backgroundColor: coresNahora,
+                    borderColor: coresNahora.map(c => c),
+                    borderWidth: 1,
+                    datasetIndex: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(tooltipItems) {
+                            var ano = tooltipItems[0].label;
+                            var setor = tooltipItems[0].dataset.label;
+                            return 'Clique para ver detalhes de ' + setor + ' - ' + ano;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value.toLocaleString(); },
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 10 } }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    var index = elements[0].index;
+                    var datasetIndex = elements[0].datasetIndex;
+                    var anos = getAnosDisponiveis();
+                    var ano = anos[index];
+                    var setor = datasetIndex === 0 ? "SEATE" : "NAHORA";
+                    fecharModalGraficoEvolucao();
+                    abrirModalIndicador(ano, setor);
+                }
+            }
+        },
+        plugins: [{
+            afterDraw: function(chart) {
+                var ctx = chart.ctx;
+                chart.data.datasets.forEach(function(dataset, datasetIndex) {
+                    var meta = chart.getDatasetMeta(datasetIndex);
+                    meta.data.forEach(function(bar, index) {
+                        var data = dataset.data[index];
+                        if (data > 0) {
+                            ctx.fillStyle = '#0F2D52';
+                            ctx.font = 'bold 11px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            var x = bar.x;
+                            var y = bar.y - 4;
+                            ctx.fillText(data.toLocaleString(), x, y);
+                        }
+                    });
+                });
+            }
+        }]
+    });
+    }
+    montar();
+}
+
+// ==================== FUNÇÕES EXISTENTES ====================
+function renderizarBotoesAnos() {
+    var container = document.getElementById("grupoBotoesAnos");
+    var anos = getAnosDisponiveis();
+    var html = '';
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var classe = (ano === ANO_ATUAL) ? "btn-ano-atual" : "btn-ano";
+        html += '<button class="' + classe + '" onclick="abrirModalEstatistica(\'' + ano + '\')" style="padding: 6px 22px;">' + ano + '</button>';
+    }
+    container.innerHTML = html;
+}
+
+function renderizarAcessoRapido() {
+    var container = document.getElementById("acessoRapidoLista");
+    if(servidores.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;grid-column:1/-1;">Nenhum funcionário cadastrado</div>';
+        return;
+    }
+    var html = '';
+    for(var i = 0; i < servidores.length; i++) {
+        var nome = servidores[i];
+        var preenchido = verificarPreenchimento(nome);
+        var statusText = preenchido ? "Iniciado" : "Não iniciado";
+        var statusClass = preenchido ? "iniciado" : "nao-iniciado";
+        html += '<div class="acesso-rapido-item">';
+        html += '<span class="acesso-rapido-nome" title="' + escapeHtml(nome) + '">' + escapeHtml(nome) + '</span>';
+        html += '<span class="acesso-rapido-status ' + statusClass + '">' + statusText + '</span>';
+        html += '<button class="acesso-rapido-btn" onclick="acessarRegistro(\'' + nome.replace(/'/g, "\\'") + '\')">Acessar Registro</button>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+function atualizarListaFuncionariosPrincipal() {
+    var container = document.getElementById("listaFuncionariosPrincipal");
+    var filtrados = servidores.slice();
+    if(filtrados.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">Nenhum funcionário cadastrado</div>';
+        return;
+    }
+    var html = '<table class="ranking-table"><thead><tr><th>Servidores / Colaboradores</th><th>Lotação</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
+    for(var i = 0; i < filtrados.length; i++) {
+        var nome = filtrados[i];
+        var lotacao = getLotacaoServidor(nome);
+        var status = getStatusServidor(nome);
+        var statusText = status === "liberado" ? "Liberado" : "Bloqueado";
+        var statusClass = status === "liberado" ? "status-liberado" : "status-bloqueado";
+        var acaoTexto = status === "liberado" ? "Bloquear" : "Liberar";
+        html += '<tr><td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function abrirModalEdicaoServidorPorNome(nome) { var idx = servidores.indexOf(nome); if(idx !== -1) abrirModalEdicaoServidor(idx); }
+function excluirServidorPorNome(nome) { var idx = servidores.indexOf(nome); if(idx !== -1 && confirm("Excluir \"" + nome + "\" permanentemente?")) { excluirServidor(idx); } }
+
+function abrirModalEdicaoServidor(index) { edicaoServidorTemp.index = index; document.getElementById("modalEditarNome").value = servidores[index]; document.getElementById("modalEditarLotacao").value = lotacoes[index]; document.getElementById("modalEdicaoServidor").style.display = "block"; }
+function fecharModalEdicaoServidor() { document.getElementById("modalEdicaoServidor").style.display = "none"; }
+
+async function confirmarEdicaoServidor() {
+    var idx = edicaoServidorTemp.index, novoNome = document.getElementById("modalEditarNome").value.trim(), novaLotacao = document.getElementById("modalEditarLotacao").value;
+    if(!novoNome) { feedback("Digite o nome!"); return; }
+    if(servidores.indexOf(novoNome) !== -1 && servidores[idx] !== novoNome) { feedback("Nome já existe!"); return; }
+    var antigoNome = servidores[idx];
+    servidores[idx] = novoNome; lotacoes[idx] = novaLotacao;
+    if(antigoNome !== novoNome) {
+        bloqueios[novoNome] = bloqueios[antigoNome]; delete bloqueios[antigoNome];
+        for(var ativ in atribuicoes) { var pos = atribuicoes[ativ].indexOf(antigoNome); if(pos !== -1) atribuicoes[ativ][pos] = novoNome; }
+        var posVis = listaVisualizacao.indexOf(antigoNome); if(posVis !== -1) listaVisualizacao[posVis] = novoNome;
+        if(servidorAtualmenteSelecionado === antigoNome) servidorAtualmenteSelecionado = novoNome;
+        await renomearServidorNoBanco(antigoNome, novoNome, novaLotacao, bloqueios[novoNome]);
+    }
+    salvarServidores(); salvarLotacoes(); salvarBloqueios(); salvarAtribuicoes();
+    if(typeof renderizarServidores === 'function') renderizarServidores();
+    if(typeof atualizarSelects === 'function') atualizarSelects();
+    if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarSelectVisualizacao === 'function') atualizarSelectVisualizacao();
+    atualizarListaFuncionariosPrincipal();
+    renderizarAcessoRapido();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    fecharModalEdicaoServidor(); feedback("Editado com sucesso!");
+}
+
+async function excluirServidor(index) {
+    var nome = servidores[index];
+    if(confirm("Excluir \"" + nome + "\" permanentemente?")) {
+        servidores.splice(index, 1); lotacoes.splice(index, 1); delete bloqueios[nome];
+        for(var ativ in atribuicoes) { atribuicoes[ativ] = atribuicoes[ativ].filter(function(s) { return s !== nome; }); if(atribuicoes[ativ].length === 0) delete atribuicoes[ativ]; }
+        await excluirServidorDoBanco(nome);
+        salvarServidores(); salvarLotacoes(); salvarBloqueios(); salvarAtribuicoes();
+        if(typeof renderizarServidores === 'function') renderizarServidores();
+        if(typeof atualizarSelects === 'function') atualizarSelects();
+        if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+        if(typeof atualizarSelectVisualizacao === 'function') atualizarSelectVisualizacao();
+        atualizarListaFuncionariosPrincipal();
+        renderizarAcessoRapido();
+        var pos = listaVisualizacao.indexOf(nome); if(pos !== -1) { listaVisualizacao.splice(pos, 1); if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); }
+        feedback("Excluído com sucesso!");
+    }
+}
+
+async function salvarComunicado() {
+    var comunicado = document.getElementById("comunicadoSupervisor").value.trim();
+    if(comunicado === "") { feedback("Digite uma mensagem antes de enviar!"); return; }
+    var comunicadosSalvos = localStorage.getItem("seate_comunicados");
+    var listaComunicados = comunicadosSalvos ? JSON.parse(comunicadosSalvos) : [];
+    listaComunicados.unshift(comunicado);
+    if(listaComunicados.length > 3) { listaComunicados = listaComunicados.slice(0, 3); }
+    localStorage.setItem("seate_comunicados", JSON.stringify(listaComunicados));
+    localStorage.setItem("obs_super", comunicado);
+    document.getElementById("comunicadoSupervisor").value = "";
+    exibirListaComunicados();
+    feedback("Comunicado enviado com sucesso!");
+    if (supabaseDisponivel) {
+        try { await dbSalvarComunicados(listaComunicados); }
+        catch(e) { console.warn('Erro ao sincronizar comunicados com o Supabase:', e.message); }
+    }
+}
+
+async function deletarTodasMensagens() {
+    if(confirm("ATENÇÃO: Isso apagará todas as mensagens do comunicado supervisor para TODOS os servidores. Confirmar?")) {
+        localStorage.removeItem("seate_comunicados"); localStorage.removeItem("obs_super");
+        exibirListaComunicados(); feedback("Todas as mensagens foram apagadas!");
+        if (supabaseDisponivel) {
+            try { await dbSalvarComunicados([]); }
+            catch(e) { console.warn('Erro ao limpar comunicados no Supabase:', e.message); }
+        }
+    }
+}
+
+function exibirListaComunicados() {
+    var comunicadosSalvos = localStorage.getItem("seate_comunicados");
+    var listaComunicados = comunicadosSalvos ? JSON.parse(comunicadosSalvos) : [];
+    var container = document.getElementById("listaComunicados");
+    if(listaComunicados.length === 0) { container.innerHTML = '<span style="color:#666;">Nenhum comunicado salvo</span>'; return; }
+    var html = '';
+    for(var i = 0; i < listaComunicados.length; i++) {
+        html += '<div style="background:#f0f0f0; padding:8px 12px; border-radius:8px; margin-bottom:8px; color:#000; font-size:0.8rem;"><strong>' + (i+1) + '.</strong> ' + escapeHtml(listaComunicados[i]) + '</div>';
+    }
+    container.innerHTML = html;
+}
+
+async function carregarComunicados() {
+    if (supabaseDisponivel) {
+        try {
+            var lista = await dbCarregarComunicados();
+            if (lista && lista.length > 0) { localStorage.setItem("seate_comunicados", JSON.stringify(lista)); }
+        } catch(e) { console.warn('Erro ao carregar comunicados do Supabase:', e.message); }
+    }
+    exibirListaComunicados(); exibirUltimaMensagemEmergente(); atualizarSelectServidores(); carregarUltimaMensagemIndividual();
+}
+
+async function alternarSuspensaoRegistros() {
+    var suspenso = localStorage.getItem("seate_suspenso") === "true";
+    var btn = document.getElementById("btnSuspenderRegistros");
+    var novoValor = !suspenso;
+    if(suspenso) { localStorage.removeItem("seate_suspenso"); btn.textContent = "Suspender Registros"; btn.classList.remove("suspenso"); feedback("Registros liberados!"); }
+    else { localStorage.setItem("seate_suspenso", "true"); btn.textContent = "Liberar Registros"; btn.classList.add("suspenso"); feedback("Registros suspensos!"); }
+    if (supabaseDisponivel) {
+        try { await dbToggleSuspenso(novoValor); }
+        catch(e) { console.warn('Erro ao sincronizar suspensão com o Supabase:', e.message); }
+    }
+}
+
+async function verificarSuspensao() {
+    var suspenso = localStorage.getItem("seate_suspenso") === "true";
+    if (supabaseDisponivel) {
+        try {
+            suspenso = await dbCarregarSuspenso();
+            if (suspenso) { localStorage.setItem("seate_suspenso", "true"); } else { localStorage.removeItem("seate_suspenso"); }
+        } catch(e) { console.warn('Erro ao verificar suspensão no Supabase:', e.message); }
+    }
+    var btn = document.getElementById("btnSuspenderRegistros");
+    if(btn) {
+        if(suspenso) { btn.textContent = "Liberar Registros"; btn.classList.add("suspenso"); }
+        else { btn.textContent = "Suspender Registros"; btn.classList.remove("suspenso"); }
+    }
+}
+
+async function enviarMensagemEmergente() {
+    var mensagem = document.getElementById("mensagemEmergente").value.trim();
+    if(mensagem === "") { feedback("Digite uma mensagem antes de enviar!"); return; }
+    var idMsg = Date.now();
+    if (supabaseDisponivel) {
+        try {
+            var registro = await dbEnviarMensagemEmergente(mensagem);
+            if (registro && registro.id) { idMsg = registro.id; }
+        } catch(e) { console.warn('Erro ao enviar mensagem emergente ao Supabase:', e.message); }
+    }
+    var mensagemObj = { id: idMsg, texto: mensagem, data: new Date().toLocaleString() };
+    localStorage.setItem("seate_mensagem_emergente", JSON.stringify(mensagemObj));
+    localStorage.removeItem("seate_mensagem_vistas");
+    document.getElementById("mensagemEmergente").value = "";
+    exibirUltimaMensagemEmergente();
+    feedback("Mensagem emergente enviada com sucesso!");
+}
+
+async function excluirMensagemEmergente() {
+    if(confirm("Excluir a mensagem emergente atual?")) {
+        localStorage.removeItem("seate_mensagem_emergente");
+        localStorage.removeItem("seate_mensagem_vistas");
+        exibirUltimaMensagemEmergente();
+        feedback("Mensagem emergente excluída!");
+        if (supabaseDisponivel) {
+            try { await dbExcluirMensagemEmergente(); }
+            catch(e) { console.warn('Erro ao excluir mensagem emergente no Supabase:', e.message); }
+        }
+    }
+}
+
+function exibirUltimaMensagemEmergente() {
+    var stored = localStorage.getItem("seate_mensagem_emergente");
+    var container = document.getElementById("ultimaMensagemEmergente");
+    if(stored) { var mensagemObj = JSON.parse(stored); container.innerHTML = escapeHtml(mensagemObj.texto) + '<br><small style="color:#888;">' + mensagemObj.data + '</small>'; }
+    else { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem pendente</span>'; }
+}
+
+async function enviarMensagemIndividual() {
+    var servidor = document.getElementById("selectServidorIndividual").value;
+    var mensagem = document.getElementById("mensagemIndividual").value.trim();
+    if(!servidor) { feedback("Selecione um servidor!"); return; }
+    if(mensagem === "") { feedback("Digite uma mensagem!"); return; }
+    var idMsg = Date.now();
+    if (supabaseDisponivel) {
+        try {
+            var registro = await dbEnviarMensagemIndividual(servidor, mensagem);
+            if (registro && registro.id) { idMsg = registro.id; }
+        } catch(e) { console.warn('Erro ao enviar mensagem individual ao Supabase:', e.message); }
+    }
+    var mensagemObj = { id: idMsg, texto: mensagem, data: new Date().toLocaleString(), servidor: servidor };
+    localStorage.setItem("seate_mensagem_individual_" + servidor, JSON.stringify(mensagemObj));
+    document.getElementById("mensagemIndividual").value = "";
+    exibirUltimaMensagemIndividual(servidor);
+    feedback("Mensagem enviada para " + servidor + "!");
+}
+
+async function excluirMensagemIndividual() {
+    var servidor = document.getElementById("selectServidorIndividual").value;
+    if(!servidor) { feedback("Selecione um servidor!"); return; }
+    if(confirm("Excluir a mensagem individual de " + servidor + "?")) {
+        localStorage.removeItem("seate_mensagem_individual_" + servidor);
+        exibirUltimaMensagemIndividual(servidor);
+        feedback("Mensagem de " + servidor + " excluída!");
+        if (supabaseDisponivel) {
+            try { await dbExcluirMensagemIndividual(servidor); }
+            catch(e) { console.warn('Erro ao excluir mensagem individual no Supabase:', e.message); }
+        }
+    }
+}
+
+function exibirUltimaMensagemIndividual(servidor) {
+    var container = document.getElementById("ultimaMensagemIndividual");
+    if(!container) return;
+    if(!servidor) { servidor = document.getElementById("selectServidorIndividual")?.value; }
+    if(!servidor) { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem enviada</span>'; return; }
+    var stored = localStorage.getItem("seate_mensagem_individual_" + servidor);
+    if(stored) { var mensagemObj = JSON.parse(stored); container.innerHTML = '<strong>' + escapeHtml(servidor) + ':</strong> ' + escapeHtml(mensagemObj.texto) + '<br><small style="color:#888;">' + mensagemObj.data + '</small>'; }
+    else { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem para ' + escapeHtml(servidor) + '</span>'; }
+}
+
+function carregarUltimaMensagemIndividual() {
+    var select = document.getElementById("selectServidorIndividual");
+    if(select && select.value) { exibirUltimaMensagemIndividual(select.value); }
+}
+
+function atualizarSelectServidores() {
+    var select = document.getElementById("selectServidorIndividual");
+    if(!select) return;
+    var html = '<option value="">Selecione um servidor...</option>';
+    for(var i = 0; i < servidores.length; i++) { html += '<option value="' + escapeHtml(servidores[i]) + '">' + escapeHtml(servidores[i]) + ' (' + escapeHtml(lotacoes[i]) + ')</option>'; }
+    select.innerHTML = html;
+}
+
+// ==================== INICIALIZAÇÃO GERAL ====================
+async function iniciarPaginaPrincipal() {
+    await carregarDados();
+    if (supabaseDisponivel) { dbCarregarServidores(); }
+    atualizarListaFuncionariosPrincipal();
+    atualizarDisplayMes();
+    atualizarSelects();
+    atualizarSelectVisualizacao();
+    carregarComunicados();
+    verificarSuspensao();
+    renderizarBotoesAnos();
+    renderizarIndicadores();
+    renderizarAcessoRapido();
+    iniciarSincronizacaoTempoReal();
+}
+
+// ==================== AUTENTICAÇÃO (MODAL DE LOGIN) ====================
+async function iniciarComAutenticacao() {
+    var modalLogin = document.getElementById("modalLogin");
+    var appContainer = document.getElementById("appContainer");
+    modalLogin.style.display = "flex";
+    appContainer.classList.add("app-blur");
+
+    var sessao = await obterSessaoAtual();
+    if (sessao) {
+        modalLogin.style.display = "none";
+        appContainer.classList.remove("app-blur");
+        iniciarPaginaPrincipal();
+    }
+}
+
+document.getElementById("formLogin").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    var email = document.getElementById("loginEmail").value.trim();
+    var senha = document.getElementById("loginSenha").value;
+    var erroDiv = document.getElementById("loginErro");
+    var btn = document.getElementById("btnEntrar");
+    erroDiv.textContent = "";
+
+    if (!usarSupabase) {
+        erroDiv.textContent = "Não foi possível conectar ao servidor. Tente novamente.";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Entrando...";
+    try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email: email, password: senha });
+        if (error) {
+            erroDiv.textContent = "E-mail ou senha incorretos.";
+            btn.disabled = false;
+            btn.textContent = "Entrar";
+            return;
+        }
+        document.getElementById("modalLogin").style.display = "none";
+        document.getElementById("appContainer").classList.remove("app-blur");
+        iniciarPaginaPrincipal();
+    } catch (err) {
+        erroDiv.textContent = "Erro ao entrar: " + err.message;
+        btn.disabled = false;
+        btn.textContent = "Entrar";
+    }
+});
+
+iniciarComAutenticacao();
+
+window.onclick = function(event) {
+    var modal = document.getElementById("modalEdicaoServidor");
+    if (event.target === modal) { fecharModalEdicaoServidor(); }
+    var modalEst = document.getElementById("modalEstatistica");
+    if (event.target === modalEst) { fecharModalEstatistica(); }
+    var modalGrafico = document.getElementById("modalGraficoEvolucao");
+    if (event.target === modalGrafico) { fecharModalGraficoEvolucao(); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Distribuição de Atividades</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .lista-acumulativa-servidores {
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 10px;
+        }
+        .lista-acumulativa-servidores::-webkit-scrollbar {
+            width: 8px;
+        }
+        .lista-acumulativa-servidores::-webkit-scrollbar-track {
+            background: var(--cinza-claro);
+            border-radius: 10px;
+        }
+        .lista-acumulativa-servidores::-webkit-scrollbar-thumb {
+            background: var(--azul-institucional);
+            border-radius: 10px;
+        }
+        .lista-acumulativa-servidores::-webkit-scrollbar-thumb:hover {
+            background: var(--azul-marinho);
+        }
+        .lista-acumulativa-servidores {
+            scrollbar-width: thin;
+            scrollbar-color: var(--azul-institucional) var(--cinza-claro);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestão e Controle - Distribuição de Tarefas</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.2026</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link">Principal</a>
+            <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link active">Distribuição/Atividades</a>
+            <a href="estatistica.html" class="tab-link">Estatística</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-visualizar">
+            <div class="card">
+                <h3>Selecione o Servidor/Colaborador e Visualize suas Tarefas</h3>
+                <div class="linha-dupla">
+                    <div class="form-group">
+                        <label>Selecione um Servidor</label>
+                        <select id="selectServidorVisualizar">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="adicionarServidorListaVisualizacao()" style="margin-top:28px;">Adicionar à Lista</button>
+                    </div>
+                </div>
+                <div id="listaVisualizacaoServidores" class="lista-acumulativa-servidores">
+                    <div class="quadro-atividades" style="text-align:center;color:#888;">Nenhum servidor adicionado.</div>
+                </div>
+                <div style="text-align:center; margin-top:16px;">
+                    <button class="btn-fechar-lista" onclick="fecharListaVisualizacao()">Fechar Lista</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestão de Atividades | Justiça Federal - SJDF</div>
+</div>
+
+<div id="modalEdicaoVisualizacao" class="modal-edicao-visualizacao">
+    <div class="modal-edicao-visualizacao-content">
+        <div class="modal-edicao-visualizacao-header">
+            <h3>Editar Atividade</h3>
+            <span class="modal-close" onclick="fecharModalEdicaoVisualizacao()">&times;</span>
+        </div>
+        <div class="modal-edicao-visualizacao-body">
+            <div class="form-group">
+                <label>Servidor</label>
+                <input type="text" id="modalVisServidorNome" readonly style="background:var(--cinza-claro);">
+            </div>
+            <div class="form-group">
+                <label>Atividade Atual</label>
+                <input type="text" id="modalVisAtividadeAtual" readonly style="background:var(--cinza-claro);">
+            </div>
+            <div class="form-group">
+                <label>Substituir por</label>
+                <select id="modalVisNovaAtividade" class="select-atribuir-rapido" style="width:100%; padding:10px;"></select>
+            </div>
+        </div>
+        <div class="modal-edicao-visualizacao-footer">
+            <button class="btn btn-neutral" onclick="fecharModalEdicaoVisualizacao()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmarEdicaoAtividadeVisualizacao()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+function salvarListaVisualizacao() {
+    localStorage.setItem("seate_lista_visualizacao", JSON.stringify(listaVisualizacao));
+}
+
+function carregarListaVisualizacao() {
+    var stored = localStorage.getItem("seate_lista_visualizacao");
+    if(stored) {
+        listaVisualizacao = JSON.parse(stored);
+    } else {
+        listaVisualizacao = [];
+    }
+}
+
+function adicionarServidorListaVisualizacao() { 
+    var serv = document.getElementById("selectServidorVisualizar").value; 
+    if(!serv) { 
+        feedback("Selecione um servidor!"); 
+        return; 
+    } 
+    if(listaVisualizacao.indexOf(serv) !== -1) { 
+        feedback("Já na lista!"); 
+        return; 
+    } 
+    listaVisualizacao.push(serv); 
+    salvarListaVisualizacao();
+    renderizarListaVisualizacao(); 
+    feedback("Adicionado!"); 
+    document.getElementById("selectServidorVisualizar").value = ""; 
+}
+
+function renderizarListaVisualizacao() { 
+    var container = document.getElementById("listaVisualizacaoServidores"); 
+    if(listaVisualizacao.length === 0) { 
+        container.innerHTML = '<div class="quadro-atividades" style="text-align:center;color:#888;">Nenhum servidor adicionado.</div>'; 
+        return; 
+    } 
+    var html = ""; 
+    for(var i = 0; i < listaVisualizacao.length; i++) { 
+        var nome = listaVisualizacao[i]; 
+        var lot = getLotacaoServidor(nome); 
+        var ativs = []; 
+        for(var a in atribuicoes) { 
+            if(atribuicoes[a].indexOf(nome) !== -1) ativs.push(a); 
+        } 
+        html += '<div class="servidor-card">';
+        html += '<div class="servidor-card-header">';
+        html += '<div><span class="servidor-card-titulo">' + escapeHtml(nome) + '</span><span class="servidor-card-lotacao">' + escapeHtml(lot) + '</span></div>';
+        html += '<button class="btn-acessar-registros" onclick="acessarRegistro(\'' + nome.replace(/'/g, "\\'") + '\')">Acessar Registros</button>';
+        html += '</div>';
+        if(ativs.length === 0) { 
+            html += '<div class="sem-atividades" style="padding:16px;text-align:center;">Nenhuma atividade</div>'; 
+        } else { 
+            for(var j = 0; j < ativs.length; j++) { 
+                html += '<div class="item-atividade-com-acoes">';
+                html += '<span class="item-atividade-nome">' + escapeHtml(ativs[j]) + '</span>';
+                html += '<div class="item-atividade-acoes">';
+                html += '<button class="btn-acao-pequeno" onclick="abrirModalEdicaoVisualizacao(\'' + nome.replace(/'/g, "\\'") + '\', \'' + ativs[j].replace(/'/g, "\\'") + '\', ' + i + ')">Editar</button>';
+                html += '<button class="btn-excluir-pequeno" onclick="excluirAtividadeDoServidorVisualizacao(\'' + nome.replace(/'/g, "\\'") + '\', \'' + ativs[j].replace(/'/g, "\\'") + '\', ' + i + ')">Excluir</button>';
+                html += '</div></div>';
+            } 
+            html += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--cinza-borda);"><strong>Total: ' + ativs.length + ' atividade(s)</strong></div>'; 
+        } 
+        html += '</div>'; 
+    } 
+    container.innerHTML = html; 
+}
+
+function fecharListaVisualizacao() { 
+    if(confirm("Fechar lista? Isso removerá todos os servidores adicionados.")) { 
+        listaVisualizacao = []; 
+        salvarListaVisualizacao();
+        renderizarListaVisualizacao(); 
+        feedback("Lista fechada!"); 
+    } 
+}
+
+function abrirModalEdicaoVisualizacao(serv, ativ, idx) { 
+    edicaoVisTemp = {servidor: serv, atividadeAntiga: ativ, cardIndex: idx}; 
+    document.getElementById("modalVisServidorNome").value = serv; 
+    document.getElementById("modalVisAtividadeAtual").value = ativ; 
+    var sel = document.getElementById("modalVisNovaAtividade"); 
+    var html = ''; 
+    for(var i = 0; i < atividades.length; i++) { 
+        if(atividades[i] !== ativ) html += '<option value="' + escapeHtml(atividades[i]) + '">' + escapeHtml(atividades[i]) + '</option>'; 
+    } 
+    sel.innerHTML = html; 
+    document.getElementById("modalEdicaoVisualizacao").style.display = "block"; 
+}
+
+function fecharModalEdicaoVisualizacao() { 
+    document.getElementById("modalEdicaoVisualizacao").style.display = "none"; 
+}
+
+function confirmarEdicaoAtividadeVisualizacao() { 
+    var nova = document.getElementById("modalVisNovaAtividade").value; 
+    if(!nova) { 
+        feedback("Selecione nova atividade!"); 
+        return; 
+    } 
+    var serv = edicaoVisTemp.servidor; 
+    var antiga = edicaoVisTemp.atividadeAntiga; 
+    var listaAntiga = atribuicoes[antiga] || []; 
+    atribuicoes[antiga] = listaAntiga.filter(function(s) { return s !== serv; }); 
+    if(atribuicoes[antiga].length === 0) delete atribuicoes[antiga]; 
+    var listaNova = atribuicoes[nova] || []; 
+    if(listaNova.indexOf(serv) === -1) { 
+        listaNova.push(serv); 
+    } else { 
+        feedback(serv + " já possui esta atividade!"); 
+        fecharModalEdicaoVisualizacao(); 
+        return; 
+    } 
+    atribuicoes[nova] = listaNova; 
+    salvarAtribuicoes(); 
+    feedback("Atividade alterada!"); 
+    fecharModalEdicaoVisualizacao(); 
+    renderizarListaServidoresAtribuicoes(); 
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    renderizarListaVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+}
+
+function excluirAtividadeDoServidorVisualizacao(serv, ativ, idx) { 
+    if(confirm("Excluir \"" + ativ + "\" de " + serv + "?")) { 
+        var lista = atribuicoes[ativ] || []; 
+        atribuicoes[ativ] = lista.filter(function(s) { return s !== serv; }); 
+        if(atribuicoes[ativ].length === 0) delete atribuicoes[ativ]; 
+        salvarAtribuicoes(); 
+        feedback("Removida!"); 
+        renderizarListaServidoresAtribuicoes(); 
+        if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
+        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+        renderizarListaVisualizacao(); 
+        if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+    } 
+}
+
+async function iniciarPagina() {
+    var sessao = await exigirAutenticacao();
+    if (!sessao) return;
+    await carregarDados();
+    carregarListaVisualizacao();
+    atualizarSelects();
+    atualizarSelectVisualizacao();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    renderizarListaVisualizacao();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    atualizarDisplayMes();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
+</script>
+</body>
+</html>

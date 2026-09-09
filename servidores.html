@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Servidores e Colaboradores</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS                            -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+    
+    <style>
+        .tabela-container th:nth-child(3),
+        .tabela-container td:nth-child(3) {
+            text-align: center !important;
+        }
+        /* ===== ESTILOS PARA DRAG & DROP (IGUAL AO ATIVIDADES) ===== */
+        .dragging {
+            opacity: 0.5;
+            background-color: var(--cinza-claro);
+        }
+        .drag-over {
+            border-bottom: 2px solid var(--destaque);
+        }
+        .drag-handle {
+            cursor: move;
+            display: inline-block;
+            margin-right: 6px;
+            color: var(--cinza-borda);
+            font-size: 1rem;
+        }
+        .drag-handle:hover {
+            color: var(--azul-institucional);
+        }
+        .mover-botoes {
+            display: none;
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .drag-handle { display: none; }
+            .mover-botoes { display: inline-flex; flex-direction: column; gap: 2px; }
+            .btn-mover {
+                background: var(--cinza-suave);
+                border: 1px solid var(--cinza-borda);
+                border-radius: 6px;
+                width: 26px;
+                height: 22px;
+                font-size: 0.7rem;
+                cursor: pointer;
+                color: var(--azul-marinho);
+                line-height: 1;
+            }
+            .btn-mover:disabled {
+                opacity: 0.35;
+                cursor: not-allowed;
+            }
+        }
+        .servidor-linha {
+            cursor: grab;
+        }
+        .servidor-linha:active {
+            cursor: grabbing;
+        }
+        /* ===== FIM DRAG & DROP ===== */
+
+        /* ===== AJUSTE DE COLUNAS - MAIS COMPACTO ===== */
+        #tabelaServidores {
+            width: 100%;
+            table-layout: fixed;
+        }
+        #tabelaServidores colgroup .col-nome {
+            width: 20%;
+        }
+        #tabelaServidores colgroup .col-arraste {
+            width: 2%;
+        }
+        #tabelaServidores colgroup .col-lotacao {
+            width: 10%;
+        }
+        #tabelaServidores colgroup .col-status {
+            width: 7%;
+        }
+        #tabelaServidores colgroup .col-link {
+            width: 36%;
+        }
+        #tabelaServidores colgroup .col-acoes {
+            width: 22%;
+        }
+        /* ===== FIM AJUSTE DE COLUNAS ===== */
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestão e Controle - Cadastro da Equipe</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.2026</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link">Principal</a>
+            <a href="servidores.html" class="tab-link active">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link">Distribuicao/Atividades</a>
+            <a href="estatistica.html" class="tab-link">Estatistica</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-servidores">
+            <div class="card">
+                <h3>Cadastrar Novo Servidor ou Colaborador</h3>
+                <div class="linha-dupla">
+                    <div class="form-group"><label>Nome</label><input type="text" id="novoServidor" placeholder="Digite o nome completo"></div>
+                    <div class="form-group"><label>Lotação</label><select id="novaLotacao"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option><option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option></select></div>
+                    <div><button class="btn btn-primary" onclick="adicionarServidor()" style="margin-top:28px;">Cadastrar</button></div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Servidores e Colaboradores Cadastrados</h3>
+                <div class="search-box"><input type="text" id="searchServidor" placeholder="Buscar..." onkeyup="renderizarServidores()"></div>
+                <div class="tabela-container">
+                    <table id="tabelaServidores" style="width:100%; table-layout:fixed;">
+                        <colgroup>
+                            <col class="col-nome">
+                            <col class="col-arraste">
+                            <col class="col-lotacao">
+                            <col class="col-status">
+                            <col class="col-link">
+                            <col class="col-acoes">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Nome</th>
+                                <th style="text-align:center;"></th>
+                                <th style="text-align:center;">Lotação</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:left;">Link de Acesso</th>
+                                <th style="text-align:left;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpoServidores"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.7rem; color: #888; text-align: center;">
+                    <span>⣿</span> Arraste as linhas com o mouse para reordenar os servidores
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
+</div>
+
+<!-- ===== CORREÇÃO: Adicionada opção DIGITALIZAÇÃO no modal de edição ===== -->
+<div id="modalEdicaoServidor" class="modal-edicao-servidor"><div class="modal-edicao-servidor-content"><div class="modal-edicao-servidor-header"><h3>Editar Servidor</h3><span class="modal-close" onclick="fecharModalEdicaoServidor()">&times;</span></div><div class="modal-edicao-servidor-body"><div class="form-group"><label>Nome</label><input type="text" id="modalEditarNome"></div><div class="form-group"><label>Lotação</label><select id="modalEditarLotacao"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option><option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option></select></div></div><div class="modal-edicao-servidor-footer"><button class="btn btn-neutral" onclick="fecharModalEdicaoServidor()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoServidor()">Salvar</button></div></div></div>
+<!-- ===== FIM DA CORREÇÃO ===== -->
+
+<script>
+// ==================== VARIÁVEIS PARA DRAG & DROP ====================
+var draggingIndex = null;
+var servidorOriginal = null;
+
+// ==================== FUNÇÃO PARA SALVAR ORDEM DOS SERVIDORES ====================
+function salvarOrdemServidores() {
+    localStorage.setItem("seate_ordem_servidores", JSON.stringify(servidores));
+}
+
+// ==================== FUNÇÃO PARA CARREGAR ORDEM DOS SERVIDORES ====================
+function carregarOrdemServidores() {
+    var storedOrdem = localStorage.getItem("seate_ordem_servidores");
+    if(storedOrdem) {
+        var ordemSalva = JSON.parse(storedOrdem);
+        var servidoresSet = new Set(servidores);
+        var ordemSet = new Set(ordemSalva);
+        var ordemValida = true;
+        for(var i = 0; i < servidores.length; i++) {
+            if(!ordemSet.has(servidores[i])) {
+                ordemValida = false;
+                break;
+            }
+        }
+        if(ordemValida && ordemSalva.length === servidores.length) {
+            // Mapear nome -> lotação usando a ordem ORIGINAL, antes de reordenar
+            var lotacaoPorNome = {};
+            for(var i = 0; i < servidores.length; i++) {
+                lotacaoPorNome[servidores[i]] = lotacoes[i];
+            }
+            servidores = ordemSalva;
+            // Reorganizar lotacoes para acompanhar a nova ordem
+            var novasLotacoes = [];
+            for(var i = 0; i < servidores.length; i++) {
+                novasLotacoes.push(lotacaoPorNome[servidores[i]] || "SEATE");
+            }
+            lotacoes = novasLotacoes;
+            salvarLotacoes();
+        }
+    }
+}
+
+// ==================== RENDERIZAR SERVIDORES (COM DRAG & DROP) ====================
+function renderizarServidores() {
+    var tbody = document.getElementById("corpoServidores");
+    var searchTerm = document.getElementById("searchServidor")?.value.toLowerCase() || "";
+    var indicesFiltrados = [];
+    var filtrados = [];
+    for(var i=0; i<servidores.length; i++) {
+        if(servidores[i].toLowerCase().indexOf(searchTerm) !== -1) {
+            indicesFiltrados.push(i);
+            filtrados.push(servidores[i]);
+        }
+    }
+    var html = "";
+    for(var f=0; f<filtrados.length; f++) {
+        var idx = servidores.indexOf(filtrados[f]);
+        var nome = servidores[idx];
+        var lotacao = lotacoes[idx] || "SEATE";
+        var status = getStatusServidor(nome);
+        var statusText = status === "liberado" ? "Liberado" : "Bloqueado";
+        var statusClass = status === "liberado" ? "status-liberado" : "status-bloqueado";
+        var link = gerarLink(nome);
+        var posicaoReal = idx + 1;
+        
+        html += `<tr draggable="true" data-index="${idx}" data-servidor="${escapeHtml(nome)}" class="servidor-linha" ondragstart="dragStart(event)" ondragend="dragEnd(event)" ondragover="dragOver(event)" ondrop="drop(event)">`;
+        html += `<td style="word-break:break-word;">${escapeHtml(nome)}</td>`;
+        html += `<td style="text-align:center; cursor:move; font-size:0.8rem;">`;
+        html += `<span class="drag-handle">⣿</span>`;
+        html += `<span class="mover-botoes">`;
+        html += `<button type="button" class="btn-mover" onclick="moverServidor(${idx}, -1)"${idx === 0 ? ' disabled' : ''}>▲</button>`;
+        html += `<button type="button" class="btn-mover" onclick="moverServidor(${idx}, 1)"${idx === servidores.length - 1 ? ' disabled' : ''}>▼</button>`;
+        html += `</span>`;
+        html += `</td>`;
+        html += `<td style="text-align:center; white-space:nowrap;"><span class="badge badge-lotacao">${escapeHtml(lotacao)}</span></td>`;
+        html += `<td class="${statusClass}" style="text-align:center; white-space:nowrap;">${statusText}</td>`;
+        html += `<td style="word-break:break-word; white-space:normal;"><button class="btn-link-copiar" onclick="copiarLink('${nome.replace(/'/g,"\\'")}')">Copiar Link</button><span class="link-exibicao" style="font-size:0.6rem;">${escapeHtml(link)}</span></td>`;
+        html += `<td class="acoes-cell" style="white-space:nowrap;"><button class="btn-bloquear" onclick="toggleBloqueio('${nome.replace(/'/g,"\\'")}')">${status === "liberado" ? "Bloquear" : "Liberar"}</button><button class="btn-editar" onclick="abrirModalEdicaoServidor(${idx})">Editar</button><button class="btn-excluir-circular" onclick="excluirServidor(${idx})">Excluir</button></td>`;
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+// ==================== MOVER SERVIDOR (ALTERNATIVA TOUCH AO ARRASTAR) ====================
+function moverServidor(idx, direcao) {
+    var novoIndex = idx + direcao;
+    if(novoIndex < 0 || novoIndex >= servidores.length) return;
+    var tempNome = servidores[idx];
+    var tempLotacao = lotacoes[idx];
+    servidores[idx] = servidores[novoIndex];
+    lotacoes[idx] = lotacoes[novoIndex];
+    servidores[novoIndex] = tempNome;
+    lotacoes[novoIndex] = tempLotacao;
+    salvarOrdemServidores();
+    salvarServidores();
+    salvarLotacoes();
+    renderizarServidores();
+    atualizarSelects();
+    if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarSelectVisualizacao === 'function') atualizarSelectVisualizacao();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    feedback("Servidor movido com sucesso!");
+}
+
+// ==================== FUNÇÕES DE DRAG & DROP ====================
+function dragStart(event) {
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    draggingIndex = parseInt(linha.getAttribute('data-index'));
+    servidorOriginal = linha.getAttribute('data-servidor');
+    event.dataTransfer.setData('text/plain', draggingIndex);
+    event.dataTransfer.effectAllowed = 'move';
+    linha.classList.add('dragging');
+}
+
+function dragEnd(event) {
+    var linha = event.target.closest('tr');
+    if(linha) { linha.classList.remove('dragging'); }
+    var todasLinhas = document.querySelectorAll('#corpoServidores tr');
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+    draggingIndex = null;
+    servidorOriginal = null;
+}
+
+function dragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndex !== null && draggingIndex !== targetIndex) {
+        var todasLinhas = document.querySelectorAll('#corpoServidores tr');
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        linha.classList.add('drag-over');
+    }
+}
+
+function drop(event) {
+    event.preventDefault();
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndex === null || draggingIndex === targetIndex) {
+        var todasLinhas = document.querySelectorAll('#corpoServidores tr');
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        return;
+    }
+    
+    var servidorMovido = servidores[draggingIndex];
+    var lotacaoMovida = lotacoes[draggingIndex];
+    var bloqueioMovido = bloqueios[servidorMovido];
+    
+    // Remover da posição atual
+    servidores.splice(draggingIndex, 1);
+    lotacoes.splice(draggingIndex, 1);
+    
+    // Calcular nova posição
+    var novoIndex = targetIndex;
+    if(draggingIndex < targetIndex) { novoIndex = targetIndex - 1; }
+    
+    // Inserir na nova posição
+    servidores.splice(novoIndex, 0, servidorMovido);
+    lotacoes.splice(novoIndex, 0, lotacaoMovida);
+    
+    // Salvar ordem
+    salvarOrdemServidores();
+    salvarServidores();
+    salvarLotacoes();
+    salvarBloqueios();
+    
+    // Atualizar atribuições se necessário (os servidores têm nomes únicos, então não precisa renomear)
+    // Mas precisamos garantir que as atribuições estão consistentes
+    salvarAtribuicoes();
+    
+    // Re-renderizar
+    renderizarServidores();
+    atualizarSelects();
+    if(typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarSelectVisualizacao === 'function') atualizarSelectVisualizacao();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    
+    feedback("Servidor movido com sucesso!");
+    
+    var todasLinhas = document.querySelectorAll('#corpoServidores tr');
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+}
+
+// ==================== ADICIONAR SERVIDOR ====================
+function adicionarServidor() { 
+    var nome = document.getElementById("novoServidor").value.trim();
+    var lotacao = document.getElementById("novaLotacao").value; 
+    if(!nome) { feedback("Digite o nome!"); return; } 
+    if(servidores.indexOf(nome) !== -1) { feedback("Já cadastrado!"); return; } 
+    servidores.push(nome); 
+    lotacoes.push(lotacao); 
+    bloqueios[nome] = false; 
+    salvarOrdemServidores();
+    salvarServidores(); 
+    salvarLotacoes(); 
+    salvarBloqueios(); 
+    renderizarServidores(); 
+    atualizarSelects(); 
+    renderizarListaServidoresAtribuicoes(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    atualizarSelectVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+    document.getElementById("novoServidor").value = ""; 
+    feedback("Cadastrado!"); 
+}
+
+// ==================== EXCLUIR SERVIDOR ====================
+async function excluirServidor(index) { 
+    var nome = servidores[index]; 
+    if(confirm(`Excluir "${nome}"?`)) { 
+        servidores.splice(index,1); 
+        lotacoes.splice(index,1); 
+        delete bloqueios[nome]; 
+        for(var ativ in atribuicoes) { 
+            atribuicoes[ativ] = atribuicoes[ativ].filter(s => s !== nome); 
+            if(atribuicoes[ativ].length === 0) delete atribuicoes[ativ]; 
+        } 
+        await excluirServidorDoBanco(nome);
+        salvarOrdemServidores();
+        salvarServidores(); 
+        salvarLotacoes(); 
+        salvarBloqueios(); 
+        salvarAtribuicoes(); 
+        renderizarServidores(); 
+        atualizarSelects(); 
+        renderizarListaServidoresAtribuicoes(); 
+        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+        atualizarSelectVisualizacao(); 
+        if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+        var pos = listaVisualizacao.indexOf(nome); 
+        if(pos !== -1) { listaVisualizacao.splice(pos,1); if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); } 
+        feedback("Excluído!"); 
+    } 
+}
+
+// ==================== ABRIR MODAL EDIÇÃO ====================
+function abrirModalEdicaoServidor(index) { 
+    edicaoServidorTemp.index = index; 
+    document.getElementById("modalEditarNome").value = servidores[index]; 
+    document.getElementById("modalEditarLotacao").value = lotacoes[index]; 
+    document.getElementById("modalEdicaoServidor").style.display = "block"; 
+}
+
+// ==================== CONFIRMAR EDIÇÃO ====================
+async function confirmarEdicaoServidor() { 
+    var idx = edicaoServidorTemp.index;
+    var novoNome = document.getElementById("modalEditarNome").value.trim();
+    var novaLotacao = document.getElementById("modalEditarLotacao").value; 
+    if(!novoNome) { feedback("Digite o nome!"); return; } 
+    if(servidores.indexOf(novoNome) !== -1 && servidores[idx] !== novoNome) { feedback("Nome já existe!"); return; } 
+    var antigoNome = servidores[idx]; 
+    servidores[idx] = novoNome; 
+    lotacoes[idx] = novaLotacao; 
+    if(antigoNome !== novoNome) { 
+        bloqueios[novoNome] = bloqueios[antigoNome]; 
+        delete bloqueios[antigoNome]; 
+        for(var ativ in atribuicoes) { 
+            var pos = atribuicoes[ativ].indexOf(antigoNome); 
+            if(pos !== -1) atribuicoes[ativ][pos] = novoNome; 
+        } 
+        var posVis = listaVisualizacao.indexOf(antigoNome); 
+        if(posVis !== -1) listaVisualizacao[posVis] = novoNome; 
+        if(servidorAtualmenteSelecionado === antigoNome) servidorAtualmenteSelecionado = novoNome; 
+        await renomearServidorNoBanco(antigoNome, novoNome, novaLotacao, bloqueios[novoNome]);
+    } 
+    salvarOrdemServidores();
+    salvarServidores(); 
+    salvarLotacoes(); 
+    salvarBloqueios(); 
+    salvarAtribuicoes(); 
+    renderizarServidores(); 
+    atualizarSelects(); 
+    renderizarListaServidoresAtribuicoes(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    atualizarSelectVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
+    fecharModalEdicaoServidor(); 
+    feedback("Editado!"); 
+}
+
+// ==================== CARREGAR DADOS INICIAIS ====================
+async function carregarDadosIniciais() {
+    await carregarDados();
+    var storedServidores = localStorage.getItem("seate_servidores");
+    var storedLotacoes = localStorage.getItem("seate_lotacoes");
+    if(!storedServidores || !storedLotacoes) {
+        servidores = ["Anna Flávia", "Andréa", "Isabelle", "Ivone", "Denise", "Daniela", "Paulo", "Eduardo", "Risonete", "NaHora - Taguatinga", "NaHora - Ceilândia", "NaHora - Gama", "NaHora - Samambaia"];
+        lotacoes = ["SEATE", "SEATE", "SEATE", "SEATE", "SEATE", "SEATE", "SEATE", "SEATE", "SEATE", "NAHORA", "NAHORA", "NAHORA", "NAHORA"];
+        salvarServidores();
+        salvarLotacoes();
+        salvarOrdemServidores();
+    } else {
+        // Carregar ordem salva se existir
+        carregarOrdemServidores();
+    }
+}
+
+// ==================== INICIALIZAÇÃO ====================
+async function iniciarPagina() {
+    var sessao = await exigirAutenticacao();
+    if (!sessao) return;
+    await carregarDadosIniciais();
+    renderizarServidores();
+    atualizarSelects();
+    atualizarSelectVisualizacao();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    atualizarDisplayMes();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
+</script>
+</body>
+</html>

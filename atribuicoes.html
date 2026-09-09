@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Atribuir Atividades</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+    
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS                            -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+    
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Gestão e Controle - Atribuição de Tarefas</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="user-box"><span class="label">Perfil:</span><span class="value">Administrador</span></div>
+            <span class="version-tag">V.01.2026</span>
+            <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="tabs">
+            <a href="index.html" class="tab-link">Principal</a>
+            <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
+            <a href="atividades.html" class="tab-link">Adicionar/Atividades</a>
+            <a href="atribuicoes.html" class="tab-link active">Atribuir/Atividades</a>
+            <a href="visualizar.html" class="tab-link">Distribuição/Atividades</a>
+            <a href="estatistica.html" class="tab-link">Estatística</a>
+        </div>
+        
+        <div class="tab-content active" id="tab-atribuicoes">
+            <div class="card">
+                <h3>Atribuir Nova Atividade</h3>
+                <div class="form-group">
+                    <label>Selecione a Atividade</label>
+                    <select id="selectAtividadeAtribuir" onchange="atualizarQuadroAtividadesServidor()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Selecione o Servidor</label>
+                    <select id="selectServidorAtribuir" onchange="atualizarQuadroAtividadesServidor()"></select>
+                </div>
+                <div id="quadroAtividadesExistentes" class="quadro-atividades">
+                    <h4>Atividades já atribuídas</h4>
+                    <div id="listaAtividadesExistentes" class="lista-atividades-preview">
+                        <span class="sem-atividades">Selecione um servidor</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="salvarAtribuicaoUnica()" style="margin-top:10px;">Salvar Atribuição</button>
+            </div>
+            <div class="card">
+                <h3>Atribuições por Servidor</h3>
+                <div class="painel-duplo">
+                    <div class="painel-esquerdo">
+                        <div class="search-box">
+                            <input type="text" id="searchServidorAtribuicoes" placeholder="Buscar servidor..." onkeyup="filtrarListaServidores()">
+                        </div>
+                        <div id="listaServidoresAtribuicoes" class="lista-servidores-vertical"></div>
+                    </div>
+                    <div class="painel-direito">
+                        <div id="quadroAtividadesServidorSelecionado" class="quadro-atividades">
+                            <h4 id="tituloServidorSelecionado">Atividades do Servidor</h4>
+                            <div id="listaAtividadesServidorSelecionado" class="lista-atividades-preview" style="flex-direction:column; align-items:stretch;">
+                                <span class="sem-atividades">Clique em um servidor</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestão de Atividades | Justiça Federal - SJDF</div>
+</div>
+
+<div id="modalEdicaoAtividade" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEdicao()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Servidor</label><input type="text" id="modalServidorNome" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Atividade Atual</label><input type="text" id="modalAtividadeAtual" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Substituir por</label><select id="modalNovaAtividade" class="select-atribuir-rapido" style="width:100%;padding:10px;"></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEdicao()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoAtividade()">Salvar</button></div></div></div>
+
+<script>
+function filtrarListaServidores() { renderizarListaServidoresAtribuicoes(); }
+
+function salvarAtribuicaoUnica() { 
+    var ativ = document.getElementById("selectAtividadeAtribuir").value; 
+    var serv = document.getElementById("selectServidorAtribuir").value; 
+    if(!ativ || !serv) { feedback("Selecione atividade e servidor!"); return; } 
+    var lista = atribuicoes[ativ] || []; 
+    if(lista.indexOf(serv) !== -1) { feedback("Já atribuída!"); return; } 
+    lista.push(serv); 
+    atribuicoes[ativ] = lista; 
+    salvarAtribuicoes(); 
+    feedback("Atribuída!"); 
+    atualizarQuadroAtividadesServidor(); 
+    renderizarListaServidoresAtribuicoes(); 
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
+    document.getElementById("selectAtividadeAtribuir").value = ""; 
+    document.getElementById("selectServidorAtribuir").value = ""; 
+    document.getElementById("listaAtividadesExistentes").innerHTML = '<span class="sem-atividades">Selecione um servidor</span>'; 
+}
+
+async function iniciarPagina() {
+    var sessao = await exigirAutenticacao();
+    if (!sessao) return;
+    await carregarDados();
+    atualizarSelects();
+    atualizarSelectVisualizacao();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    atualizarDisplayMes();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
+
+// ==================== SELEÇÃO AUTOMÁTICA DO SERVIDOR ====================
+(function() {
+    var servidorSelecionado = localStorage.getItem("seate_servidor_selecionado");
+    if (servidorSelecionado) {
+        localStorage.removeItem("seate_servidor_selecionado");
+        // Aguarda o DOM carregar completamente (limite: 5s, então desiste)
+        var tentativas = 0;
+        var MAX_TENTATIVAS = 50;
+        var checkExist = setInterval(function() {
+            tentativas++;
+            if (typeof selecionarServidorAtribuicoes === 'function') {
+                clearInterval(checkExist);
+                // Verifica se o servidor existe na lista
+                var existe = false;
+                for (var i = 0; i < servidores.length; i++) {
+                    if (servidores[i] === servidorSelecionado) {
+                        existe = true;
+                        break;
+                    }
+                }
+                if (existe) {
+                    selecionarServidorAtribuicoes(servidorSelecionado);
+                } else {
+                    feedback("Servidor não encontrado na lista de cadastrados.");
+                }
+            } else if (tentativas >= MAX_TENTATIVAS) {
+                clearInterval(checkExist);
+                console.warn('Não foi possível selecionar o servidor automaticamente (tempo esgotado).');
+            }
+        }, 100);
+    }
+})();
+</script>
+</body>
+</html>
