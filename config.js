@@ -10,10 +10,10 @@ const SUPABASE_CONFIG = {
     // ========================================
     
     // URL do projeto Supabase (UNIFICADA - CORRETA)
-    URL: 'https://yfvjhcjbehytypfjcuvr.supabase.co',
+    URL: 'https://jufkkpqzxywdajuvxgja.supabase.co',
     
     // Chave anônima (pública) do Supabase (UNIFICADA - CORRETA)
-    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmdmpoY2piZWh5dHlwZmpjdXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Mzk5OTQsImV4cCI6MjA5NzIxNTk5NH0.ci82K0w4jLqr7whD3LeC3L8bteOphkaR9BnOnwbo_Dw',
+    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1ZmtrcHF6eHl3ZGFqdXZ4Z2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NzIwOTUsImV4cCI6MjEwNDU0ODA5NX0.53O3QWW76Ho5EQ4_2yarDpl-nQ7LtCOViUj3a7-ylj8',
     
     // ========================================
     // NOMES DAS TABELAS
