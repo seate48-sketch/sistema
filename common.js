@@ -57,6 +57,27 @@ function initSupabase() {
     var SUPABASE_ANON_KEY = getSupabaseAnonKey();
     
     try {
+        // ============================================================
+        // CORREÇÃO: reaproveitar o MESMO cliente que o supabase-client.js
+        // já criou (variável "db"), em vez de criar um segundo cliente
+        // independente aqui. Ter dois clientes separados (mesmo que
+        // apontando pro mesmo projeto) faz cada um guardar sua PRÓPRIA
+        // sessão de login na memória — então, ao fazer login por aqui
+        // (supabaseClient), o outro cliente (db, usado por TODAS as
+        // funções de salvar/excluir em supabase-client.js) nunca ficava
+        // sabendo que você tinha logado, e continuava mandando as
+        // requisições como visitante anônimo. Isso fazia toda operação
+        // que exige login (comunicados, mensagens, atividades,
+        // atribuições, configuração) falhar sem aviso nenhum — é a causa
+        // raiz de vários dos problemas de "salvei mas não gravou".
+        if (typeof db !== 'undefined' && db) {
+            supabaseClient = db;
+            usarSupabase = true;
+            logDebug('✅ Supabase conectado com sucesso! (reaproveitando cliente único)');
+            logDebug('📌 URL unificada:', SUPABASE_URL);
+            return true;
+        }
+
         if (typeof supabase !== 'undefined' && supabase.createClient) {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             usarSupabase = true;
@@ -76,7 +97,14 @@ function initSupabase() {
         console.warn('⚠️ Biblioteca do Supabase não encontrada. Tentando novamente...');
         setTimeout(function() {
             logDebug('🔄 Tentando reconectar ao Supabase...');
-            if (typeof supabase !== 'undefined' && supabase.createClient) {
+            if (typeof db !== 'undefined' && db) {
+                supabaseClient = db;
+                usarSupabase = true;
+                logDebug('✅ Supabase conectado com sucesso! (retry - reaproveitando cliente único)');
+                if (typeof carregarDados === 'function') {
+                    carregarDados();
+                }
+            } else if (typeof supabase !== 'undefined' && supabase.createClient) {
                 supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 usarSupabase = true;
                 logDebug('✅ Supabase conectado com sucesso! (retry - common.js)');
