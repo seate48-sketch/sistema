@@ -790,7 +790,7 @@ function calcularTotalAtividade(dados) {
     }
 }
 
-function salvarConfigMes() {
+async function salvarConfigMes() {
     try {
         mesConfigurado = parseInt(document.getElementById("configMes").value);
         anoConfigurado = parseInt(document.getElementById("configAno").value);
@@ -798,10 +798,35 @@ function salvarConfigMes() {
         localStorage.setItem("seate_ano_config", anoConfigurado);
         atualizarDisplayMes();
         if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+        if(typeof renderizarAcessoRapido === 'function') renderizarAcessoRapido();
         feedback("Configuração salva!");
+        if (supabaseDisponivel) {
+            try { await dbSalvarConfiguracao(mesConfigurado, anoConfigurado); }
+            catch(e) { console.warn('Erro ao sincronizar configuração do mês com o Supabase:', e.message); }
+        }
     } catch(e) {
         console.warn('Erro ao salvar configuração do mês:', e.message);
         feedback("Erro ao salvar configuração!");
+    }
+}
+
+// ==================== CARREGAR PERÍODO CONFIGURADO DE VERDADE (SUPABASE) ====================
+// Antes, mesConfigurado/anoConfigurado só existiam no localStorage de cada
+// navegador — cada servidor/computador podia "achar" que o período era um
+// mês diferente. Esta função busca o valor real, compartilhado, salvo na
+// tabela "configuracao", e mantém o localStorage como reserva (offline).
+async function carregarConfiguracaoReal() {
+    if (!supabaseDisponivel) return;
+    try {
+        var config = await dbCarregarConfiguracao();
+        if (config && typeof config.mes === 'number' && typeof config.ano === 'number') {
+            mesConfigurado = config.mes;
+            anoConfigurado = config.ano;
+            localStorage.setItem("seate_mes_config", mesConfigurado);
+            localStorage.setItem("seate_ano_config", anoConfigurado);
+        }
+    } catch(e) {
+        console.warn('Erro ao carregar configuração real do mês:', e.message);
     }
 }
 
