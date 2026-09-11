@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,6 +7,27 @@
     <meta name="theme-color" content="#0F2D52">
     <title>SEATE - Distribuição de Atividades</title>
     <link rel="stylesheet" href="style.css">
+
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS                            -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+
     <style>
         .lista-acumulativa-servidores {
             max-height: 500px;
@@ -115,7 +137,6 @@
     </div>
 </div>
 
-<script src="common.js"></script>
 <script>
 function salvarListaVisualizacao() {
     localStorage.setItem("seate_lista_visualizacao", JSON.stringify(listaVisualizacao));
