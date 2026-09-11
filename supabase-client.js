@@ -478,12 +478,12 @@ async function dbCarregarRegistros(nomeServidor) {
 async function dbSalvarRegistroDia(nomeServidor, data, objAtividades, ausencia) {
     if (!supabaseDisponivel || !db) {
         console.warn('⚠️ Supabase indisponível. Salvando registro apenas no localStorage.');
-        return;
+        return false;
     }
     
     try {
         const serv = await obterServidorPorNome(nomeServidor);
-        if (!serv) { console.error('Cache vazio para:', nomeServidor); return; }
+        if (!serv) { console.error('Servidor não encontrado no banco:', nomeServidor); return false; }
 
         const { error } = await db.from(TABLES.REGISTROS).upsert({
             servidor_id: serv.id,
@@ -491,26 +491,30 @@ async function dbSalvarRegistroDia(nomeServidor, data, objAtividades, ausencia) 
             atividades:  objAtividades || {},
             ausencia:    ausencia || null
         }, { onConflict: 'servidor_id,data' });
-        if (error) console.error('dbSalvarRegistroDia:', error);
+        if (error) { console.error('dbSalvarRegistroDia:', error); return false; }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbSalvarRegistroDia:', e.message);
+        return false;
     }
 }
 
 async function dbExcluirRegistroDia(nomeServidor, data) {
-    if (!supabaseDisponivel || !db) return;
+    if (!supabaseDisponivel || !db) return false;
     
     try {
         const serv = await obterServidorPorNome(nomeServidor);
-        if (!serv) return;
+        if (!serv) return false;
 
         const { error } = await db.from(TABLES.REGISTROS)
             .delete()
             .eq('servidor_id', serv.id)
             .eq('data', data);
-        if (error) console.error('dbExcluirRegistroDia:', error);
+        if (error) { console.error('dbExcluirRegistroDia:', error); return false; }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbExcluirRegistroDia:', e.message);
+        return false;
     }
 }
 
@@ -662,7 +666,7 @@ async function dbCarregarComunicados() {
 async function dbSalvarComunicados(listaComunicados) {
     if (!supabaseDisponivel || !db) {
         console.warn('⚠️ Supabase indisponível. Salvando comunicados apenas no localStorage.');
-        return;
+        return false;
     }
     
     try {
@@ -674,20 +678,20 @@ async function dbSalvarComunicados(listaComunicados) {
             
             if (checkError) {
                 console.error('dbSalvarComunicados check:', checkError);
-                return;
+                return false;
             }
             
             if (existing && existing.length > 0) {
                 const { error: deleteError } = await db.from(TABLES.COMUNICADOS).delete().neq('id', null);
                 if (deleteError) {
                     console.error('dbSalvarComunicados delete:', deleteError);
-                    return;
+                    return false;
                 }
                 logDebug('✅ Comunicados antigos removidos com sucesso.');
             }
         } catch(e) {
             console.error('❌ Erro ao deletar comunicados antigos:', e.message);
-            return;
+            return false;
         }
         // ============================================================
         // FIM DA CORREÇÃO
@@ -698,12 +702,14 @@ async function dbSalvarComunicados(listaComunicados) {
             const { error } = await db.from(TABLES.COMUNICADOS).insert(toInsert);
             if (error) {
                 console.error('dbSalvarComunicados insert:', error);
-            } else {
-                logDebug('✅ ' + toInsert.length + ' comunicados salvos com sucesso.');
+                return false;
             }
+            logDebug('✅ ' + toInsert.length + ' comunicados salvos com sucesso.');
         }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbSalvarComunicados:', e.message);
+        return false;
     }
 }
 
