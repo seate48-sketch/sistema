@@ -352,7 +352,8 @@ async function salvarServidores() {
                     .upsert({
                         nome: nome,
                         lotacao: lotacao,
-                        bloqueado: bloqueado
+                        bloqueado: bloqueado,
+                        ordem: i
                     }, { onConflict: 'nome' });
                 
                 if (error) {
@@ -531,7 +532,7 @@ async function carregarDados() {
                 const { data: servidoresData, error: servError } = await supabaseClient
                     .from(TABLES.SERVIDORES)
                     .select('*')
-                    .order('nome');
+                    .order('ordem');
                 
                 if (!servError && servidoresData && servidoresData.length > 0) {
                     servidores = servidoresData.map(s => s.nome);
