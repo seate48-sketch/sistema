@@ -1960,25 +1960,37 @@ async function salvarComunicado() {
     var listaComunicados = comunicadosSalvos ? JSON.parse(comunicadosSalvos) : [];
     listaComunicados.unshift(comunicado);
     if(listaComunicados.length > 3) { listaComunicados = listaComunicados.slice(0, 3); }
+
+    // CORREÇÃO: só confirma "enviado" depois do Supabase aceitar de verdade.
+    var sucesso = true;
+    if (supabaseDisponivel) {
+        try { sucesso = await dbSalvarComunicados(listaComunicados); }
+        catch(e) { console.warn('Erro ao sincronizar comunicados com o Supabase:', e.message); sucesso = false; }
+    }
+    if (!sucesso) {
+        feedback("Erro ao enviar o comunicado. Tente novamente em alguns segundos.");
+        return;
+    }
     localStorage.setItem("seate_comunicados", JSON.stringify(listaComunicados));
     localStorage.setItem("obs_super", comunicado);
     document.getElementById("comunicadoSupervisor").value = "";
     exibirListaComunicados();
     feedback("Comunicado enviado com sucesso!");
-    if (supabaseDisponivel) {
-        try { await dbSalvarComunicados(listaComunicados); }
-        catch(e) { console.warn('Erro ao sincronizar comunicados com o Supabase:', e.message); }
-    }
 }
 
 async function deletarTodasMensagens() {
     if(confirm("ATENÇÃO: Isso apagará todas as mensagens do comunicado supervisor para TODOS os servidores. Confirmar?")) {
+        var sucesso = true;
+        if (supabaseDisponivel) {
+            try { sucesso = await dbSalvarComunicados([]); }
+            catch(e) { console.warn('Erro ao limpar comunicados no Supabase:', e.message); sucesso = false; }
+        }
+        if (!sucesso) {
+            feedback("Erro ao apagar no servidor. Tente novamente em alguns segundos.");
+            return;
+        }
         localStorage.removeItem("seate_comunicados"); localStorage.removeItem("obs_super");
         exibirListaComunicados(); feedback("Todas as mensagens foram apagadas!");
-        if (supabaseDisponivel) {
-            try { await dbSalvarComunicados([]); }
-            catch(e) { console.warn('Erro ao limpar comunicados no Supabase:', e.message); }
-        }
     }
 }
 
