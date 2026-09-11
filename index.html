@@ -1998,7 +1998,10 @@ async function carregarComunicados() {
     if (supabaseDisponivel) {
         try {
             var lista = await dbCarregarComunicados();
-            if (lista && lista.length > 0) { localStorage.setItem("seate_comunicados", JSON.stringify(lista)); }
+            // CORREÇÃO: lista vazia é uma resposta válida (tudo foi
+            // excluído) — precisa sobrescrever o localStorage também
+            // nesse caso, senão o comunicado antigo nunca some daqui.
+            if (lista !== null && lista !== undefined) { localStorage.setItem("seate_comunicados", JSON.stringify(lista)); }
         } catch(e) { console.warn('Erro ao carregar comunicados do Supabase:', e.message); }
     }
     exibirListaComunicados(); exibirUltimaMensagemEmergente(); atualizarSelectServidores(); carregarUltimaMensagemIndividual();
