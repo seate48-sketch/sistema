@@ -311,7 +311,7 @@
 <div id="desempenhoModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Desempenho - Ultimos 3 Meses</h3><span class="modal-close desempenho-close">&times;</span></div><div class="modal-body"><div id="desempenhoGrid"></div></div></div></div>
 <div id="activityModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalDateTitle"></h3><span class="modal-close">&times;</span></div><div class="modal-body"><div id="activitiesList"></div>
             <select id="absenceType" class="absence-select">
-                <option value="">Selecionar...</option>
+                <option value="">Ativo</option>
                 <option value="Ausente">Ausente</option>
                 <option value="Liberado">Liberado</option>
                 <option value="Folga">Folga</option>
@@ -676,6 +676,28 @@ function carregarMesAnoConfigurado() {
     }
 }
 
+// ==================== CARREGAR PERÍODO CONFIGURADO DE VERDADE (SUPABASE) ====================
+// A leitura acima (localStorage) é só um "chute inicial" rápido, específico
+// deste navegador. Esta função busca o valor real e compartilhado, salvo
+// pelo gestor na tabela "configuracao", e corrige "mes"/"ano" antes do
+// calendário ser desenhado — assim o período mostrado para o servidor é
+// sempre o mesmo que o gestor configurou, não o que por acaso já estava
+// salvo neste aparelho.
+async function carregarPeriodoReal() {
+    if (!supabaseDisponivel) return;
+    try {
+        var config = await dbCarregarConfiguracao();
+        if (config && typeof config.mes === 'number' && typeof config.ano === 'number') {
+            mes = config.mes;
+            ano = config.ano;
+            localStorage.setItem("seate_mes_config", mes);
+            localStorage.setItem("seate_ano_config", ano);
+        }
+    } catch(e) {
+        console.warn('Erro ao carregar período configurado:', e.message);
+    }
+}
+
 var config = carregarMesAnoConfigurado();
 var ano = config.ano;
 var mes = config.mes;
@@ -1013,6 +1035,7 @@ function desempenho() {
 }
 
 async function iniciarPagina() {
+    await carregarPeriodoReal();
     if (USUARIO_LOGADO && supabaseDisponivel) {
         try {
             var dadosServ = await dbCarregarServidores();
