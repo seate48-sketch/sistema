@@ -117,6 +117,32 @@ const _cache = {
     configId: null  // UUID da linha de configuração
 };
 
+// ============================================================
+// CORREÇÃO: busca robusta de servidor por nome
+// ============================================================
+// Várias funções abaixo (mensagens, registros, bloqueios) dependiam
+// apenas de _cache.servidores já estar carregado por uma chamada
+// anterior a dbCarregarServidores(). Se essa chamada ainda não tivesse
+// terminado (ela é assíncrona) no momento em que uma dessas funções
+// rodava, o "serv" saía undefined e a operação falhava EM SILÊNCIO —
+// sem erro visível para quem estava usando o sistema. Esta função
+// resolve isso: usa o cache quando já existe, e só busca direto no
+// banco (e preenche o cache) se ainda não tinha carregado.
+async function obterServidorPorNome(nomeServidor) {
+    if (_cache.servidores[nomeServidor]) return _cache.servidores[nomeServidor];
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from(TABLES.SERVIDORES)
+            .select('id, lotacao, bloqueado').eq('nome', nomeServidor).maybeSingle();
+        if (error || !data) return null;
+        _cache.servidores[nomeServidor] = { id: data.id, lotacao: data.lotacao, bloqueado: data.bloqueado };
+        return _cache.servidores[nomeServidor];
+    } catch(e) {
+        console.error('❌ Erro em obterServidorPorNome:', e.message);
+        return null;
+    }
+}
+
 // =====================================================
 // SERVIDORES
 // =====================================================
@@ -210,7 +236,7 @@ async function dbSalvarBloqueios(objBloqueios) {
     try {
         const ops = [];
         for (const [nome, bloqueado] of Object.entries(objBloqueios)) {
-            const serv = _cache.servidores[nome];
+            const serv = await obterServidorPorNome(nome);
             if (serv && serv.bloqueado !== !!bloqueado) {
                 serv.bloqueado = !!bloqueado;
                 ops.push(db.from(TABLES.SERVIDORES).update({ bloqueado: !!bloqueado }).eq('id', serv.id));
@@ -363,7 +389,7 @@ async function dbSalvarAtribuicoes(objAtribuicoes) {
             const atividadeId = _cache.atividades[ativNome];
             if (!atividadeId) continue;
             for (const servNome of servNames) {
-                const servInfo = _cache.servidores[servNome];
+                const servInfo = await obterServidorPorNome(servNome);
                 if (!servInfo) continue;
                 desejado.add(servInfo.id + '\u241F' + atividadeId);
             }
@@ -429,7 +455,7 @@ async function dbCarregarRegistros(nomeServidor) {
     if (!supabaseDisponivel || !db) return {};
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return {};
 
         const { data, error } = await db
@@ -456,7 +482,7 @@ async function dbSalvarRegistroDia(nomeServidor, data, objAtividades, ausencia) 
     }
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) { console.error('Cache vazio para:', nomeServidor); return; }
 
         const { error } = await db.from(TABLES.REGISTROS).upsert({
@@ -475,7 +501,7 @@ async function dbExcluirRegistroDia(nomeServidor, data) {
     if (!supabaseDisponivel || !db) return;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return;
 
         const { error } = await db.from(TABLES.REGISTROS)
@@ -730,7 +756,7 @@ async function dbServidorViuMensagemEmergente(mensagemId, nomeServidor) {
     if (!supabaseDisponivel || !db) return false;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return false;
         const { data } = await db.from(TABLES.MENSAGEM_EMERGENTE_VISTAS)
             .select('id').eq('mensagem_id', mensagemId).eq('servidor_id', serv.id).maybeSingle();
@@ -745,7 +771,7 @@ async function dbMarcarMensagemEmergenteVista(mensagemId, nomeServidor) {
     if (!supabaseDisponivel || !db) return;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return;
         await db.from(TABLES.MENSAGEM_EMERGENTE_VISTAS).upsert(
             { mensagem_id: mensagemId, servidor_id: serv.id },
@@ -764,7 +790,7 @@ async function dbCarregarMensagemIndividual(nomeServidor) {
     if (!supabaseDisponivel || !db) return null;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return null;
         const { data, error } = await db.from(TABLES.MENSAGENS_INDIVIDUAIS)
             .select('*').eq('servidor_id', serv.id).maybeSingle();
@@ -783,7 +809,7 @@ async function dbEnviarMensagemIndividual(nomeServidor, conteudo) {
     }
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) { console.error('Servidor não encontrado no cache:', nomeServidor); return null; }
 
         // Deletar mensagem individual anterior de forma segura
@@ -813,7 +839,7 @@ async function dbServidorViuMensagemIndividual(mensagemId, nomeServidor) {
     if (!supabaseDisponivel || !db) return false;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return false;
         const { data } = await db.from(TABLES.MENSAGENS_INDIVIDUAIS_VISTAS)
             .select('id').eq('mensagem_id', mensagemId).eq('servidor_id', serv.id).maybeSingle();
@@ -828,7 +854,7 @@ async function dbMarcarMensagemIndividualVista(mensagemId, nomeServidor) {
     if (!supabaseDisponivel || !db) return;
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return;
         await db.from(TABLES.MENSAGENS_INDIVIDUAIS_VISTAS).upsert(
             { mensagem_id: mensagemId, servidor_id: serv.id },
@@ -850,14 +876,16 @@ async function dbExcluirMensagemEmergente() {
 }
 
 async function dbExcluirMensagemIndividual(nomeServidor) {
-    if (!supabaseDisponivel || !db) return;
+    if (!supabaseDisponivel || !db) return false;
     try {
-        const serv = _cache.servidores[nomeServidor];
-        if (!serv) return;
+        const serv = await obterServidorPorNome(nomeServidor);
+        if (!serv) { console.error('dbExcluirMensagemIndividual: servidor não encontrado:', nomeServidor); return false; }
         const { error } = await db.from(TABLES.MENSAGENS_INDIVIDUAIS).delete().eq('servidor_id', serv.id);
-        if (error) console.error('dbExcluirMensagemIndividual:', error);
+        if (error) { console.error('dbExcluirMensagemIndividual:', error); return false; }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbExcluirMensagemIndividual:', e.message);
+        return false;
     }
 }
 
@@ -921,7 +949,7 @@ async function dbCarregarObsServidor(nomeServidor, mes, ano) {
     if (!supabaseDisponivel || !db) return '';
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return '';
         const { data } = await db.from(TABLES.OBS_SERVIDORES)
             .select('observacao')
@@ -941,7 +969,7 @@ async function dbSalvarObsServidor(nomeServidor, mes, ano, observacao) {
     }
     
     try {
-        const serv = _cache.servidores[nomeServidor];
+        const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return;
         const { error } = await db.from(TABLES.OBS_SERVIDORES).upsert(
             { servidor_id: serv.id, mes, ano, observacao: observacao || '' },
@@ -1010,9 +1038,11 @@ async function dbSalvarListaVisualizacao(lista) {
         // FIM DA CORREÇÃO
         // ============================================================
         
-        const toInsert = lista
-            .map(nome => { const s = _cache.servidores[nome]; return s ? { servidor_id: s.id } : null; })
-            .filter(Boolean);
+        const toInsertRaw = await Promise.all(lista.map(async nome => {
+            const s = await obterServidorPorNome(nome);
+            return s ? { servidor_id: s.id } : null;
+        }));
+        const toInsert = toInsertRaw.filter(Boolean);
         if (toInsert.length > 0) {
             const { error } = await db.from(TABLES.LISTA_VISUALIZACAO).insert(toInsert);
             if (error) {
@@ -1039,7 +1069,8 @@ async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
         const inicio = `${anoConfig}-${mesStr}-01`;
         const fim    = `${anoConfig}-${mesStr}-${String(fimDia).padStart(2, '0')}`;
 
-        const servIds = arrServidores.map(n => _cache.servidores[n]?.id).filter(Boolean);
+        const servIdsRaw = await Promise.all(arrServidores.map(async n => (await obterServidorPorNome(n))?.id));
+        const servIds = servIdsRaw.filter(Boolean);
         if (servIds.length === 0) return {};
 
         const { data } = await db.from(TABLES.REGISTROS)
@@ -1052,7 +1083,7 @@ async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
         const preenchidos = new Set(data.map(r => r.servidor_id));
         const result = {};
         for (const nome of arrServidores) {
-            const s = _cache.servidores[nome];
+            const s = await obterServidorPorNome(nome);
             if (s) result[nome] = preenchidos.has(s.id);
         }
         return result;
