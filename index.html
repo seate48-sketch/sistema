@@ -589,6 +589,44 @@
             min-height: 16px;
             text-align: center;
         }
+        /* Reordenação (arrastar) dos servidores na tabela de Status */
+        .dragging {
+            opacity: 0.5;
+            background-color: var(--cinza-claro);
+        }
+        .drag-over {
+            border-bottom: 2px solid var(--destaque);
+        }
+        .drag-handle-serv {
+            cursor: move;
+            display: inline-block;
+            margin-right: 8px;
+            color: var(--cinza-borda);
+            font-size: 1.1rem;
+        }
+        .drag-handle-serv:hover {
+            color: var(--azul-institucional);
+        }
+        .mover-botoes-serv {
+            display: none;
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .drag-handle-serv { display: none; }
+            .mover-botoes-serv { display: inline-flex; flex-direction: column; gap: 2px; }
+            .btn-mover-serv {
+                background: var(--cinza-suave);
+                border: 1px solid var(--cinza-borda);
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.7rem;
+                line-height: 1;
+                padding: 3px 6px;
+            }
+            .btn-mover-serv:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1749,7 +1787,7 @@ function atualizarListaFuncionariosPrincipal() {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">Nenhum funcionário cadastrado</div>';
         return;
     }
-    var html = '<table class="ranking-table"><thead><tr><th>Servidores / Colaboradores</th><th>Lotação</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
+    var html = '<table class="ranking-table"><thead><tr><th style="width:40px;"></th><th>Servidores / Colaboradores</th><th>Lotação</th><th>Status</th><th>Ações</th></tr></thead><tbody id="corpoStatusServidores">';
     for(var i = 0; i < filtrados.length; i++) {
         var nome = filtrados[i];
         var lotacao = getLotacaoServidor(nome);
@@ -1758,10 +1796,100 @@ function atualizarListaFuncionariosPrincipal() {
         var statusText = bloqueadoExibicao ? "Bloqueado" : "Liberado";
         var statusClass = bloqueadoExibicao ? "status-bloqueado" : "status-liberado";
         var acaoTexto = status === "liberado" ? "Bloquear" : "Liberar";
-        html += '<tr><td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button></td></tr>';
+        html += '<tr draggable="true" data-index="' + i + '" class="servidor-linha" ondragstart="dragStartServ(event)" ondragend="dragEndServ(event)" ondragover="dragOverServ(event)" ondrop="dropServ(event)">';
+        html += '<td style="text-align:center; cursor:move; font-size:0.8rem;">';
+        html += '<span class="drag-handle-serv">⣿⣿</span>';
+        html += '<span class="mover-botoes-serv">';
+        html += '<button type="button" class="btn-mover-serv" onclick="moverServidorPosicao(' + i + ', -1)"' + (i === 0 ? ' disabled' : '') + '>▲</button>';
+        html += '<button type="button" class="btn-mover-serv" onclick="moverServidorPosicao(' + i + ', 1)"' + (i === filtrados.length - 1 ? ' disabled' : '') + '>▼</button>';
+        html += '</span>';
+        html += '</td>';
+        html += '<td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button></td></tr>';
     }
     html += '</tbody></table>';
     container.innerHTML = html;
+}
+
+// ==================== REORDENAR SERVIDORES (ARRASTAR / BOTÕES) ====================
+var draggingIndexServ = null;
+
+function reordenarServidor(origemIdx, destinoIdx) {
+    if(origemIdx === destinoIdx || origemIdx < 0 || destinoIdx < 0 || origemIdx >= servidores.length || destinoIdx >= servidores.length) return;
+    var nomeMovido = servidores[origemIdx];
+    var lotacaoMovida = lotacoes[origemIdx];
+    servidores.splice(origemIdx, 1);
+    lotacoes.splice(origemIdx, 1);
+    servidores.splice(destinoIdx, 0, nomeMovido);
+    lotacoes.splice(destinoIdx, 0, lotacaoMovida);
+    salvarServidores();
+    atualizarListaFuncionariosPrincipal();
+    renderizarAcessoRapido();
+    feedback("Ordem atualizada!");
+}
+
+function dragStartServ(event) {
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    draggingIndexServ = parseInt(linha.getAttribute('data-index'));
+    event.dataTransfer.setData('text/plain', draggingIndexServ);
+    event.dataTransfer.effectAllowed = 'move';
+    linha.classList.add('dragging');
+}
+
+function dragEndServ(event) {
+    var linha = event.target.closest('tr');
+    if(linha) { linha.classList.remove('dragging'); }
+    var todasLinhas = document.querySelectorAll('#corpoStatusServidores tr');
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+    draggingIndexServ = null;
+}
+
+function dragOverServ(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    var linha = event.target.closest('tr');
+    if(!linha) return;
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndexServ !== null && draggingIndexServ !== targetIndex) {
+        var todasLinhas = document.querySelectorAll('#corpoStatusServidores tr');
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        linha.classList.add('drag-over');
+    }
+}
+
+function dropServ(event) {
+    event.preventDefault();
+    var linha = event.target.closest('tr');
+    var todasLinhas = document.querySelectorAll('#corpoStatusServidores tr');
+    if(!linha || draggingIndexServ === null) {
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        return;
+    }
+    var targetIndex = parseInt(linha.getAttribute('data-index'));
+    if(draggingIndexServ === targetIndex) {
+        for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+        return;
+    }
+    var novoIndex = targetIndex;
+    if(draggingIndexServ < targetIndex) { novoIndex = targetIndex - 1; }
+    reordenarServidor(draggingIndexServ, novoIndex);
+    for(var i = 0; i < todasLinhas.length; i++) { todasLinhas[i].classList.remove('drag-over'); }
+}
+
+// Alternativa em telas de toque (celular/tablet), sem precisar arrastar
+function moverServidorPosicao(idx, direcao) {
+    var novoIndex = idx + direcao;
+    if(novoIndex < 0 || novoIndex >= servidores.length) return;
+    var tempNome = servidores[idx];
+    var tempLotacao = lotacoes[idx];
+    servidores[idx] = servidores[novoIndex];
+    lotacoes[idx] = lotacoes[novoIndex];
+    servidores[novoIndex] = tempNome;
+    lotacoes[novoIndex] = tempLotacao;
+    salvarServidores();
+    atualizarListaFuncionariosPrincipal();
+    renderizarAcessoRapido();
+    feedback("Ordem atualizada!");
 }
 
 function abrirModalEdicaoServidorPorNome(nome) { var idx = servidores.indexOf(nome); if(idx !== -1) abrirModalEdicaoServidor(idx); }
