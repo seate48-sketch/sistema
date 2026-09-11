@@ -958,6 +958,22 @@ async function salvarRegistros() {
     var dataAlvo = dataSelecionada;
     var wasEx = registros[dataAlvo] && registros[dataAlvo].example;
     var ficouVazio = Object.keys(novo).length === 0 && !aus;
+
+    // CORREÇÃO: só avisa "salvo" depois de confirmar no Supabase (antes o
+    // aviso aparecia sempre, mesmo quando a gravação no banco falhava em
+    // silêncio — o registro ficava só no navegador, sem o gestor nunca ver).
+    var sucesso = true;
+    if (USUARIO_LOGADO && supabaseDisponivel) {
+        try {
+            sucesso = ficouVazio
+                ? await dbExcluirRegistroDia(USUARIO_LOGADO, dataAlvo)
+                : await dbSalvarRegistroDia(USUARIO_LOGADO, dataAlvo, novo, aus);
+        } catch(e) {
+            console.warn('Erro ao sincronizar registro com o Supabase:', e.message);
+            sucesso = false;
+        }
+    }
+
     if(ficouVazio) {
         delete registros[dataAlvo];
     } else {
@@ -967,28 +983,30 @@ async function salvarRegistros() {
     salvar();
     renderCalendario();
     fecharModal();
-    feedback("Registros salvos");
-    if (USUARIO_LOGADO && supabaseDisponivel) {
-        try {
-            if (ficouVazio) { await dbExcluirRegistroDia(USUARIO_LOGADO, dataAlvo); }
-            else { await dbSalvarRegistroDia(USUARIO_LOGADO, dataAlvo, novo, aus); }
-        } catch(e) {
-            console.warn('Erro ao sincronizar registro com o Supabase:', e.message);
-        }
+    if (sucesso) {
+        feedback("Registros salvos");
+    } else {
+        feedback("Aviso: não foi possível confirmar o salvamento no servidor. Verifique sua conexão e tente novamente.");
     }
 }
 
-function excluirDia() {
+async function excluirDia() {
     if(!dataSelecionada) return;
     if(confirm("Excluir registros do dia " + dataSelecionada + "?")) {
         var dataAlvo = dataSelecionada;
+        var sucesso = true;
+        if (USUARIO_LOGADO && supabaseDisponivel) {
+            try { sucesso = await dbExcluirRegistroDia(USUARIO_LOGADO, dataAlvo); }
+            catch(e) { console.warn('Erro ao excluir registro no Supabase:', e.message); sucesso = false; }
+        }
         delete registros[dataAlvo];
         salvar();
         renderCalendario();
         fecharModal();
-        feedback("Excluido");
-        if (USUARIO_LOGADO && supabaseDisponivel) {
-            dbExcluirRegistroDia(USUARIO_LOGADO, dataAlvo).catch(function(e) { console.warn('Erro ao excluir registro no Supabase:', e.message); });
+        if (sucesso) {
+            feedback("Excluido");
+        } else {
+            feedback("Aviso: não foi possível confirmar a exclusão no servidor.");
         }
     }
 }
