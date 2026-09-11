@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,6 +7,27 @@
     <meta name="theme-color" content="#0F2D52">
     <title>SEATE - Atividades</title>
     <link rel="stylesheet" href="style.css">
+
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS                            -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+
     <style>
         .dragging {
             opacity: 0.5;
@@ -268,7 +290,6 @@
 
 <div id="modalEdicaoAtividade" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEdicao()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Servidor</label><input type="text" id="modalServidorNome" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Atividade Atual</label><input type="text" id="modalAtividadeAtual" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Substituir por</label><select id="modalNovaAtividade" class="select-atribuir-rapido" style="width:100%;padding:10px;"></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEdicao()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoAtividade()">Salvar</button></div></div></div>
 
-<script src="common.js"></script>
 <script>
 // Lista canônica de atividades já vem de common.js (const atividadesPadrao), evitando
 // manter aqui uma segunda cópia que poderia divergir com o tempo.
