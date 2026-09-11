@@ -837,8 +837,9 @@ function atualizarPainel() {
     summary.innerHTML = html;
 }
 
-function abrirModalVerificacaoBloco() {
-    if (isSistemaSuspenso()) { exibirModalSuspensao(); return false; }
+async function abrirModalVerificacaoBloco() {
+    var suspenso = await isSistemaSuspenso();
+    if (suspenso) { exibirModalSuspensao(); return false; }
     if (bloqueioAtivo) { exibirMensagemBloqueio(); return false; }
     return true;
 }
@@ -882,7 +883,7 @@ function renderCalendario() {
         
         if(!isWeekend) {
             dia.onclick = (function(data) {
-                return function() { if (abrirModalVerificacaoBloco()) { abrirModal(data); } };
+                return async function() { if (await abrirModalVerificacaoBloco()) { abrirModal(data); } };
             })(dataStr);
         }
         
