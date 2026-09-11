@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1736,6 +1737,11 @@ function renderizarAcessoRapido() {
     container.innerHTML = html;
 }
 
+// Reflete, na tabela de status, se os registros estão suspensos
+// globalmente (botão "Suspender Registros"), além do bloqueio
+// individual de cada servidor.
+var registrosSuspensos = false;
+
 function atualizarListaFuncionariosPrincipal() {
     var container = document.getElementById("listaFuncionariosPrincipal");
     var filtrados = servidores.slice();
@@ -1748,8 +1754,9 @@ function atualizarListaFuncionariosPrincipal() {
         var nome = filtrados[i];
         var lotacao = getLotacaoServidor(nome);
         var status = getStatusServidor(nome);
-        var statusText = status === "liberado" ? "Liberado" : "Bloqueado";
-        var statusClass = status === "liberado" ? "status-liberado" : "status-bloqueado";
+        var bloqueadoExibicao = registrosSuspensos || status !== "liberado";
+        var statusText = bloqueadoExibicao ? "Bloqueado" : "Liberado";
+        var statusClass = bloqueadoExibicao ? "status-bloqueado" : "status-liberado";
         var acaoTexto = status === "liberado" ? "Bloquear" : "Liberar";
         html += '<tr><td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button></td></tr>';
     }
@@ -1864,6 +1871,8 @@ async function alternarSuspensaoRegistros() {
     var novoValor = !suspenso;
     if(suspenso) { localStorage.removeItem("seate_suspenso"); btn.textContent = "Suspender Registros"; btn.classList.remove("suspenso"); feedback("Registros liberados!"); }
     else { localStorage.setItem("seate_suspenso", "true"); btn.textContent = "Liberar Registros"; btn.classList.add("suspenso"); feedback("Registros suspensos!"); }
+    registrosSuspensos = novoValor;
+    atualizarListaFuncionariosPrincipal();
     if (supabaseDisponivel) {
         try { await dbToggleSuspenso(novoValor); }
         catch(e) { console.warn('Erro ao sincronizar suspensão com o Supabase:', e.message); }
@@ -1878,6 +1887,8 @@ async function verificarSuspensao() {
             if (suspenso) { localStorage.setItem("seate_suspenso", "true"); } else { localStorage.removeItem("seate_suspenso"); }
         } catch(e) { console.warn('Erro ao verificar suspensão no Supabase:', e.message); }
     }
+    registrosSuspensos = suspenso;
+    atualizarListaFuncionariosPrincipal();
     var btn = document.getElementById("btnSuspenderRegistros");
     if(btn) {
         if(suspenso) { btn.textContent = "Liberar Registros"; btn.classList.add("suspenso"); }
