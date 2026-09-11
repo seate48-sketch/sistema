@@ -639,18 +639,23 @@ async function dbToggleSuspenso(suspenso) {
 // =====================================================
 
 async function dbCarregarComunicados() {
+    // CORREÇÃO: null = "não consegui buscar" (mantenha o que já tinha);
+    // [] = "busquei, e não há nenhum comunicado" (mostre lista vazia de
+    // verdade). Antes as duas situações retornavam [] igual, e quem
+    // chamava essa função não tinha como distinguir "tudo excluído" de
+    // "falha ao buscar" — o que fazia comunicados excluídos "voltarem".
     if (!supabaseDisponivel || !db) {
-        console.warn('⚠️ Supabase indisponível. Retornando lista vazia.');
-        return [];
+        console.warn('⚠️ Supabase indisponível.');
+        return null;
     }
     
     try {
         const { data, error } = await db.from(TABLES.COMUNICADOS).select('conteudo').order('ordem');
-        if (error) { console.error('dbCarregarComunicados:', error); return []; }
+        if (error) { console.error('dbCarregarComunicados:', error); return null; }
         return data.map(c => c.conteudo);
     } catch(e) {
         console.error('❌ Erro em dbCarregarComunicados:', e.message);
-        return [];
+        return null;
     }
 }
 
