@@ -346,6 +346,7 @@ var urlParams = new URLSearchParams(window.location.search);
 var USUARIO_LOGADO = urlParams.get('user');
 var intervaloVerificacao = null;
 var bloqueioAtivo = false;
+var bloqueiosServidor = {}; // status de bloqueio vindo do Supabase (nome -> true/false)
 
 // ==================== FUNÇÕES EXISTENTES (MANTIDAS) ====================
 async function isSistemaSuspenso() {
@@ -401,6 +402,12 @@ function removerModalSuspensao() {
 
 function isUsuarioBloqueado(nome) {
     if (!nome) return false;
+    // Fonte principal: status real vindo do Supabase (carregado em
+    // iniciarPagina() e atualizado a cada verificarStatusPeriodico()).
+    if (supabaseDisponivel) {
+        return bloqueiosServidor[nome] === true;
+    }
+    // Fallback apenas se o Supabase estiver indisponível (modo offline).
     var storedBloqueios = localStorage.getItem("seate_bloqueios");
     if (!storedBloqueios) return false;
     var bloqueios = JSON.parse(storedBloqueios);
@@ -614,6 +621,12 @@ function fecharModalEmergente() {
 async function verificarStatusPeriodico() {
     if (!USUARIO_LOGADO) return;
     var suspenso = await isSistemaSuspenso();
+    if (supabaseDisponivel) {
+        try {
+            var dadosServ = await dbCarregarServidores();
+            bloqueiosServidor = dadosServ.bloqueios || {};
+        } catch(e) { console.warn('Erro ao verificar bloqueio:', e.message); }
+    }
     var estaBloqueado = isUsuarioBloqueado(USUARIO_LOGADO);
     if (suspenso) {
         removerBloqueio();
@@ -1000,7 +1013,10 @@ function desempenho() {
 
 async function iniciarPagina() {
     if (USUARIO_LOGADO && supabaseDisponivel) {
-        try { await dbCarregarServidores(); } catch(e) { console.warn('Erro ao carregar servidores:', e.message); }
+        try {
+            var dadosServ = await dbCarregarServidores();
+            bloqueiosServidor = dadosServ.bloqueios || {};
+        } catch(e) { console.warn('Erro ao carregar servidores:', e.message); }
     }
     await verificarMensagemIndividual();
     await verificarMensagemEmergente();
