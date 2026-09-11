@@ -128,7 +128,7 @@ async function dbCarregarServidores() {
     }
     
     try {
-        const { data, error } = await db.from(TABLES.SERVIDORES).select('*').order('nome');
+        const { data, error } = await db.from(TABLES.SERVIDORES).select('*').order('ordem');
         if (error) { console.error('dbCarregarServidores:', error); return { servidores: [], lotacoes: [], bloqueios: {} }; }
 
         _cache.servidores = {};
