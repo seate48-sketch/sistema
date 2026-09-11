@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0F2D52">
+    <title>SEATE - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ======================================== -->
+    <!-- 1. SUPABASE CDN                         -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ======================================== -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
+    <!-- ======================================== -->
+    <script src="config.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 3. SUPABASE CLIENT                      -->
+    <!-- ======================================== -->
+    <script src="supabase-client.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 4. COMMON.JS (só funções utilitárias      -->
+    <!-- e de cálculo — nenhuma tela daqui usa     -->
+    <!-- login/edição, então nada disso é exposto) -->
+    <!-- ======================================== -->
+    <script src="common.js"></script>
+
+    <!-- ======================================== -->
+    <!-- 5. CHART.JS                             -->
+    <!-- ======================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* Página sem abas: cabeçalho um pouco mais simples */
+        .header-info { gap: 10px; }
+
+        .indicadores-grid { margin-bottom: 24px; }
+
+        .graficos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .grafico-card {
+            background: var(--cinza-suave);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--cinza-borda);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .grafico-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .grafico-card h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .grafico-card canvas {
+            max-height: 200px;
+            width: 100% !important;
+        }
+
+        .modal-estatistica {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+        }
+        .modal-estatistica-content {
+            background: var(--branco);
+            margin: 3% auto;
+            max-width: 95%;
+            width: 95%;
+            max-height: 90vh;
+            border-radius: 24px;
+            animation: slideDown 0.25s;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-estatistica-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 2px solid var(--cinza-borda);
+            background: var(--azul-marinho);
+            color: var(--branco);
+            border-radius: 24px 24px 0 0;
+            flex-shrink: 0;
+        }
+        .modal-estatistica-header h3 { margin: 0; }
+        .modal-estatistica-body { padding: 22px; overflow-y: auto; flex: 1; }
+        .modal-estatistica-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 22px;
+            border-top: 1px solid var(--cinza-borda);
+            flex-shrink: 0;
+        }
+        .modal-close { font-size: 28px; cursor: pointer; color: var(--branco); }
+
+        .tabela-estatistica-container { overflow-x: auto; margin-bottom: 20px; }
+        .tabela-estatistica { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .tabela-estatistica th {
+            background: var(--cinza-suave);
+            color: var(--azul-marinho);
+            font-weight: 600;
+            padding: 8px 4px;
+            text-align: center;
+            border-bottom: 2px solid var(--cinza-borda);
+            white-space: nowrap;
+        }
+        .tabela-estatistica td {
+            padding: 6px 4px;
+            text-align: center;
+            border-bottom: 1px solid var(--cinza-borda);
+            vertical-align: middle;
+        }
+        .tabela-estatistica tr:hover { background: var(--cinza-suave); }
+
+        .modal-grafico .modal-estatistica-content { max-width: 800px; width: 90%; }
+
+        @keyframes slideDown {
+            from { transform: translateY(-40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @media (max-width: 1024px) {
+            .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
+            .graficos-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
+            .grafico-container canvas { height: 180px !important; max-height: 180px; }
+            .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
+        }
+        @media (max-width: 480px) {
+            .indicadores-grid { grid-template-columns: 1fr; }
+            .grafico-container canvas { height: 150px !important; max-height: 150px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-placeholder">
+                <img src="image.png" alt="Justica Federal - SJDF" class="logo-img">
+            </div>
+            <div class="header-titles">
+                <h1>Dashboard - Metricas</h1>
+                <p>SEATE - Setor de Atendimento / SJDF</p>
+            </div>
+        </div>
+        <div class="header-info">
+            <span class="version-tag">V.01.2026</span>
+        </div>
+    </header>
+
+    <!-- Sem barra de abas: esta página fica isolada do restante do sistema -->
+    <main class="main-content">
+        <div class="tab-content active">
+            <!-- ===== INDICADORES GERAIS ===== -->
+            <div class="card">
+                <h3>Indicadores Gerais</h3>
+                <div class="indicadores-grid" id="indicadoresGrid"></div>
+            </div>
+
+            <!-- ===== ANÁLISE DE ATIVIDADES ===== -->
+            <div class="card">
+                <h3>Analise de Atividades</h3>
+                <div class="graficos-grid">
+                    <div class="grafico-card" id="graficoAnualCard">
+                        <h4>Evolucao Anual - TOTAL GERAL</h4>
+                        <canvas id="graficoAnual"></canvas>
+                    </div>
+
+                    <div class="grafico-card" id="graficoTop10Card">
+                        <h4 id="tituloTop10Geral">Top 10 Atividades Mais Realizadas</h4>
+                        <canvas id="graficoTop10"></canvas>
+                    </div>
+
+                    <div class="grafico-card" id="graficoTop10ServicosAnoAtualCard">
+                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Servicos Mais Executados</h4>
+                        <canvas id="graficoTop10ServicosAnoAtual"></canvas>
+                    </div>
+
+                    <div class="grafico-card" id="graficoMensalAnoAtualCard">
+                        <h4 id="tituloMensalAnoAtual">Atividades Mensais</h4>
+                        <canvas id="graficoMensalAnoAtual"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
+</div>
+
+<!-- ===== MODAL DETALHE DE UM ANO (abre ao clicar num indicador/barra) ===== -->
+<div id="modalEstatistica" class="modal-estatistica">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3><span id="modalEstatisticaTitulo">Dados Estatisticos</span></h3>
+            <span class="modal-close" onclick="fecharModalEstatistica()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div id="listaAtividadesEstatistica"></div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="fecharModalEstatistica()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL GRÁFICO EVOLUÇÃO ANUAL (ampliado, abre ao clicar no card TOTAL GERAL) ===== -->
+<div id="modalGraficoEvolucao" class="modal-estatistica modal-grafico">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3>Evolucao Anual - TOTAL GERAL</h3>
+            <span class="modal-close" onclick="fecharModalGraficoEvolucao()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div class="grafico-container">
+                <canvas id="graficoEvolucaoAnual"></canvas>
+            </div>
+            <div style="margin-top:12px; text-align:center; font-size:0.75rem; color:#888;">
+                Clique nas barras para ver os detalhes de cada ano
+            </div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="fecharModalGraficoEvolucao()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// DADOS FIXOS (2022 a 2025) — mesmos valores usados na tela
+// Estatistica; nao dependem do banco de dados.
+// ============================================================
+const dadosFixos = {
+    "2022": { seate: 110686, nahora: 7929, totalGeral: 118615 },
+    "2023": { seate: 99641, nahora: 9722, totalGeral: 109363 },
+    "2024": { seate: 87980, nahora: 10930, totalGeral: 98910 },
+    "2025": { seate: 92894, nahora: 9955, totalGeral: 102849 }
+};
+
+// ==================== DADOS ESTATÍSTICOS PRÉ-PREENCHIDOS (PARA DETALHAMENTO) ====================
+const dadosPreenchidos = {
+    "2022": {
+        "SEATE": {
+            "ATEND TELEFONICO": 28553, "ATEND PRESENCIAL": 2455, "ATEND POR E-MAIL": 9184,
+            "CAD PARTES E ADV NO PJE-E-PROC": 2411, "BAIXA ARQUIVOS E-PROC": 0, "CERT DE MILITANCIA": 857,
+            "CERT DE OBJETO E PE": 95, "CERT DE AUTOR": 915, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 20675,
+            "ANALISE PROCESSUAL": 0, "DESARQUIVAMENTO DE PROCESSOS": 461, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 121,
+            "ANALISE DEVOLUCAO DE CUSTAS": 0, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 30006,
+            "CONSULTA PROCESSUAL": 0, "PESQUISA ORACLE-PROCESSUAL": 0,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 4988,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 699,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 7895,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 368,
+            "REQUERIMENTO DE JUNTADA": 0, "JUNTADA DE PETICOES": 0, "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
+            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 280,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 102, "MALOTE DIGITAL": 0, "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0, "JUNTADA E ASSINATURA DE DOC PJE": 0, "DEVOLUCAO DE PROCESSOS": 0,
+            "DIVISAO PASTAS SERVIDORES": 0, "PASTA P SEI": 0, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 256, "TERMO DE COMPARECIMENTO": 365
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 7929, "ATERMACAO": 0, "CERTIDOES ORACLE-PJE": 0,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 0, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMACOES GERAIS": 0
+        }
+    },
+    "2023": {
+        "SEATE": {
+            "ATEND TELEFONICO": 31072, "ATEND PRESENCIAL": 10052, "ATEND POR E-MAIL": 6645,
+            "CAD PARTES E ADV NO PJE-E-PROC": 2647, "BAIXA ARQUIVOS E-PROC": 0, "CERT DE MILITANCIA": 476,
+            "CERT DE OBJETO E PE": 127, "CERT DE AUTOR": 5790, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 13449,
+            "ANALISE PROCESSUAL": 0, "DESARQUIVAMENTO DE PROCESSOS": 698, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 23,
+            "ANALISE DEVOLUCAO DE CUSTAS": 0, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 11127,
+            "CONSULTA PROCESSUAL": 0, "PESQUISA ORACLE-PROCESSUAL": 0,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 5458,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 771,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 8974,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 469,
+            "REQUERIMENTO DE JUNTADA": 0, "JUNTADA DE PETICOES": 0, "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
+            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 324,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 92, "MALOTE DIGITAL": 0, "PROCESSOS SEI": 0,
+            "CONSULTA SEEU": 0, "JUNTADA E ASSINATURA DE DOC PJE": 0, "DEVOLUCAO DE PROCESSOS": 0,
+            "DIVISAO PASTAS SERVIDORES": 0, "PASTA P SEI": 0, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 821, "TERMO DE COMPARECIMENTO": 626
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 9722, "ATERMACAO": 0, "CERTIDOES ORACLE-PJE": 0,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 0, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
+            "INFORMACOES GERAIS": 0
+        }
+    },
+    "2024": {
+        "SEATE": {
+            "ATEND TELEFONICO": [2486, 2599, 2435, 2936, 2272, 2863, 2308, 3049, 3315, 3315, 2769, 2127],
+            "ATEND PRESENCIAL": [439, 369, 351, 391, 317, 408, 425, 414, 401, 396, 352, 241],
+            "ATEND POR E-MAIL": [263, 517, 572, 471, 348, 466, 466, 894, 987, 872, 860, 500],
+            "CAD PARTES E ADV NO PJE-E-PROC": [262, 344, 356, 285, 225, 198, 178, 240, 149, 216, 145, 406],
+            "BAIXA ARQUIVOS E-PROC": [0, 0, 0, 0, 0, 0, 0, 0, 33, 90, 670, 423],
+            "CERT DE MILITANCIA": [9, 4, 32, 11, 4, 4, 22, 30, 50, 93, 95, 37],
+            "CERT DE OBJETO E PE": [5, 357, 34, 6, 1, 2, 19, 23, 16, 3, 8, 20],
+            "CERT DE AUTOR": [56, 553, 609, 774, 703, 5, 30, 64, 807, 7, 13, 40],
+            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": [911, 999, 1150, 1276, 970, 1256, 2165, 5605, 714, 1346, 1222, 1306],
+            "ANALISE PROCESSUAL": [0, 0, 0, 0, 0, 68, 419, 751, 573, 390, 231, 191],
+            "DESARQUIVAMENTO DE PROCESSOS": [84, 37, 79, 113, 53, 16, 10, 157, 221, 113, 37, 21],
+            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": [2, 3, 12, 5, 0, 0, 16, 7, 7, 1, 0, 1],
+            "ANALISE DEVOLUCAO DE CUSTAS": [0, 0, 0, 0, 0, 3, 38, 115, 17, 6, 8, 13],
+            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "CONSULTA PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 67, 44, 238, 191, 63],
+            "PESQUISA ORACLE-PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 432, 91, 165, 1, 0],
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": [268, 319, 537, 500, 220, 119, 76, 119, 138, 335, 167, 81],
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": [26, 8, 5, 12, 40, 15, 11, 9, 8, 0, 0, 23],
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": [195, 428, 1, 600, 242, 0, 560, 43, 0, 5, 920, 224],
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0],
+            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": [117, 15, 0, 81, 85, 74, 60, 50, 17, 0, 0, 0],
+            "REQUERIMENTO DE JUNTADA": [12, 6, 0, 1, 0, 4, 4, 0, 0, 1, 0, 0],
+            "JUNTADA DE PETICOES": [111, 107, 95, 130, 100, 116, 123, 128, 127, 134, 307, 91],
+            "DIGITALIZACAO DE PROCESSOS / PETICOES": [0, 0, 0, 0, 16, 13, 30, 29, 41, 12, 23, 10],
+            "ATEND SEI": [0, 0, 0, 0, 0, 69, 28, 19, 5, 19, 20, 14],
+            "ATEND TEAMS": [0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0],
+            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": [0, 0, 0, 0, 0, 6, 28, 11, 6, 7, 0, 0],
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": [12, 12, 10, 10, 21, 13, 10, 16, 13, 19, 0, 0],
+            "MALOTE DIGITAL": [0, 0, 0, 0, 0, 1, 4, 10, 2, 2, 0, 0],
+            "PROCESSOS SEI": [0, 0, 0, 0, 0, 80, 43, 117, 105, 83, 0, 0],
+            "CONSULTA SEEU": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "JUNTADA E ASSINATURA DE DOC PJE": [0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0],
+            "DEVOLUCAO DE PROCESSOS": [0, 0, 0, 0, 0, 0, 7, 79, 67, 228, 0, 0],
+            "DIVISAO PASTAS SERVIDORES": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": [43, 35, 34, 26, 26, 40, 20, 20, 35, 26, 44, 27],
+            "TERMO DE COMPARECIMENTO": [93, 65, 31, 36, 35, 44, 40, 37, 29, 34, 31, 38]
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": [911, 802, 924, 1125, 372, 402, 409, 412, 348, 439, 401, 327],
+            "ATERMACAO": [35, 32, 51, 46, 56, 50, 59, 51, 0, 0, 0, 0],
+            "CERTIDOES ORACLE-PJE": [448, 600, 522, 437, 251, 323, 169, 229, 0, 0, 0, 0],
+            "RECEBIMENTO DE PROCESSOS-PETICOES": [7, 8, 12, 21, 23, 20, 10, 2, 0, 0, 0, 0],
+            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": [42, 18, 54, 50, 63, 52, 28, 30, 0, 0, 0, 0],
+            "INFORMACOES GERAIS": [34, 16, 23, 33, 41, 43, 37, 32, 0, 0, 0, 0]
+        }
+    },
+    "2025": {
+        "SEATE": {
+            "ATEND TELEFONICO": 34815, "ATEND PRESENCIAL": 4630, "ATEND POR E-MAIL": 8471,
+            "CAD PARTES E ADV NO PJE-E-PROC": 1576, "BAIXA ARQUIVOS E-PROC": 997, "CERT DE MILITANCIA": 617,
+            "CERT DE OBJETO E PE": 166, "CERT DE AUTOR": 151, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 18908,
+            "ANALISE PROCESSUAL": 5910, "DESARQUIVAMENTO DE PROCESSOS": 1201, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 84,
+            "ANALISE DEVOLUCAO DE CUSTAS": 1276, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 0,
+            "CONSULTA PROCESSUAL": 5599, "PESQUISA ORACLE-PROCESSUAL": 495,
+            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 1812,
+            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 95,
+            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 886,
+            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 52,
+            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 332, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 413,
+            "REQUERIMENTO DE JUNTADA": 197, "JUNTADA DE PETICOES": 907, "DIGITALIZACAO DE PROCESSOS / PETICOES": 69,
+            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 23,
+            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 144, "MALOTE DIGITAL": 66, "PROCESSOS SEI": 988,
+            "CONSULTA SEEU": 60, "JUNTADA E ASSINATURA DE DOC PJE": 280, "DEVOLUCAO DE PROCESSOS": 460,
+            "DIVISAO PASTAS SERVIDORES": 223, "PASTA P SEI": 42, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
+            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 564, "TERMO DE COMPARECIMENTO": 385
+        },
+        "NAHORA": {
+            "ANDAMENTO PROCESSUAL": 6253, "ATERMACAO": 252, "CERTIDOES ORACLE-PJE": 2622,
+            "RECEBIMENTO DE PROCESSOS-PETICOES": 98, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 397,
+            "INFORMACOES GERAIS": 333
+        }
+    }
+};
+
+// ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
+async function calcularDadosMensaisAnoAtual() {
+    var totais = await obterTotaisAnoAtual();
+    return totais.porMes;
+}
+
+// ==================== FUNÇÃO: GERAR CORES EM DEGRADÊ ====================
+function gerarCoresDegrade(inicio, fim, quantidade) {
+    var cores = [];
+    for (var i = 0; i < quantidade; i++) {
+        var t = quantidade > 1 ? i / (quantidade - 1) : 0;
+        var r = Math.round(inicio.r + (fim.r - inicio.r) * t);
+        var g = Math.round(inicio.g + (fim.g - inicio.g) * t);
+        var b = Math.round(inicio.b + (fim.b - inicio.b) * t);
+        cores.push('rgb(' + r + ',' + g + ',' + b + ')');
+    }
+    return cores;
+}
+
+// ==================== PLUGIN: EXIBIR VALORES FORA DAS BARRAS ====================
+const valorTopoPlugin = {
+    id: 'valorTopo',
+    afterDraw: function(chart) {
+        var ctx = chart.ctx;
+        var isHorizontal = chart.config.options.indexAxis === 'y';
+        chart.data.datasets.forEach(function(dataset, datasetIndex) {
+            var meta = chart.getDatasetMeta(datasetIndex);
+            meta.data.forEach(function(bar, index) {
+                var data = dataset.data[index];
+                if (data > 0) {
+                    ctx.font = 'bold 10px Arial';
+                    if (isHorizontal) {
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#0F2D52';
+                        ctx.fillText(data.toLocaleString(), bar.x + 6, bar.y);
+                    } else {
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillStyle = '#0F2D52';
+                        ctx.fillText(data.toLocaleString(), bar.x, bar.y - 6);
+                    }
+                }
+            });
+        });
+    }
+};
+
+// ==================== RENDERIZAR INDICADORES ====================
+async function renderizarIndicadores() {
+    var container = document.getElementById("indicadoresGrid");
+    var anos = getAnosDisponiveis();
+    var cores = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
+    var html = '';
+    var totalSeateGeral = 0;
+    var totalNahoraGeral = 0;
+
+    for (var i = 0; i < anos.length; i++) {
+        var totaisAno = await obterSeateNahoraPorAno(anos[i]);
+        totalSeateGeral += totaisAno.seateTotal;
+        totalNahoraGeral += totaisAno.nahoraTotal;
+    }
+
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var cor = cores[i % cores.length];
+        var totaisAno2 = await obterSeateNahoraPorAno(ano);
+        var seateTotal = totaisAno2.seateTotal;
+        var nahoraTotal = totaisAno2.nahoraTotal;
+        var totalGeral = seateTotal + nahoraTotal;
+
+        html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
+        html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
+        html += '<div class="indicador-valor">' + (totalGeral > 0 ? totalGeral.toLocaleString() : '--') + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + seateTotal.toLocaleString() + ' | NAHORA: ' + nahoraTotal.toLocaleString() + '</div>';
+        html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        html += '</div>';
+    }
+
+    var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
+    html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
+    html += '<div class="indicador-titulo">TOTAL GERAL</div>';
+    html += '<div class="indicador-valor">' + totalGeralFinal.toLocaleString() + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + totalSeateGeral.toLocaleString() + ' | NAHORA: ' + totalNahoraGeral.toLocaleString() + '</div>';
+    html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// ==================== MODAL DETALHE DE UM ANO ====================
+var anoEstatisticaSelecionado = null;
+
+async function abrirModalIndicador(ano, setor) {
+    try {
+        var isAnoAtual = (ano === ANO_ATUAL);
+        var titulo = (setor === "SEATE") ? (ano + " - SEATE") : (setor === "NAHORA") ? (ano + " - NAHORA") : (ano + " - SEATE + NAHORA");
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + titulo;
+
+        var container = document.getElementById("listaAtividadesEstatistica");
+        var html = '';
+
+        if (isAnoAtual) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            var seateTotais = totaisAnoAtual.porAtividadeSeate;
+            var nahoraTotais = totaisAnoAtual.porAtividadeNahora;
+            var seateTotal = 0;
+            var nahoraTotal = 0;
+            var mostrarSeate = (setor === null || setor === "SEATE");
+            var mostrarNahora = (setor === null || setor === "NAHORA");
+
+            if (mostrarSeate) {
+                html += '<div class="titulo-secao">SEATE</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                var seateItems = [];
+                for (var ativ in seateTotais) { seateItems.push({ nome: ativ, total: seateTotais[ativ] }); seateTotal += seateTotais[ativ]; }
+                seateItems.sort(function(a, b) { return b.total - a.total; });
+                if (seateItems.length === 0) {
+                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para SEATE em ' + ano + '</td></tr>';
+                } else {
+                    for (var i = 0; i < seateItems.length; i++) {
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(seateItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + seateItems[i].total.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+            }
+
+            if (mostrarNahora) {
+                html += '<div class="titulo-secao">NAHORA</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                var nahoraItems = [];
+                for (var ativ in nahoraTotais) { nahoraItems.push({ nome: ativ, total: nahoraTotais[ativ] }); nahoraTotal += nahoraTotais[ativ]; }
+                nahoraItems.sort(function(a, b) { return b.total - a.total; });
+                if (nahoraItems.length === 0) {
+                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para NAHORA em ' + ano + '</td></tr>';
+                } else {
+                    for (var i = 0; i < nahoraItems.length; i++) {
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(nahoraItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + nahoraItems[i].total.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+            }
+
+            if (setor === null) {
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (seateTotal + nahoraTotal).toLocaleString() + '</div>';
+            }
+            container.innerHTML = html;
+
+        } else {
+            var dadosAno = (ano === "2024") ? true : dadosFixos[ano];
+            if (!dadosAno) {
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados nao disponiveis para este ano.</p>';
+                document.getElementById("modalEstatistica").style.display = "block";
+                return;
+            }
+            var dadosPre = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
+            var seateTotal = 0;
+            var nahoraTotal = 0;
+            var mostrarSeate = (setor === null || setor === "SEATE");
+            var mostrarNahora = (setor === null || setor === "NAHORA");
+
+            if (mostrarSeate) {
+                html += '<div class="titulo-secao">SEATE</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                if (dadosPre && dadosPre["SEATE"]) {
+                    for (var ativ in dadosPre["SEATE"]) {
+                        var valor = dadosPre["SEATE"][ativ];
+                        if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        seateTotal += valor;
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+            }
+
+            if (mostrarNahora) {
+                html += '<div class="titulo-secao">NAHORA</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                if (dadosPre && dadosPre["NAHORA"]) {
+                    for (var ativ in dadosPre["NAHORA"]) {
+                        var valor = dadosPre["NAHORA"][ativ];
+                        if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        nahoraTotal += valor;
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                    }
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+            }
+
+            if (setor === null) {
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (seateTotal + nahoraTotal).toLocaleString() + '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        document.getElementById("modalEstatistica").style.display = "block";
+        anoEstatisticaSelecionado = ano;
+    } catch(e) {
+        console.warn('Erro ao abrir modal indicador:', e.message);
+        feedback("Erro ao abrir modal!");
+    }
+}
+
+function fecharModalEstatistica() {
+    document.getElementById("modalEstatistica").style.display = "none";
+}
+
+// ==================== GRÁFICO EVOLUÇÃO ANUAL (MODAL AMPLIADO) ====================
+function criarGraficoEvolucao() {
+    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
+    var anos = getAnosDisponiveis();
+    var valoresTotais = [];
+
+    async function montar() {
+        for (var i = 0; i < anos.length; i++) {
+            var totaisAno = await obterSeateNahoraPorAno(anos[i]);
+            valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+        }
+        var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
+        if (window.chartEvolucao) { window.chartEvolucao.destroy(); window.chartEvolucao = null; }
+        window.chartEvolucao = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: anos, datasets: [{ label: 'TOTAL GERAL (SEATE + NAHORA)', data: valoresTotais, backgroundColor: cores, borderColor: cores, borderWidth: 2, borderRadius: 6 }] },
+            plugins: [valorTopoPlugin],
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
+                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 10 } } },
+                    x: { ticks: { font: { size: 11, weight: 'bold' } } }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        var anosAtuais = getAnosDisponiveis();
+                        abrirModalIndicador(anosAtuais[elements[0].index], null);
+                    }
+                }
+            }
+        });
+    }
+    montar();
+}
+
+function abrirModalGraficoEvolucao() {
+    try {
+        document.getElementById("modalGraficoEvolucao").style.display = "block";
+        setTimeout(function() { criarGraficoEvolucao(); }, 300);
+    } catch(e) {
+        console.warn('Erro ao abrir grafico evolucao:', e.message);
+        feedback("Erro ao abrir grafico!");
+    }
+}
+
+function fecharModalGraficoEvolucao() {
+    document.getElementById("modalGraficoEvolucao").style.display = "none";
+    if (window.chartEvolucao) { window.chartEvolucao.destroy(); window.chartEvolucao = null; }
+}
+
+// ==================== GRÁFICO ANUAL (CARD PEQUENO) ====================
+function criarGraficoAnual() {
+    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    var ctx = document.getElementById('graficoAnual').getContext('2d');
+    var anos = getAnosDisponiveis();
+    var valoresTotais = [];
+
+    async function montar() {
+        for (var i = 0; i < anos.length; i++) {
+            var totaisAno = await obterSeateNahoraPorAno(anos[i]);
+            valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+        }
+        var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
+        if (window.chartAnual) { window.chartAnual.destroy(); }
+        window.chartAnual = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: anos, datasets: [{ label: 'TOTAL GERAL (SEATE + NAHORA)', data: valoresTotais, backgroundColor: cores, borderColor: cores, borderWidth: 2, borderRadius: 6 }] },
+            plugins: [valorTopoPlugin],
+            options: {
+                responsive: true, maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
+                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } },
+                    x: { ticks: { font: { size: 10 } } }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        var anosAtuais = getAnosDisponiveis();
+                        abrirModalIndicador(anosAtuais[elements[0].index], null);
+                    }
+                }
+            }
+        });
+    }
+    montar();
+}
+
+// ==================== GRÁFICO TOP 10 ATIVIDADES (TODOS OS ANOS) ====================
+async function criarGraficoTop10() {
+    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    var ctx = document.getElementById('graficoTop10').getContext('2d');
+    var todasAtividades = {};
+    var anos = getAnosDisponiveis();
+    var totaisAnoAtual = await obterTotaisAnoAtual();
+
+    for (var a = 0; a < anos.length; a++) {
+        var ano = anos[a];
+        if (ano === ANO_ATUAL) {
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+            continue;
+        }
+        var dadosAno = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
+        if (!dadosAno) continue;
+        if (dadosAno["SEATE"]) {
+            for (var ativ in dadosAno["SEATE"]) {
+                var valor = dadosAno["SEATE"][ativ];
+                if (Array.isArray(valor)) valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
+                todasAtividades[ativ] = (todasAtividades[ativ] || 0) + valor;
+            }
+        }
+        if (dadosAno["NAHORA"]) {
+            for (var ativ in dadosAno["NAHORA"]) {
+                var valor = dadosAno["NAHORA"][ativ];
+                if (Array.isArray(valor)) valor = valor.reduce(function(s, v) { return s + v; }, 0);
+                else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
+                todasAtividades[ativ] = (todasAtividades[ativ] || 0) + valor;
+            }
+        }
+    }
+
+    var items = [];
+    for (var ativ in todasAtividades) { items.push({ nome: ativ, total: todasAtividades[ativ] }); }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    var coresTop10 = gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, valores.length);
+
+    if (window.chartTop10) { window.chartTop10.destroy(); }
+    window.chartTop10 = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Total (2022-' + ANO_ATUAL + ')', data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
+        plugins: [valorTopoPlugin],
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.x.toLocaleString(); } } }
+            },
+            scales: {
+                y: { ticks: { font: { size: 8 } } },
+                x: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } }
+            }
+        }
+    });
+}
+
+// ==================== GRÁFICO TOP 10 SERVIÇOS DO ANO ATUAL ====================
+async function criarGraficoTop10ServicosAnoAtual() {
+    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    var ctx = document.getElementById('graficoTop10ServicosAnoAtual').getContext('2d');
+    var totaisAnoAtual = await obterTotaisAnoAtual();
+    var totaisAtividades = {};
+    for (var ativ in totaisAnoAtual.porAtividadeSeate) { totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+    for (var ativ in totaisAnoAtual.porAtividadeNahora) { totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+
+    var items = [];
+    for (var ativ in totaisAtividades) { items.push({ nome: ativ, total: totaisAtividades[ativ] }); }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    var coresTop10 = gerarCoresDegrade({ r: 255, g: 179, b: 71 }, { r: 220, g: 38, b: 38 }, valores.length);
+
+    if (window.chartTop10ServicosAnoAtual) { window.chartTop10ServicosAnoAtual.destroy(); }
+    window.chartTop10ServicosAnoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Total ' + ANO_ATUAL, data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
+        plugins: [valorTopoPlugin],
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.x.toLocaleString(); } } }
+            },
+            scales: {
+                y: { ticks: { font: { size: 8 } } },
+                x: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } }
+            }
+        }
+    });
+}
+
+// ==================== GRÁFICO MENSAL DO ANO ATUAL ====================
+async function criarGraficoMensalAnoAtual() {
+    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    var ctx = document.getElementById('graficoMensalAnoAtual').getContext('2d');
+    var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    var mesesCompletos = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    var dadosMensais = await calcularDadosMensaisAnoAtual();
+    var valores = [];
+    for (var i = 0; i < mesesCompletos.length; i++) { valores.push(dadosMensais[mesesCompletos[i]] || 0); }
+    var coresMensal = ['#B3D4F0','#8BB8E0','#639CD0','#3B80C0','#1A5EA8','#0F2D52','#1A5EA8','#3B80C0','#639CD0','#8BB8E0','#B3D4F0','#D0E8F5'];
+
+    if (window.chartMensalAnoAtual) { window.chartMensalAnoAtual.destroy(); }
+    window.chartMensalAnoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: meses, datasets: [{ label: 'Atividades ' + ANO_ATUAL + ' (SEATE + NAHORA)', data: valores, backgroundColor: coresMensal, borderColor: coresMensal, borderWidth: 1 }] },
+        plugins: [valorTopoPlugin],
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } },
+                x: { ticks: { font: { size: 9 } } }
+            }
+        }
+    });
+}
+
+// ==================== INICIALIZAÇÃO (sem login, sem carregarDados()) ====================
+async function iniciarPaginaDashboard() {
+    document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
+    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Servicos Mais Executados em " + ANO_ATUAL;
+    document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
+    await renderizarIndicadores();
+    criarGraficoAnual();
+    criarGraficoTop10();
+    criarGraficoTop10ServicosAnoAtual();
+    criarGraficoMensalAnoAtual();
+}
+iniciarPaginaDashboard();
+
+// Atualiza os números do ano atual periodicamente (a cada 5 minutos),
+// sem precisar recarregar a página.
+setInterval(function() {
+    invalidarCacheDados2024();
+    _totaisAnoAtualPromise = null;
+    iniciarPaginaDashboard();
+}, 5 * 60 * 1000);
+
+window.onclick = function(event) {
+    var modalEst = document.getElementById("modalEstatistica");
+    var modalEvo = document.getElementById("modalGraficoEvolucao");
+    if (event.target === modalEst) { fecharModalEstatistica(); }
+    if (event.target === modalEvo) { fecharModalGraficoEvolucao(); }
+};
+</script>
+</body>
+</html>
