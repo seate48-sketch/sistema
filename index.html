@@ -1754,16 +1754,28 @@ function renderizarBotoesAnos() {
     container.innerHTML = html;
 }
 
-function renderizarAcessoRapido() {
+async function renderizarAcessoRapido() {
     var container = document.getElementById("acessoRapidoLista");
     if(servidores.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;grid-column:1/-1;">Nenhum funcionário cadastrado</div>';
         return;
     }
+    var preenchimentoReal = null;
+    if (supabaseDisponivel) {
+        try { preenchimentoReal = await dbCarregarPreenchimento(servidores, mesConfigurado, anoConfigurado); }
+        catch(e) { console.warn('Erro ao verificar preenchimento no Supabase:', e.message); }
+    }
     var html = '';
     for(var i = 0; i < servidores.length; i++) {
         var nome = servidores[i];
-        var preenchido = verificarPreenchimento(nome);
+        // Fonte real: registros no Supabase deste mês/ano. O localStorage
+        // (verificarPreenchimento) só entra como reserva se o Supabase
+        // estiver fora do ar — ele reflete apenas o navegador de quem
+        // está olhando esta tela, não o que o servidor de fato preencheu,
+        // e não deve ser a fonte principal.
+        var preenchido = (preenchimentoReal && Object.prototype.hasOwnProperty.call(preenchimentoReal, nome))
+            ? preenchimentoReal[nome]
+            : verificarPreenchimento(nome);
         var statusText = preenchido ? "Iniciado" : "Não iniciado";
         var statusClass = preenchido ? "iniciado" : "nao-iniciado";
         html += '<div class="acesso-rapido-item">';
@@ -2085,13 +2097,18 @@ async function excluirMensagemIndividual() {
     var servidor = document.getElementById("selectServidorIndividual").value;
     if(!servidor) { feedback("Selecione um servidor!"); return; }
     if(confirm("Excluir a mensagem individual de " + servidor + "?")) {
+        var sucesso = true;
+        if (supabaseDisponivel) {
+            try { sucesso = await dbExcluirMensagemIndividual(servidor); }
+            catch(e) { console.warn('Erro ao excluir mensagem individual no Supabase:', e.message); sucesso = false; }
+        }
+        if (!sucesso) {
+            feedback("Erro ao excluir no servidor. Tente novamente em alguns segundos.");
+            return;
+        }
         localStorage.removeItem("seate_mensagem_individual_" + servidor);
         exibirUltimaMensagemIndividual(servidor);
         feedback("Mensagem de " + servidor + " excluída!");
-        if (supabaseDisponivel) {
-            try { await dbExcluirMensagemIndividual(servidor); }
-            catch(e) { console.warn('Erro ao excluir mensagem individual no Supabase:', e.message); }
-        }
     }
 }
 
@@ -2121,7 +2138,7 @@ function atualizarSelectServidores() {
 // ==================== INICIALIZAÇÃO GERAL ====================
 async function iniciarPaginaPrincipal() {
     await carregarDados();
-    if (supabaseDisponivel) { dbCarregarServidores(); }
+    if (supabaseDisponivel) { await dbCarregarServidores(); }
     atualizarListaFuncionariosPrincipal();
     atualizarDisplayMes();
     atualizarSelects();
