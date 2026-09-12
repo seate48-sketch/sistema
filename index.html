@@ -1759,22 +1759,26 @@ async function renderizarAcessoRapido() {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;grid-column:1/-1;">Nenhum funcionário cadastrado</div>';
         return;
     }
-    var preenchimentoReal = null;
-    if (supabaseDisponivel) {
-        try { preenchimentoReal = await dbCarregarPreenchimento(servidores, mesConfigurado, anoConfigurado); }
-        catch(e) { console.warn('Erro ao verificar preenchimento no Supabase:', e.message); }
+    if (!supabaseDisponivel) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;grid-column:1/-1;">Sem conexão com o servidor. Não é possível mostrar o status agora.</div>';
+        return;
     }
+    var preenchimentoReal = null;
+    try { preenchimentoReal = await dbCarregarPreenchimento(servidores, mesConfigurado, anoConfigurado); }
+    catch(e) { console.warn('Erro ao verificar preenchimento no Supabase:', e.message); }
+
+    if (preenchimentoReal === null) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#888;grid-column:1/-1;">Não foi possível verificar o status agora. Tente recarregar a página.</div>';
+        return;
+    }
+
     var html = '';
     for(var i = 0; i < servidores.length; i++) {
         var nome = servidores[i];
-        // Fonte real: registros no Supabase deste mês/ano. O localStorage
-        // (verificarPreenchimento) só entra como reserva se o Supabase
-        // estiver fora do ar — ele reflete apenas o navegador de quem
-        // está olhando esta tela, não o que o servidor de fato preencheu,
-        // e não deve ser a fonte principal.
-        var preenchido = (preenchimentoReal && Object.prototype.hasOwnProperty.call(preenchimentoReal, nome))
-            ? preenchimentoReal[nome]
-            : verificarPreenchimento(nome);
+        // Fonte única: registros no Supabase deste mês/ano — sem
+        // reserva no localStorage (esse era o navegador de quem está
+        // olhando esta tela, não o do servidor de verdade).
+        var preenchido = preenchimentoReal[nome] === true;
         var statusText = preenchido ? "Iniciado" : "Não iniciado";
         var statusClass = preenchido ? "iniciado" : "nao-iniciado";
         html += '<div class="acesso-rapido-item">';
