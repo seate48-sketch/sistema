@@ -702,28 +702,10 @@ var config = carregarMesAnoConfigurado();
 var ano = config.ano;
 var mes = config.mes;
 
-function getStorageKey() {
-    if (USUARIO_LOGADO) { return "seate_v5_" + USUARIO_LOGADO; }
-    return "seate_v5";
-}
-
-function getObsKey() {
-    if (USUARIO_LOGADO) { return "obs_func_" + USUARIO_LOGADO; }
-    return "obs_func";
-}
-
 function getAtividadesAtribuidas() {
-    if (!USUARIO_LOGADO) return [];
-    var storedAtribuicoes = localStorage.getItem("seate_atribuicoes");
-    if (!storedAtribuicoes) return [];
-    var todasAtribuicoes = JSON.parse(storedAtribuicoes);
-    var atividadesServidor = [];
-    for (var ativ in todasAtribuicoes) {
-        if (todasAtribuicoes[ativ].indexOf(USUARIO_LOGADO) !== -1) {
-            atividadesServidor.push(ativ);
-        }
-    }
-    return atividadesServidor;
+    // Carregamento em tempo real feito em iniciarPagina() (carregarAtividadesPermitidas).
+    // Mantido só como valor inicial provisório enquanto a busca no Supabase não termina.
+    return [];
 }
 
 var atividadesPermitidas = [];
@@ -754,16 +736,34 @@ if (USUARIO_LOGADO) {
     servidorNomeDisplay.innerText = USUARIO_LOGADO;
     var lotacao = carregarLotacaoServidor(USUARIO_LOGADO);
     setorValorDisplay.innerText = lotacao;
-    atividadesPermitidas = getAtividadesAtribuidas();
 } else {
     servidorNomeDisplay.innerText = "Carlos Mendes";
     setorValorDisplay.innerText = "Atendimento";
     atividadesPermitidas = atividadesPadrao.slice();
 }
 
-function getDataLocal() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+// ==================== ATIVIDADES ATRIBUÍDAS (SOMENTE SUPABASE) ====================
+// Antes vinha do localStorage ("seate_atribuicoes") — uma chave que só
+// existe no navegador do ADMINISTRADOR (quem gerencia as atribuições em
+// atribuicoes.html). No aparelho de cada servidor, essa chave nunca é
+// preenchida, então essa lista sempre vinha vazia de verdade num uso
+// real, multi-aparelho — só "funcionava" em testes feitos no mesmo
+// navegador do administrador.
+async function carregarAtividadesPermitidas() {
+    if (!USUARIO_LOGADO) return;
+    if (!supabaseDisponivel) {
+        feedback("Sem conexão com o servidor. Não foi possível carregar suas atividades.");
+        return;
+    }
+    var lista = await dbCarregarAtividadesServidor(USUARIO_LOGADO);
+    if (lista === null) {
+        feedback("Não foi possível carregar suas atividades atribuídas. Recarregue a página.");
+        return;
+    }
+    atividadesPermitidas = lista;
+}
 
-function salvar() { localStorage.setItem(getStorageKey(), JSON.stringify(registros)); localStorage.setItem(getObsKey(), obsFunc.value); }
+function getDataLocal() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 
 async function carregarComunicadosMultiplos() {
     var listaComunicados = null;
@@ -799,31 +799,47 @@ async function carregarComunicadosMultiplos() {
     obsSuperDiv.innerHTML = "Nenhum comunicado oficial.";
 }
 
-// ==================== SINCRONIZAÇÃO COM SUPABASE (REGISTROS) ====================
+// ==================== CARREGAR REGISTROS (SOMENTE SUPABASE) ====================
+// O localStorage deixou de ser fonte de dados aqui. Se o Supabase não
+// responder, mostramos um aviso claro em vez de usar uma cópia antiga e
+// desatualizada do navegador — que foi exatamente a causa de registros
+// "sumindo" ou "reaparecendo" sem explicação entre um aparelho e outro.
 async function carregar() {
+    if (!USUARIO_LOGADO) {
+        // Modo de demonstração (sem link individual) — mantém o exemplo fixo.
+        var hoje = getDataLocal();
+        registros[hoje] = {atividades: {"Atendimento Presencial":12,"Atendimento Telefonico":8,"Orientacoes Processuais":5}, example: true};
+        return;
+    }
+    if (!supabaseDisponivel) {
+        feedback("Sem conexão com o servidor. Seus registros não podem ser exibidos agora.");
+        return;
+    }
     var dadosRemotos = null;
-    if (USUARIO_LOGADO && supabaseDisponivel) {
-        try {
-            dadosRemotos = await dbCarregarRegistros(USUARIO_LOGADO);
-        } catch(e) {
-            console.warn('Erro ao carregar registros do Supabase:', e.message);
-        }
+    try {
+        dadosRemotos = await dbCarregarRegistros(USUARIO_LOGADO);
+    } catch(e) {
+        console.warn('Erro ao carregar registros do Supabase:', e.message);
     }
-    if (dadosRemotos && Object.keys(dadosRemotos).length > 0) {
-        registros = dadosRemotos;
+    if (dadosRemotos === null) {
+        feedback("Não foi possível carregar seus registros. Verifique sua conexão e recarregue a página.");
+        registros = {};
     } else {
-        var tmp = localStorage.getItem(getStorageKey());
-        if(tmp) { registros = JSON.parse(tmp); }
-        else {
-            if(!USUARIO_LOGADO){
-                var hoje = getDataLocal();
-                registros[hoje] = {atividades: {"Atendimento Presencial":12,"Atendimento Telefonico":8,"Orientacoes Processuais":5}, example: true};
-            } else { registros = {}; }
-        }
+        registros = dadosRemotos; // pode ser {} de verdade — e está correto mostrar assim
     }
-    obsFunc.value = localStorage.getItem(getObsKey()) || "";
+
+    var obsRemota = await dbCarregarObsServidor(USUARIO_LOGADO, mes, ano);
+    obsFunc.value = (obsRemota !== null) ? obsRemota : "";
+
     await carregarComunicadosMultiplos();
-    salvar();
+}
+
+async function salvarObservacao() {
+    if (!USUARIO_LOGADO || !supabaseDisponivel) return;
+    var sucesso = await dbSalvarObsServidor(USUARIO_LOGADO, mes, ano, obsFunc.value);
+    if (!sucesso) {
+        feedback("Não foi possível salvar sua observação. Tente novamente.");
+    }
 }
 
 function totalDia(d) { var a = registros[d]; return a && a.atividades ? Object.values(a.atividades).reduce(function(s, q) { return s + (+q || 0); }, 0) : 0; }
@@ -980,7 +996,6 @@ async function salvarRegistros() {
         registros[dataAlvo] = {atividades: novo, ausencia: aus};
         if(wasEx) delete registros[dataAlvo].example;
     }
-    salvar();
     renderCalendario();
     fecharModal();
     if (sucesso) {
@@ -1000,7 +1015,6 @@ async function excluirDia() {
             catch(e) { console.warn('Erro ao excluir registro no Supabase:', e.message); sucesso = false; }
         }
         delete registros[dataAlvo];
-        salvar();
         renderCalendario();
         fecharModal();
         if (sucesso) {
@@ -1068,13 +1082,14 @@ async function iniciarPagina() {
     await verificarMensagemEmergente();
     var suspenso = await isSistemaSuspenso();
     if (suspenso) { exibirModalSuspensao(); }
+    await carregarAtividadesPermitidas();
     await carregar();
     renderCalendario();
     iniciarVerificacaoPeriodica();
 }
 iniciarPagina();
 
-obsFunc.onchange = salvar;
+obsFunc.onchange = salvarObservacao;
 saveBtn.onclick = salvarRegistros;
 deleteBtn.onclick = excluirDia;
 cancelBtn.onclick = fecharModal;
