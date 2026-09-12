@@ -1758,7 +1758,6 @@ window.gerarLink = gerarLink;
 window.copiarLink = copiarLink;
 window.acessarRegistro = acessarRegistro;
 window.toggleBloqueio = toggleBloqueio;
-window.verificarPreenchimento = verificarPreenchimento;
 window.feedback = feedback;
 window.atualizarDisplayMes = atualizarDisplayMes;
 window.fecharModalEdicaoServidor = fecharModalEdicaoServidor;
