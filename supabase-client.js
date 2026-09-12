@@ -685,7 +685,7 @@ async function dbSalvarComunicados(listaComunicados) {
             }
             
             if (existing && existing.length > 0) {
-                const { error: deleteError } = await db.from(TABLES.COMUNICADOS).delete().neq('id', null);
+                const { error: deleteError } = await db.from(TABLES.COMUNICADOS).delete().not('id', 'is', null);
                 if (deleteError) {
                     console.error('dbSalvarComunicados delete:', deleteError);
                     return false;
@@ -751,7 +751,7 @@ async function dbEnviarMensagemEmergente(conteudo) {
             if (checkError) {
                 console.error('dbEnviarMensagemEmergente check:', checkError);
             } else if (existing && existing.length > 0) {
-                await db.from(TABLES.MENSAGEM_EMERGENTE).delete().neq('id', null);
+                await db.from(TABLES.MENSAGEM_EMERGENTE).delete().not('id', 'is', null);
             }
         } catch(e) {
             console.warn('⚠️ Erro ao deletar mensagem emergente antiga:', e.message);
@@ -882,7 +882,7 @@ async function dbMarcarMensagemIndividualVista(mensagemId, nomeServidor) {
 async function dbExcluirMensagemEmergente() {
     if (!supabaseDisponivel || !db) return;
     try {
-        const { error } = await db.from(TABLES.MENSAGEM_EMERGENTE).delete().neq('id', null);
+        const { error } = await db.from(TABLES.MENSAGEM_EMERGENTE).delete().not('id', 'is', null);
         if (error) console.error('dbExcluirMensagemEmergente:', error);
     } catch(e) {
         console.error('❌ Erro em dbExcluirMensagemEmergente:', e.message);
@@ -1037,7 +1037,7 @@ async function dbSalvarListaVisualizacao(lista) {
             }
             
             if (existing && existing.length > 0) {
-                const { error: deleteError } = await db.from(TABLES.LISTA_VISUALIZACAO).delete().neq('id', null);
+                const { error: deleteError } = await db.from(TABLES.LISTA_VISUALIZACAO).delete().not('id', 'is', null);
                 if (deleteError) {
                     console.error('dbSalvarListaVisualizacao delete:', deleteError);
                     return;
