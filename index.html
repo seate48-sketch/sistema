@@ -780,11 +780,11 @@
                         </div>
                         <div class="btn-acoes-coluna">
                             <button class="btn-msg-enviar" onclick="enviarMensagemIndividual()">Enviar para Servidor</button>
-                            <button class="btn-msg-excluir" onclick="excluirMensagemIndividual()">Excluir</button>
+                            <button class="btn-msg-excluir" onclick="abrirModalExcluirIndividual()">Excluir</button>
                         </div>
                         <div style="margin-top:8px; font-size:0.75rem; color:#888;">
-                            <strong>Última enviada:</strong>
-                            <span id="ultimaMensagemIndividual" class="ultima-mensagem"></span>
+                            <strong>Mensagens ativas:</strong>
+                            <div id="listaMensagensIndividuais" style="margin-top:4px;"></div>
                         </div>
                     </div>
                 </div>
@@ -832,6 +832,22 @@
         </div>
         <div class="modal-estatistica-footer">
             <button class="btn btn-neutral" onclick="fecharModalGraficoEvolucao()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para escolher qual mensagem individual excluir, dentre as ativas -->
+<div id="modalExcluirIndividual" class="modal-estatistica">
+    <div class="modal-estatistica-content">
+        <div class="modal-estatistica-header">
+            <h3>Excluir Mensagem Individual</h3>
+            <span class="modal-close" onclick="fecharModalExcluirIndividual()">&times;</span>
+        </div>
+        <div class="modal-estatistica-body">
+            <div id="listaExcluirIndividual"></div>
+        </div>
+        <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="fecharModalExcluirIndividual()">Fechar</button>
         </div>
     </div>
 </div>
@@ -1960,48 +1976,43 @@ async function excluirServidor(index) {
 async function salvarComunicado() {
     var comunicado = document.getElementById("comunicadoSupervisor").value.trim();
     if(comunicado === "") { feedback("Digite uma mensagem antes de enviar!"); return; }
-    var comunicadosSalvos = localStorage.getItem("seate_comunicados");
-    var listaComunicados = comunicadosSalvos ? JSON.parse(comunicadosSalvos) : [];
+    if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+    var listaAtual = await dbCarregarComunicados();
+    if (listaAtual === null) { feedback("Não foi possível carregar os comunicados atuais. Tente novamente."); return; }
+    var listaComunicados = listaAtual.slice();
     listaComunicados.unshift(comunicado);
     if(listaComunicados.length > 3) { listaComunicados = listaComunicados.slice(0, 3); }
 
-    // CORREÇÃO: só confirma "enviado" depois do Supabase aceitar de verdade.
-    var sucesso = true;
-    if (supabaseDisponivel) {
-        try { sucesso = await dbSalvarComunicados(listaComunicados); }
-        catch(e) { console.warn('Erro ao sincronizar comunicados com o Supabase:', e.message); sucesso = false; }
-    }
+    var sucesso = await dbSalvarComunicados(listaComunicados);
     if (!sucesso) {
         feedback("Erro ao enviar o comunicado. Tente novamente em alguns segundos.");
         return;
     }
-    localStorage.setItem("seate_comunicados", JSON.stringify(listaComunicados));
-    localStorage.setItem("obs_super", comunicado);
     document.getElementById("comunicadoSupervisor").value = "";
-    exibirListaComunicados();
+    await exibirListaComunicados();
     feedback("Comunicado enviado com sucesso!");
 }
 
 async function deletarTodasMensagens() {
     if(confirm("ATENÇÃO: Isso apagará todas as mensagens do comunicado supervisor para TODOS os servidores. Confirmar?")) {
-        var sucesso = true;
-        if (supabaseDisponivel) {
-            try { sucesso = await dbSalvarComunicados([]); }
-            catch(e) { console.warn('Erro ao limpar comunicados no Supabase:', e.message); sucesso = false; }
-        }
+        if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+        var sucesso = await dbSalvarComunicados([]);
         if (!sucesso) {
             feedback("Erro ao apagar no servidor. Tente novamente em alguns segundos.");
             return;
         }
-        localStorage.removeItem("seate_comunicados"); localStorage.removeItem("obs_super");
-        exibirListaComunicados(); feedback("Todas as mensagens foram apagadas!");
+        await exibirListaComunicados();
+        feedback("Todas as mensagens foram apagadas!");
     }
 }
 
-function exibirListaComunicados() {
-    var comunicadosSalvos = localStorage.getItem("seate_comunicados");
-    var listaComunicados = comunicadosSalvos ? JSON.parse(comunicadosSalvos) : [];
+// Sem cópia no localStorage: a lista exibida vem sempre direto do
+// Supabase, então nunca fica "grudada" mostrando algo que já foi excluído.
+async function exibirListaComunicados() {
     var container = document.getElementById("listaComunicados");
+    if (!supabaseDisponivel) { container.innerHTML = '<span style="color:#666;">Sem conexão com o servidor</span>'; return; }
+    var listaComunicados = await dbCarregarComunicados();
+    if (listaComunicados === null) { container.innerHTML = '<span style="color:#666;">Não foi possível carregar</span>'; return; }
     if(listaComunicados.length === 0) { container.innerHTML = '<span style="color:#666;">Nenhum comunicado salvo</span>'; return; }
     var html = '';
     for(var i = 0; i < listaComunicados.length; i++) {
@@ -2011,16 +2022,10 @@ function exibirListaComunicados() {
 }
 
 async function carregarComunicados() {
-    if (supabaseDisponivel) {
-        try {
-            var lista = await dbCarregarComunicados();
-            // CORREÇÃO: lista vazia é uma resposta válida (tudo foi
-            // excluído) — precisa sobrescrever o localStorage também
-            // nesse caso, senão o comunicado antigo nunca some daqui.
-            if (lista !== null && lista !== undefined) { localStorage.setItem("seate_comunicados", JSON.stringify(lista)); }
-        } catch(e) { console.warn('Erro ao carregar comunicados do Supabase:', e.message); }
-    }
-    exibirListaComunicados(); exibirUltimaMensagemEmergente(); atualizarSelectServidores(); carregarUltimaMensagemIndividual();
+    await exibirListaComunicados();
+    await exibirUltimaMensagemEmergente();
+    atualizarSelectServidores();
+    await carregarListaMensagensIndividuais();
 }
 
 async function alternarSuspensaoRegistros() {
@@ -2057,39 +2062,34 @@ async function verificarSuspensao() {
 async function enviarMensagemEmergente() {
     var mensagem = document.getElementById("mensagemEmergente").value.trim();
     if(mensagem === "") { feedback("Digite uma mensagem antes de enviar!"); return; }
-    var idMsg = Date.now();
-    if (supabaseDisponivel) {
-        try {
-            var registro = await dbEnviarMensagemEmergente(mensagem);
-            if (registro && registro.id) { idMsg = registro.id; }
-        } catch(e) { console.warn('Erro ao enviar mensagem emergente ao Supabase:', e.message); }
-    }
-    var mensagemObj = { id: idMsg, texto: mensagem, data: new Date().toLocaleString() };
-    localStorage.setItem("seate_mensagem_emergente", JSON.stringify(mensagemObj));
-    localStorage.removeItem("seate_mensagem_vistas");
+    if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+    var registro = await dbEnviarMensagemEmergente(mensagem);
+    if (!registro) { feedback("Erro ao enviar a mensagem emergente. Tente novamente."); return; }
     document.getElementById("mensagemEmergente").value = "";
-    exibirUltimaMensagemEmergente();
+    await exibirUltimaMensagemEmergente();
     feedback("Mensagem emergente enviada com sucesso!");
 }
 
 async function excluirMensagemEmergente() {
     if(confirm("Excluir a mensagem emergente atual?")) {
-        localStorage.removeItem("seate_mensagem_emergente");
-        localStorage.removeItem("seate_mensagem_vistas");
-        exibirUltimaMensagemEmergente();
+        if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+        var sucesso = await dbExcluirMensagemEmergente();
+        if (!sucesso) { feedback("Erro ao excluir no servidor. Tente novamente em alguns segundos."); return; }
+        await exibirUltimaMensagemEmergente();
         feedback("Mensagem emergente excluída!");
-        if (supabaseDisponivel) {
-            try { await dbExcluirMensagemEmergente(); }
-            catch(e) { console.warn('Erro ao excluir mensagem emergente no Supabase:', e.message); }
-        }
     }
 }
 
-function exibirUltimaMensagemEmergente() {
-    var stored = localStorage.getItem("seate_mensagem_emergente");
+async function exibirUltimaMensagemEmergente() {
     var container = document.getElementById("ultimaMensagemEmergente");
-    if(stored) { var mensagemObj = JSON.parse(stored); container.innerHTML = escapeHtml(mensagemObj.texto) + '<br><small style="color:#888;">' + mensagemObj.data + '</small>'; }
-    else { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem pendente</span>'; }
+    if (!supabaseDisponivel) { container.innerHTML = '<span style="color:#888;">Sem conexão com o servidor</span>'; return; }
+    var mensagemObj = await dbCarregarMensagemEmergente();
+    if(mensagemObj) {
+        var quando = mensagemObj.atualizado_em || mensagemObj.criado_em;
+        container.innerHTML = escapeHtml(mensagemObj.conteudo) + '<br><small style="color:#888;">' + (quando ? new Date(quando).toLocaleString() : '') + '</small>';
+    } else {
+        container.innerHTML = '<span style="color:#888;">Nenhuma mensagem pendente</span>';
+    }
 }
 
 async function enviarMensagemIndividual() {
@@ -2097,52 +2097,68 @@ async function enviarMensagemIndividual() {
     var mensagem = document.getElementById("mensagemIndividual").value.trim();
     if(!servidor) { feedback("Selecione um servidor!"); return; }
     if(mensagem === "") { feedback("Digite uma mensagem!"); return; }
-    var idMsg = Date.now();
-    if (supabaseDisponivel) {
-        try {
-            var registro = await dbEnviarMensagemIndividual(servidor, mensagem);
-            if (registro && registro.id) { idMsg = registro.id; }
-        } catch(e) { console.warn('Erro ao enviar mensagem individual ao Supabase:', e.message); }
-    }
-    var mensagemObj = { id: idMsg, texto: mensagem, data: new Date().toLocaleString(), servidor: servidor };
-    localStorage.setItem("seate_mensagem_individual_" + servidor, JSON.stringify(mensagemObj));
+    if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+    var registro = await dbEnviarMensagemIndividual(servidor, mensagem);
+    if (!registro) { feedback("Erro ao enviar a mensagem. Tente novamente."); return; }
     document.getElementById("mensagemIndividual").value = "";
-    exibirUltimaMensagemIndividual(servidor);
+    document.getElementById("selectServidorIndividual").value = "";
+    await carregarListaMensagensIndividuais();
     feedback("Mensagem enviada para " + servidor + "!");
 }
 
-async function excluirMensagemIndividual() {
-    var servidor = document.getElementById("selectServidorIndividual").value;
-    if(!servidor) { feedback("Selecione um servidor!"); return; }
-    if(confirm("Excluir a mensagem individual de " + servidor + "?")) {
-        var sucesso = true;
-        if (supabaseDisponivel) {
-            try { sucesso = await dbExcluirMensagemIndividual(servidor); }
-            catch(e) { console.warn('Erro ao excluir mensagem individual no Supabase:', e.message); sucesso = false; }
-        }
-        if (!sucesso) {
-            feedback("Erro ao excluir no servidor. Tente novamente em alguns segundos.");
-            return;
-        }
-        localStorage.removeItem("seate_mensagem_individual_" + servidor);
-        exibirUltimaMensagemIndividual(servidor);
-        feedback("Mensagem de " + servidor + " excluída!");
+// Mostra, na própria tela, todas as mensagens individuais ativas no
+// momento — quem tem mensagem e qual é, sem precisar clicar em nada.
+async function carregarListaMensagensIndividuais() {
+    var container = document.getElementById("listaMensagensIndividuais");
+    if (!supabaseDisponivel) { container.innerHTML = '<span style="color:#888;">Sem conexão com o servidor</span>'; return; }
+    var lista = await dbListarMensagensIndividuais();
+    if (lista === null) { container.innerHTML = '<span style="color:#888;">Não foi possível carregar</span>'; return; }
+    if (lista.length === 0) { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem individual ativa</span>'; return; }
+    var html = '';
+    for (var i = 0; i < lista.length; i++) {
+        html += '<div style="background:#f0f0f0; padding:8px 12px; border-radius:8px; margin-bottom:8px; color:#000; font-size:0.8rem;"><strong>' + escapeHtml(lista[i].servidor) + ':</strong> ' + escapeHtml(lista[i].texto) + '</div>';
     }
+    container.innerHTML = html;
 }
 
-function exibirUltimaMensagemIndividual(servidor) {
-    var container = document.getElementById("ultimaMensagemIndividual");
-    if(!container) return;
-    if(!servidor) { servidor = document.getElementById("selectServidorIndividual")?.value; }
-    if(!servidor) { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem enviada</span>'; return; }
-    var stored = localStorage.getItem("seate_mensagem_individual_" + servidor);
-    if(stored) { var mensagemObj = JSON.parse(stored); container.innerHTML = '<strong>' + escapeHtml(servidor) + ':</strong> ' + escapeHtml(mensagemObj.texto) + '<br><small style="color:#888;">' + mensagemObj.data + '</small>'; }
-    else { container.innerHTML = '<span style="color:#888;">Nenhuma mensagem para ' + escapeHtml(servidor) + '</span>'; }
+// Abre o modal com a lista de mensagens individuais ativas, cada uma
+// com seu próprio botão de excluir — sem precisar selecionar o servidor
+// antes no <select> principal.
+async function abrirModalExcluirIndividual() {
+    var container = document.getElementById("listaExcluirIndividual");
+    container.innerHTML = '<p style="text-align:center; color:#888;">Carregando...</p>';
+    document.getElementById("modalExcluirIndividual").style.display = "block";
+    if (!supabaseDisponivel) { container.innerHTML = '<p style="text-align:center; color:#888;">Sem conexão com o servidor.</p>'; return; }
+    var lista = await dbListarMensagensIndividuais();
+    if (lista === null) { container.innerHTML = '<p style="text-align:center; color:#888;">Não foi possível carregar as mensagens.</p>'; return; }
+    if (lista.length === 0) { container.innerHTML = '<p style="text-align:center; color:#888;">Nenhuma mensagem individual ativa no momento.</p>'; return; }
+    var html = '';
+    for (var i = 0; i < lista.length; i++) {
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; background:#f5f5f5; padding:10px 14px; border-radius:10px; margin-bottom:8px;">';
+        html += '<div style="flex:1;"><strong>' + escapeHtml(lista[i].servidor) + ':</strong> ' + escapeHtml(lista[i].texto) + '</div>';
+        html += '<button class="btn-msg-excluir" style="flex-shrink:0;" onclick="excluirMensagemIndividualEscolhida(\'' + lista[i].servidor.replace(/'/g, "\\'") + '\')">Excluir</button>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
 }
 
-function carregarUltimaMensagemIndividual() {
-    var select = document.getElementById("selectServidorIndividual");
-    if(select && select.value) { exibirUltimaMensagemIndividual(select.value); }
+function fecharModalExcluirIndividual() {
+    document.getElementById("modalExcluirIndividual").style.display = "none";
+}
+
+async function excluirMensagemIndividualEscolhida(servidor) {
+    if(!confirm("Excluir a mensagem individual de " + servidor + "?")) return;
+    if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+    var sucesso = false;
+    try { sucesso = await dbExcluirMensagemIndividual(servidor); }
+    catch(e) { console.warn('Erro ao excluir mensagem individual no Supabase:', e.message); }
+    if (!sucesso) {
+        feedback("Erro ao excluir no servidor. Tente novamente em alguns segundos.");
+        return;
+    }
+    feedback("Mensagem de " + servidor + " excluída!");
+    await abrirModalExcluirIndividual();
+    await carregarListaMensagensIndividuais();
 }
 
 function atualizarSelectServidores() {
