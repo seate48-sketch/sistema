@@ -816,6 +816,29 @@ async function dbCarregarMensagemIndividual(nomeServidor) {
     }
 }
 
+// Lista TODAS as mensagens individuais atualmente ativas (uma por
+// servidor, no máximo), já com o nome do servidor de cada uma — usado
+// no painel do administrador para mostrar "quem tem o quê" e permitir
+// escolher qual excluir, sem precisar adivinhar.
+async function dbListarMensagensIndividuais() {
+    if (!supabaseDisponivel || !db) return null;
+
+    try {
+        const { data, error } = await db.from(TABLES.MENSAGENS_INDIVIDUAIS)
+            .select('conteudo, atualizado_em, servidores(nome)')
+            .order('atualizado_em', { ascending: false });
+        if (error) { console.error('dbListarMensagensIndividuais:', error); return null; }
+        return data.map(r => ({
+            servidor: r.servidores ? r.servidores.nome : '(servidor removido)',
+            texto: r.conteudo,
+            data: r.atualizado_em
+        }));
+    } catch(e) {
+        console.error('❌ Erro em dbListarMensagensIndividuais:', e.message);
+        return null;
+    }
+}
+
 async function dbEnviarMensagemIndividual(nomeServidor, conteudo) {
     if (!supabaseDisponivel || !db) {
         console.warn('⚠️ Supabase indisponível. Salvando mensagem individual apenas no localStorage.');
@@ -880,12 +903,14 @@ async function dbMarcarMensagemIndividualVista(mensagemId, nomeServidor) {
 }
 
 async function dbExcluirMensagemEmergente() {
-    if (!supabaseDisponivel || !db) return;
+    if (!supabaseDisponivel || !db) return false;
     try {
         const { error } = await db.from(TABLES.MENSAGEM_EMERGENTE).delete().not('id', 'is', null);
-        if (error) console.error('dbExcluirMensagemEmergente:', error);
+        if (error) { console.error('dbExcluirMensagemEmergente:', error); return false; }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbExcluirMensagemEmergente:', e.message);
+        return false;
     }
 }
 
