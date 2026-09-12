@@ -918,25 +918,6 @@ function toggleBloqueio(nome) {
     }
 }
 
-function verificarPreenchimento(nome) {
-    try {
-        var chave = "seate_v5_" + nome;
-        var registros = localStorage.getItem(chave);
-        if(!registros) return false;
-        var dados = JSON.parse(registros);
-        var mesStr = String(mesConfigurado + 1).padStart(2,"0");
-        var anoMesBusca = anoConfigurado + "-" + mesStr;
-        for(var data in dados) {
-            if(data.startsWith(anoMesBusca) && dados[data]?.atividades && Object.keys(dados[data].atividades).length > 0) {
-                return true;
-            }
-        }
-        return false;
-    } catch(e) {
-        return false;
-    }
-}
-
 function feedback(msg) { 
     try {
         var fb = document.createElement("div"); 
