@@ -432,18 +432,21 @@ async function dbSalvarAtribuicoes(objAtribuicoes) {
 }
 
 async function dbCarregarAtividadesServidor(nomeServidor) {
-    if (!supabaseDisponivel || !db) return [];
+    if (!supabaseDisponivel || !db) return null;
     
     try {
+        const serv = await obterServidorPorNome(nomeServidor);
+        if (!serv) return null;
+
         const { data, error } = await db
             .from(TABLES.ATRIBUICOES)
-            .select('atividade')
-            .eq('servidor', nomeServidor);
-        if (error) return [];
-        return data.map(r => r.atividade).filter(Boolean);
+            .select('atividades(nome)')
+            .eq('servidor_id', serv.id);
+        if (error) { console.error('dbCarregarAtividadesServidor:', error); return null; }
+        return data.map(r => r.atividades && r.atividades.nome).filter(Boolean);
     } catch(e) {
         console.error('❌ Erro em dbCarregarAtividadesServidor:', e.message);
-        return [];
+        return null;
     }
 }
 
@@ -452,17 +455,17 @@ async function dbCarregarAtividadesServidor(nomeServidor) {
 // =====================================================
 
 async function dbCarregarRegistros(nomeServidor) {
-    if (!supabaseDisponivel || !db) return {};
+    if (!supabaseDisponivel || !db) return null;
     
     try {
         const serv = await obterServidorPorNome(nomeServidor);
-        if (!serv) return {};
+        if (!serv) return null;
 
         const { data, error } = await db
             .from(TABLES.REGISTROS)
             .select('data, atividades, ausencia')
             .eq('servidor_id', serv.id);
-        if (error) { console.error('dbCarregarRegistros:', error); return {}; }
+        if (error) { console.error('dbCarregarRegistros:', error); return null; }
 
         const result = {};
         data.forEach(r => {
@@ -471,7 +474,7 @@ async function dbCarregarRegistros(nomeServidor) {
         return result;
     } catch(e) {
         console.error('❌ Erro em dbCarregarRegistros:', e.message);
-        return {};
+        return null;
     }
 }
 
@@ -957,38 +960,38 @@ async function dbSalvarDados2024(dadosSeate, dadosNahora) {
 // =====================================================
 
 async function dbCarregarObsServidor(nomeServidor, mes, ano) {
-    if (!supabaseDisponivel || !db) return '';
+    if (!supabaseDisponivel || !db) return null;
     
     try {
         const serv = await obterServidorPorNome(nomeServidor);
-        if (!serv) return '';
-        const { data } = await db.from(TABLES.OBS_SERVIDORES)
+        if (!serv) return null;
+        const { data, error } = await db.from(TABLES.OBS_SERVIDORES)
             .select('observacao')
             .eq('servidor_id', serv.id).eq('mes', mes).eq('ano', ano)
             .maybeSingle();
+        if (error) { console.error('dbCarregarObsServidor:', error); return null; }
         return data?.observacao || '';
     } catch(e) {
         console.error('❌ Erro em dbCarregarObsServidor:', e.message);
-        return '';
+        return null;
     }
 }
 
 async function dbSalvarObsServidor(nomeServidor, mes, ano, observacao) {
-    if (!supabaseDisponivel || !db) {
-        console.warn('⚠️ Supabase indisponível. Salvando observação apenas no localStorage.');
-        return;
-    }
+    if (!supabaseDisponivel || !db) return false;
     
     try {
         const serv = await obterServidorPorNome(nomeServidor);
-        if (!serv) return;
+        if (!serv) return false;
         const { error } = await db.from(TABLES.OBS_SERVIDORES).upsert(
             { servidor_id: serv.id, mes, ano, observacao: observacao || '' },
             { onConflict: 'servidor_id,mes,ano' }
         );
-        if (error) console.error('dbSalvarObsServidor:', error);
+        if (error) { console.error('dbSalvarObsServidor:', error); return false; }
+        return true;
     } catch(e) {
         console.error('❌ Erro em dbSalvarObsServidor:', e.message);
+        return false;
     }
 }
 
@@ -1072,7 +1075,7 @@ async function dbSalvarListaVisualizacao(lista) {
 // =====================================================
 
 async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
-    if (!supabaseDisponivel || !db) return {};
+    if (!supabaseDisponivel || !db) return null;
     
     try {
         const mesStr = String(mesConfig + 1).padStart(2, '0');
@@ -1082,16 +1085,16 @@ async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
 
         const servIdsRaw = await Promise.all(arrServidores.map(async n => (await obterServidorPorNome(n))?.id));
         const servIds = servIdsRaw.filter(Boolean);
-        if (servIds.length === 0) return {};
+        if (arrServidores.length > 0 && servIds.length === 0) return null;
 
-        const { data } = await db.from(TABLES.REGISTROS)
+        const { data, error } = await db.from(TABLES.REGISTROS)
             .select('servidor_id')
-            .in('servidor_id', servIds)
+            .in('servidor_id', servIds.length > 0 ? servIds : [null])
             .gte('data', inicio)
             .lte('data', fim);
 
-        if (!data) return {};
-        const preenchidos = new Set(data.map(r => r.servidor_id));
+        if (error) { console.error('dbCarregarPreenchimento:', error); return null; }
+        const preenchidos = new Set((data || []).map(r => r.servidor_id));
         const result = {};
         for (const nome of arrServidores) {
             const s = await obterServidorPorNome(nome);
@@ -1100,7 +1103,7 @@ async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
         return result;
     } catch(e) {
         console.error('❌ Erro em dbCarregarPreenchimento:', e.message);
-        return {};
+        return null;
     }
 }
 
