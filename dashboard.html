@@ -247,149 +247,7 @@
 </div>
 
 <script>
-// ============================================================
-// DADOS FIXOS (2022 a 2025) — mesmos valores usados na tela
-// Estatistica; nao dependem do banco de dados.
-// ============================================================
-const dadosFixos = {
-    "2022": { seate: 110686, nahora: 7929, totalGeral: 118615 },
-    "2023": { seate: 99641, nahora: 9722, totalGeral: 109363 },
-    "2024": { seate: 87980, nahora: 10930, totalGeral: 98910 },
-    "2025": { seate: 92894, nahora: 9955, totalGeral: 102849 }
-};
 
-// ==================== DADOS ESTATÍSTICOS PRÉ-PREENCHIDOS (PARA DETALHAMENTO) ====================
-const dadosPreenchidos = {
-    "2022": {
-        "SEATE": {
-            "ATEND TELEFONICO": 28553, "ATEND PRESENCIAL": 2455, "ATEND POR E-MAIL": 9184,
-            "CAD PARTES E ADV NO PJE-E-PROC": 2411, "BAIXA ARQUIVOS E-PROC": 0, "CERT DE MILITANCIA": 857,
-            "CERT DE OBJETO E PE": 95, "CERT DE AUTOR": 915, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 20675,
-            "ANALISE PROCESSUAL": 0, "DESARQUIVAMENTO DE PROCESSOS": 461, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 121,
-            "ANALISE DEVOLUCAO DE CUSTAS": 0, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 30006,
-            "CONSULTA PROCESSUAL": 0, "PESQUISA ORACLE-PROCESSUAL": 0,
-            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 4988,
-            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 699,
-            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 7895,
-            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
-            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 368,
-            "REQUERIMENTO DE JUNTADA": 0, "JUNTADA DE PETICOES": 0, "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
-            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 280,
-            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 102, "MALOTE DIGITAL": 0, "PROCESSOS SEI": 0,
-            "CONSULTA SEEU": 0, "JUNTADA E ASSINATURA DE DOC PJE": 0, "DEVOLUCAO DE PROCESSOS": 0,
-            "DIVISAO PASTAS SERVIDORES": 0, "PASTA P SEI": 0, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 256, "TERMO DE COMPARECIMENTO": 365
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 7929, "ATERMACAO": 0, "CERTIDOES ORACLE-PJE": 0,
-            "RECEBIMENTO DE PROCESSOS-PETICOES": 0, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
-            "INFORMACOES GERAIS": 0
-        }
-    },
-    "2023": {
-        "SEATE": {
-            "ATEND TELEFONICO": 31072, "ATEND PRESENCIAL": 10052, "ATEND POR E-MAIL": 6645,
-            "CAD PARTES E ADV NO PJE-E-PROC": 2647, "BAIXA ARQUIVOS E-PROC": 0, "CERT DE MILITANCIA": 476,
-            "CERT DE OBJETO E PE": 127, "CERT DE AUTOR": 5790, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 13449,
-            "ANALISE PROCESSUAL": 0, "DESARQUIVAMENTO DE PROCESSOS": 698, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 23,
-            "ANALISE DEVOLUCAO DE CUSTAS": 0, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 11127,
-            "CONSULTA PROCESSUAL": 0, "PESQUISA ORACLE-PROCESSUAL": 0,
-            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 5458,
-            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 771,
-            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 8974,
-            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 0,
-            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 0, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 469,
-            "REQUERIMENTO DE JUNTADA": 0, "JUNTADA DE PETICOES": 0, "DIGITALIZACAO DE PROCESSOS / PETICOES": 0,
-            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 324,
-            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 92, "MALOTE DIGITAL": 0, "PROCESSOS SEI": 0,
-            "CONSULTA SEEU": 0, "JUNTADA E ASSINATURA DE DOC PJE": 0, "DEVOLUCAO DE PROCESSOS": 0,
-            "DIVISAO PASTAS SERVIDORES": 0, "PASTA P SEI": 0, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 821, "TERMO DE COMPARECIMENTO": 626
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 9722, "ATERMACAO": 0, "CERTIDOES ORACLE-PJE": 0,
-            "RECEBIMENTO DE PROCESSOS-PETICOES": 0, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 0,
-            "INFORMACOES GERAIS": 0
-        }
-    },
-    "2024": {
-        "SEATE": {
-            "ATEND TELEFONICO": [2486, 2599, 2435, 2936, 2272, 2863, 2308, 3049, 3315, 3315, 2769, 2127],
-            "ATEND PRESENCIAL": [439, 369, 351, 391, 317, 408, 425, 414, 401, 396, 352, 241],
-            "ATEND POR E-MAIL": [263, 517, 572, 471, 348, 466, 466, 894, 987, 872, 860, 500],
-            "CAD PARTES E ADV NO PJE-E-PROC": [262, 344, 356, 285, 225, 198, 178, 240, 149, 216, 145, 406],
-            "BAIXA ARQUIVOS E-PROC": [0, 0, 0, 0, 0, 0, 0, 0, 33, 90, 670, 423],
-            "CERT DE MILITANCIA": [9, 4, 32, 11, 4, 4, 22, 30, 50, 93, 95, 37],
-            "CERT DE OBJETO E PE": [5, 357, 34, 6, 1, 2, 19, 23, 16, 3, 8, 20],
-            "CERT DE AUTOR": [56, 553, 609, 774, 703, 5, 30, 64, 807, 7, 13, 40],
-            "CERT (PJe, Oracle, Civel, criminal, eleitoral)": [911, 999, 1150, 1276, 970, 1256, 2165, 5605, 714, 1346, 1222, 1306],
-            "ANALISE PROCESSUAL": [0, 0, 0, 0, 0, 68, 419, 751, 573, 390, 231, 191],
-            "DESARQUIVAMENTO DE PROCESSOS": [84, 37, 79, 113, 53, 16, 10, 157, 221, 113, 37, 21],
-            "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": [2, 3, 12, 5, 0, 0, 16, 7, 7, 1, 0, 1],
-            "ANALISE DEVOLUCAO DE CUSTAS": [0, 0, 0, 0, 0, 3, 38, 115, 17, 6, 8, 13],
-            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "CONSULTA PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 67, 44, 238, 191, 63],
-            "PESQUISA ORACLE-PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 432, 91, 165, 1, 0],
-            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": [268, 319, 537, 500, 220, 119, 76, 119, 138, 335, 167, 81],
-            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": [26, 8, 5, 12, 40, 15, 11, 9, 8, 0, 0, 23],
-            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": [195, 428, 1, 600, 242, 0, 560, 43, 0, 5, 920, 224],
-            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "MIGRACAO DE ARQUIVOS E-PROC P PJe": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0],
-            "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": [117, 15, 0, 81, 85, 74, 60, 50, 17, 0, 0, 0],
-            "REQUERIMENTO DE JUNTADA": [12, 6, 0, 1, 0, 4, 4, 0, 0, 1, 0, 0],
-            "JUNTADA DE PETICOES": [111, 107, 95, 130, 100, 116, 123, 128, 127, 134, 307, 91],
-            "DIGITALIZACAO DE PROCESSOS / PETICOES": [0, 0, 0, 0, 16, 13, 30, 29, 41, 12, 23, 10],
-            "ATEND SEI": [0, 0, 0, 0, 0, 69, 28, 19, 5, 19, 20, 14],
-            "ATEND TEAMS": [0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0],
-            "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": [0, 0, 0, 0, 0, 6, 28, 11, 6, 7, 0, 0],
-            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": [12, 12, 10, 10, 21, 13, 10, 16, 13, 19, 0, 0],
-            "MALOTE DIGITAL": [0, 0, 0, 0, 0, 1, 4, 10, 2, 2, 0, 0],
-            "PROCESSOS SEI": [0, 0, 0, 0, 0, 80, 43, 117, 105, 83, 0, 0],
-            "CONSULTA SEEU": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "JUNTADA E ASSINATURA DE DOC PJE": [0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0],
-            "DEVOLUCAO DE PROCESSOS": [0, 0, 0, 0, 0, 0, 7, 79, 67, 228, 0, 0],
-            "DIVISAO PASTAS SERVIDORES": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": [43, 35, 34, 26, 26, 40, 20, 20, 35, 26, 44, 27],
-            "TERMO DE COMPARECIMENTO": [93, 65, 31, 36, 35, 44, 40, 37, 29, 34, 31, 38]
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": [911, 802, 924, 1125, 372, 402, 409, 412, 348, 439, 401, 327],
-            "ATERMACAO": [35, 32, 51, 46, 56, 50, 59, 51, 0, 0, 0, 0],
-            "CERTIDOES ORACLE-PJE": [448, 600, 522, 437, 251, 323, 169, 229, 0, 0, 0, 0],
-            "RECEBIMENTO DE PROCESSOS-PETICOES": [7, 8, 12, 21, 23, 20, 10, 2, 0, 0, 0, 0],
-            "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": [42, 18, 54, 50, 63, 52, 28, 30, 0, 0, 0, 0],
-            "INFORMACOES GERAIS": [34, 16, 23, 33, 41, 43, 37, 32, 0, 0, 0, 0]
-        }
-    },
-    "2025": {
-        "SEATE": {
-            "ATEND TELEFONICO": 34815, "ATEND PRESENCIAL": 4630, "ATEND POR E-MAIL": 8471,
-            "CAD PARTES E ADV NO PJE-E-PROC": 1576, "BAIXA ARQUIVOS E-PROC": 997, "CERT DE MILITANCIA": 617,
-            "CERT DE OBJETO E PE": 166, "CERT DE AUTOR": 151, "CERT (PJe, Oracle, Civel, criminal, eleitoral)": 18908,
-            "ANALISE PROCESSUAL": 5910, "DESARQUIVAMENTO DE PROCESSOS": 1201, "ENCAMINHAMENTO DE PROCESSOS A REPROGRAFIA": 84,
-            "ANALISE DEVOLUCAO DE CUSTAS": 1276, "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 0,
-            "CONSULTA PROCESSUAL": 5599, "PESQUISA ORACLE-PROCESSUAL": 495,
-            "PROCESSOS FISICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 1812,
-            "CORRECOES DE PROCESSOS DIGITALIZADOS (desmembramento e correcoes)": 95,
-            "DIGITALIZACAO DE DOCUMENTOS PARA O PJDEF (11a, 18a E 19a VARAS)": 886,
-            "MIGRACAO PARA O PJE, RETIFICACAO E ENVIO AS VARAS DOS PROCESSOS DO JEF VIRTUAL": 52,
-            "MIGRACAO DE ARQUIVOS E-PROC P PJe": 332, "DIGITALIZACAO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 413,
-            "REQUERIMENTO DE JUNTADA": 197, "JUNTADA DE PETICOES": 907, "DIGITALIZACAO DE PROCESSOS / PETICOES": 69,
-            "ATEND SEI": 0, "ATEND TEAMS": 0, "INFORMACOES GERAIS SOBRE CARTAS PRECATORIAS": 23,
-            "VALIDACAO DE CADASTRO DE PERITOS NO E-CPTEC": 144, "MALOTE DIGITAL": 66, "PROCESSOS SEI": 988,
-            "CONSULTA SEEU": 60, "JUNTADA E ASSINATURA DE DOC PJE": 280, "DEVOLUCAO DE PROCESSOS": 460,
-            "DIVISAO PASTAS SERVIDORES": 223, "PASTA P SEI": 42, "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETICOES INICIAIS / INCIDENTAIS": 564, "TERMO DE COMPARECIMENTO": 385
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 6253, "ATERMACAO": 252, "CERTIDOES ORACLE-PJE": 2622,
-            "RECEBIMENTO DE PROCESSOS-PETICOES": 98, "INFORMACOES CADASTRO DE PARTES PJE E E-PROC": 397,
-            "INFORMACOES GERAIS": 333
-        }
-    }
-};
-
-// ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
 async function calcularDadosMensaisAnoAtual() {
     var totais = await obterTotaisAnoAtual();
     return totais.porMes;
@@ -424,12 +282,12 @@ const valorTopoPlugin = {
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = '#0F2D52';
-                        ctx.fillText(data.toLocaleString(), bar.x + 6, bar.y);
+                        ctx.fillText(formatarMilhar(data), bar.x + 6, bar.y);
                     } else {
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
                         ctx.fillStyle = '#0F2D52';
-                        ctx.fillText(data.toLocaleString(), bar.x, bar.y - 6);
+                        ctx.fillText(formatarMilhar(data), bar.x, bar.y - 6);
                     }
                 }
             });
@@ -462,8 +320,8 @@ async function renderizarIndicadores() {
 
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
-        html += '<div class="indicador-valor">' + (totalGeral > 0 ? totalGeral.toLocaleString() : '--') + '</div>';
-        html += '<div class="indicador-footer">SEATE: ' + seateTotal.toLocaleString() + ' | NAHORA: ' + nahoraTotal.toLocaleString() + '</div>';
+        html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + '</div>';
         html += '<div class="indicador-status">Clique para ver detalhes</div>';
         html += '</div>';
     }
@@ -471,8 +329,8 @@ async function renderizarIndicadores() {
     var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
-    html += '<div class="indicador-valor">' + totalGeralFinal.toLocaleString() + '</div>';
-    html += '<div class="indicador-footer">SEATE: ' + totalSeateGeral.toLocaleString() + ' | NAHORA: ' + totalNahoraGeral.toLocaleString() + '</div>';
+    html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + '</div>';
     html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
     html += '</div>';
 
@@ -509,10 +367,10 @@ async function abrirModalIndicador(ano, setor) {
                     html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para SEATE em ' + ano + '</td></tr>';
                 } else {
                     for (var i = 0; i < seateItems.length; i++) {
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(seateItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + seateItems[i].total.toLocaleString() + '</td></tr>';
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(seateItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(seateItems[i].total) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr></tbody></table></div>';
             }
 
             if (mostrarNahora) {
@@ -524,25 +382,24 @@ async function abrirModalIndicador(ano, setor) {
                     html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para NAHORA em ' + ano + '</td></tr>';
                 } else {
                     for (var i = 0; i < nahoraItems.length; i++) {
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(nahoraItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + nahoraItems[i].total.toLocaleString() + '</td></tr>';
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(nahoraItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(nahoraItems[i].total) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr></tbody></table></div>';
             }
 
             if (setor === null) {
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (seateTotal + nahoraTotal).toLocaleString() + '</div>';
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal)) + '</div>';
             }
             container.innerHTML = html;
 
         } else {
-            var dadosAno = (ano === "2024") ? true : dadosFixos[ano];
-            if (!dadosAno) {
+            var dadosPre = await obterDadosAno(ano);
+            if (!dadosPre) {
                 container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados nao disponiveis para este ano.</p>';
                 document.getElementById("modalEstatistica").style.display = "block";
                 return;
             }
-            var dadosPre = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
             var seateTotal = 0;
             var nahoraTotal = 0;
             var mostrarSeate = (setor === null || setor === "SEATE");
@@ -556,10 +413,10 @@ async function abrirModalIndicador(ano, setor) {
                         if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
                         else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
                         seateTotal += valor;
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + seateTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr></tbody></table></div>';
             }
 
             if (mostrarNahora) {
@@ -570,14 +427,14 @@ async function abrirModalIndicador(ano, setor) {
                         if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
                         else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
                         nahoraTotal += valor;
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + valor.toLocaleString() + '</td></tr>';
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + nahoraTotal.toLocaleString() + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr></tbody></table></div>';
             }
 
             if (setor === null) {
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (seateTotal + nahoraTotal).toLocaleString() + '</div>';
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal)) + '</div>';
             }
             container.innerHTML = html;
         }
@@ -616,10 +473,10 @@ function criarGraficoEvolucao() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
-                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
                 },
                 scales: {
-                    y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 10 } } },
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 10 } } },
                     x: { ticks: { font: { size: 11, weight: 'bold' } } }
                 },
                 onClick: function(event, elements) {
@@ -671,10 +528,10 @@ function criarGraficoAnual() {
                 responsive: true, maintainAspectRatio: true,
                 plugins: {
                     legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
-                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
                 },
                 scales: {
-                    y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } },
+                    y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } },
                     x: { ticks: { font: { size: 10 } } }
                 },
                 onClick: function(event, elements) {
@@ -704,7 +561,7 @@ async function criarGraficoTop10() {
             for (var ativ in totaisAnoAtual.porAtividadeNahora) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
             continue;
         }
-        var dadosAno = (ano === "2024") ? await obterDados2024() : dadosPreenchidos[ano];
+        var dadosAno = await obterDadosAno(ano);
         if (!dadosAno) continue;
         if (dadosAno["SEATE"]) {
             for (var ativ in dadosAno["SEATE"]) {
@@ -741,11 +598,11 @@ async function criarGraficoTop10() {
             indexAxis: 'y', responsive: true, maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.x.toLocaleString(); } } }
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
             },
             scales: {
                 y: { ticks: { font: { size: 8 } } },
-                x: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } }
+                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
         }
     });
@@ -777,11 +634,11 @@ async function criarGraficoTop10ServicosAnoAtual() {
             indexAxis: 'y', responsive: true, maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.x.toLocaleString(); } } }
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
             },
             scales: {
                 y: { ticks: { font: { size: 8 } } },
-                x: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } }
+                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
         }
     });
@@ -807,10 +664,10 @@ async function criarGraficoMensalAnoAtual() {
             responsive: true, maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: function(context) { return 'Total: ' + context.parsed.y.toLocaleString(); } } }
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString(); }, font: { size: 9 } } },
+                y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } },
                 x: { ticks: { font: { size: 9 } } }
             }
         }
