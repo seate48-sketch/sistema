@@ -854,246 +854,6 @@
 
 <script src="common.js"></script>
 <script>
-// ==================== DADOS DOS RELATÓRIOS ====================
-const dadosRelatorios = {
-    totalAnual: {
-        "2022": { "Sede II": 100944, "Sede III": 9742, "NAHORA": 7929, "Total": 118615 },
-        "2023": { "Sede II": 79741, "Sede III": 19900, "NAHORA": 9722, "Total": 109363 },
-        "2024": { "Sede II": 67213, "Sede III": 20767, "NAHORA": 10930, "Total": 98910 },
-        "2025": { "Sede II": 80561, "Sede III": 12333, "NAHORA": 9955, "Total": 102849 },
-        "2026": { "Sede II": 0, "Sede III": 0, "NAHORA": 0, "Total": 0 }
-    }
-};
-
-// ==================== DADOS FIXOS (2022 a 2025) ====================
-const dadosFixos = {
-    "2022": {
-        seate: 110686,
-        nahora: 7929,
-        totalGeral: 118615
-    },
-    "2023": {
-        seate: 99641,
-        nahora: 9722,
-        totalGeral: 109363
-    },
-    "2024": {
-        seate: 87980,
-        nahora: 10930,
-        totalGeral: 98910
-    },
-    "2025": {
-        seate: 92894,
-        nahora: 9955,
-        totalGeral: 102849
-    }
-};
-
-// ==================== DADOS ESTATÍSTICOS PRÉ-PREENCHIDOS (PARA DETALHAMENTO) ====================
-const dadosPreenchidos = {
-    "2022": {
-        "SEATE": {
-            "ATEND TELEFÔNICO": 28553,
-            "ATEND PRESENCIAL": 2455,
-            "ATEND POR E-MAIL": 9184,
-            "CAD /PARTES E ADV NO PJE/E-PROC": 2411,
-            "BAIXA ARQUIVOS E-PROC": 0,
-            "CERT DE MILITÂNCIA": 857,
-            "CERT DE OBJETO E PÉ": 95,
-            "CERT DE AUTOR": 915,
-            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 20675,
-            "ANÁLISE PROCESSUAL": 0,
-            "DESARQUIVAMENTO DE PROCESSOS": 461,
-            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 121,
-            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 0,
-            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 30006,
-            "CONSULTA PROCESSUAL": 0,
-            "PESQUISA ORACLE/PROCESSUAL": 0,
-            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 4988,
-            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 699,
-            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 7895,
-            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 0,
-            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 0,
-            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 368,
-            "REQUERIMENTO DE JUNTADA": 0,
-            "JUNTADA DE PETIÇÕES": 0,
-            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 0,
-            "ATEND SEI": 0,
-            "ATEND TEAMS": 0,
-            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 280,
-            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 102,
-            "MALOTE DIGITAL": 0,
-            "PROCESSOS SEI": 0,
-            "CONSULTA SEEU": 0,
-            "JUNTADA E ASSINATURA DE DOC PjE": 0,
-            "DEVOLUÇÃO DE PROCESSOS": 0,
-            "DIVISÃO PASTAS SERVIDORES": 0,
-            "PASTA P/ SEI": 0,
-            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 256,
-            "TERMO DE COMPARECIMENTO": 365
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 7929,
-            "ATERMAÇÃO": 0,
-            "CERTIDÕES ORACLE/PJE": 0,
-            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 0,
-            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 0,
-            "INFORMAÇÕES GERAIS": 0
-        }
-    },
-    "2023": {
-        "SEATE": {
-            "ATEND TELEFÔNICO": 31072,
-            "ATEND PRESENCIAL": 10052,
-            "ATEND POR E-MAIL": 6645,
-            "CAD /PARTES E ADV NO PJE/E-PROC": 2647,
-            "BAIXA ARQUIVOS E-PROC": 0,
-            "CERT DE MILITÂNCIA": 476,
-            "CERT DE OBJETO E PÉ": 127,
-            "CERT DE AUTOR": 5790,
-            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 13449,
-            "ANÁLISE PROCESSUAL": 0,
-            "DESARQUIVAMENTO DE PROCESSOS": 698,
-            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 23,
-            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 0,
-            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 11127,
-            "CONSULTA PROCESSUAL": 0,
-            "PESQUISA ORACLE/PROCESSUAL": 0,
-            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 5458,
-            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 771,
-            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 8974,
-            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 0,
-            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 0,
-            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 469,
-            "REQUERIMENTO DE JUNTADA": 0,
-            "JUNTADA DE PETIÇÕES": 0,
-            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 0,
-            "ATEND SEI": 0,
-            "ATEND TEAMS": 0,
-            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 324,
-            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 92,
-            "MALOTE DIGITAL": 0,
-            "PROCESSOS SEI": 0,
-            "CONSULTA SEEU": 0,
-            "JUNTADA E ASSINATURA DE DOC PjE": 0,
-            "DEVOLUÇÃO DE PROCESSOS": 0,
-            "DIVISÃO PASTAS SERVIDORES": 0,
-            "PASTA P/ SEI": 0,
-            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 821,
-            "TERMO DE COMPARECIMENTO": 626
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 9722,
-            "ATERMAÇÃO": 0,
-            "CERTIDÕES ORACLE/PJE": 0,
-            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 0,
-            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 0,
-            "INFORMAÇÕES GERAIS": 0
-        }
-    },
-    "2024": {
-        "SEATE": {
-            "ATEND TELEFÔNICO": [2486, 2599, 2435, 2936, 2272, 2863, 2308, 3049, 3315, 3315, 2769, 2127],
-            "ATEND PRESENCIAL": [439, 369, 351, 391, 317, 408, 425, 414, 401, 396, 352, 241],
-            "ATEND POR E-MAIL": [263, 517, 572, 471, 348, 466, 466, 894, 987, 872, 860, 500],
-            "CAD /PARTES E ADV NO PJE/E-PROC": [262, 344, 356, 285, 225, 198, 178, 240, 149, 216, 145, 406],
-            "BAIXA ARQUIVOS E-PROC": [0, 0, 0, 0, 0, 0, 0, 0, 33, 90, 670, 423],
-            "CERT DE MILITÂNCIA": [9, 4, 32, 11, 4, 4, 22, 30, 50, 93, 95, 37],
-            "CERT DE OBJETO E PÉ": [5, 357, 34, 6, 1, 2, 19, 23, 16, 3, 8, 20],
-            "CERT DE AUTOR": [56, 553, 609, 774, 703, 5, 30, 64, 807, 7, 13, 40],
-            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": [911, 999, 1150, 1276, 970, 1256, 2165, 5605, 714, 1346, 1222, 1306],
-            "ANÁLISE PROCESSUAL": [0, 0, 0, 0, 0, 68, 419, 751, 573, 390, 231, 191],
-            "DESARQUIVAMENTO DE PROCESSOS": [84, 37, 79, 113, 53, 16, 10, 157, 221, 113, 37, 21],
-            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": [2, 3, 12, 5, 0, 0, 16, 7, 7, 1, 0, 1],
-            "ANÁLISE DEVOLUÇÃO DE CUSTAS": [0, 0, 0, 0, 0, 3, 38, 115, 17, 6, 8, 13],
-            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "CONSULTA PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 67, 44, 238, 191, 63],
-            "PESQUISA ORACLE/PROCESSUAL": [0, 0, 0, 0, 0, 0, 0, 432, 91, 165, 1, 0],
-            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": [268, 319, 537, 500, 220, 119, 76, 119, 138, 335, 167, 81],
-            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": [26, 8, 5, 12, 40, 15, 11, 9, 8, 0, 0, 23],
-            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": [195, 428, 1, 600, 242, 0, 560, 43, 0, 5, 920, 224],
-            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": [0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0],
-            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": [117, 15, 0, 81, 85, 74, 60, 50, 17, 0, 0, 0],
-            "REQUERIMENTO DE JUNTADA": [12, 6, 0, 1, 0, 4, 4, 0, 0, 1, 0, 0],
-            "JUNTADA DE PETIÇÕES": [111, 107, 95, 130, 100, 116, 123, 128, 127, 134, 307, 91],
-            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": [0, 0, 0, 0, 16, 13, 30, 29, 41, 12, 23, 10],
-            "ATEND SEI": [0, 0, 0, 0, 0, 69, 28, 19, 5, 19, 20, 14],
-            "ATEND TEAMS": [0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0],
-            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": [0, 0, 0, 0, 0, 6, 28, 11, 6, 7, 0, 0],
-            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": [12, 12, 10, 10, 21, 13, 10, 16, 13, 19, 0, 0],
-            "MALOTE DIGITAL": [0, 0, 0, 0, 0, 1, 4, 10, 2, 2, 0, 0],
-            "PROCESSOS SEI": [0, 0, 0, 0, 0, 80, 43, 117, 105, 83, 0, 0],
-            "CONSULTA SEEU": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "JUNTADA E ASSINATURA DE DOC PjE": [0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0],
-            "DEVOLUÇÃO DE PROCESSOS": [0, 0, 0, 0, 0, 0, 7, 79, 67, 228, 0, 0],
-            "DIVISÃO PASTAS SERVIDORES": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": [43, 35, 34, 26, 26, 40, 20, 20, 35, 26, 44, 27],
-            "TERMO DE COMPARECIMENTO": [93, 65, 31, 36, 35, 44, 40, 37, 29, 34, 31, 38]
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": [911, 802, 924, 1125, 372, 402, 409, 412, 348, 439, 401, 327],
-            "ATERMAÇÃO": [35, 32, 51, 46, 56, 50, 59, 51, 0, 0, 0, 0],
-            "CERTIDÕES ORACLE/PJE": [448, 600, 522, 437, 251, 323, 169, 229, 0, 0, 0, 0],
-            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": [7, 8, 12, 21, 23, 20, 10, 2, 0, 0, 0, 0],
-            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": [42, 18, 54, 50, 63, 52, 28, 30, 0, 0, 0, 0],
-            "INFORMAÇÕES GERAIS": [34, 16, 23, 33, 41, 43, 37, 32, 0, 0, 0, 0]
-        }
-    },
-    "2025": {
-        "SEATE": {
-            "ATEND TELEFÔNICO": 34815,
-            "ATEND PRESENCIAL": 4630,
-            "ATEND POR E-MAIL": 8471,
-            "CAD /PARTES E ADV NO PJE/E-PROC": 1576,
-            "BAIXA ARQUIVOS E-PROC": 997,
-            "CERT DE MILITÂNCIA": 617,
-            "CERT DE OBJETO E PÉ": 166,
-            "CERT DE AUTOR": 151,
-            "CERT (PJe, Oracle, Cível, criminal, eleitoral)": 18908,
-            "ANÁLISE PROCESSUAL": 5910,
-            "DESARQUIVAMENTO DE PROCESSOS": 1201,
-            "ENCAMINHAMENTO DE PROCESSOS À REPROGRAFIA": 84,
-            "ANÁLISE DEVOLUÇÃO DE CUSTAS": 1276,
-            "ATEND REALIZADOS PELA LUCY (ASSISTENTE VIRTUAL)": 0,
-            "CONSULTA PROCESSUAL": 5599,
-            "PESQUISA ORACLE/PROCESSUAL": 495,
-            "PROCESSOS FÍSICOS DIGITALIZADOS E MIGRADOS PARA O PJE": 1812,
-            "CORREÇÕES DE PROCESSOS DIGITALIZADOS": 95,
-            "DIGITALIZAÇÃO DE DOCUMENTOS PARA O PJDEF": 886,
-            "MIGRAÇÃO PARA O PJE, RETIFICAÇÃO E ENVIO ÀS VARAS DO JEF VIRTUAL": 52,
-            "MIGRAÇÃO DE ARQUIVOS E-PROC P/ PJe": 332,
-            "DIGITALIZAÇÃO DE PASTAS DE SERVIDORES DO ACERVO DO NUCGP": 413,
-            "REQUERIMENTO DE JUNTADA": 197,
-            "JUNTADA DE PETIÇÕES": 907,
-            "DIGITALIZAÇÃO DE PROCESSOS / PETIÇÕES": 69,
-            "ATEND SEI": 0,
-            "ATEND TEAMS": 0,
-            "INFORMAÇÕES GERAIS SOBRE CARTAS PRECATÓRIAS": 23,
-            "VALIDAÇÃO DE CADASTRO DE PERITOS NO E-CPTEC": 144,
-            "MALOTE DIGITAL": 66,
-            "PROCESSOS SEI": 988,
-            "CONSULTA SEEU": 60,
-            "JUNTADA E ASSINATURA DE DOC PjE": 280,
-            "DEVOLUÇÃO DE PROCESSOS": 460,
-            "DIVISÃO PASTAS SERVIDORES": 223,
-            "PASTA P/ SEI": 42,
-            "DESCARTE DE PROCESSOS INICIAIS E INCIDENTAIS": 0,
-            "PROTOCOLO PETIÇÕES INICIAIS / INCIDENTAIS": 564,
-            "TERMO DE COMPARECIMENTO": 385
-        },
-        "NAHORA": {
-            "ANDAMENTO PROCESSUAL": 6253,
-            "ATERMAÇÃO": 252,
-            "CERTIDÕES ORACLE/PJE": 2622,
-            "RECEBIMENTO DE PROCESSOS/PETIÇÕES": 98,
-            "INFORMAÇÕES CADASTRO DE PARTES PJE E E-PROC": 397,
-            "INFORMAÇÕES GERAIS": 333
-        }
-    }
-};
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
 async function calcularDadosMensaisAnoAtual() {
@@ -1150,8 +910,8 @@ async function renderizarIndicadores() {
         
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
-        html += '<div class="indicador-valor">' + (totalGeral > 0 ? totalGeral.toLocaleString() : '--') + '</div>';
-        html += '<div class="indicador-footer">SEATE: ' + seateTotal.toLocaleString() + ' | NAHORA: ' + nahoraTotal.toLocaleString() + '</div>';
+        html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + '</div>';
         html += '<div class="indicador-status">Clique para ver detalhes</div>';
         html += '</div>';
     }
@@ -1159,8 +919,8 @@ async function renderizarIndicadores() {
     var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
-    html += '<div class="indicador-valor">' + totalGeralFinal.toLocaleString() + '</div>';
-    html += '<div class="indicador-footer">SEATE: ' + totalSeateGeral.toLocaleString() + ' | NAHORA: ' + totalNahoraGeral.toLocaleString() + '</div>';
+    html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + '</div>';
     html += '<div class="indicador-status">Clique para ver evolução anual</div>';
     html += '</div>';
     
@@ -1177,262 +937,117 @@ var edicaoTravada2025 = false;
 
 async function abrirModalIndicador(ano, setor) {
     try {
-        var isMensal = (ano === "2024" || ano === ANO_ATUAL);
-        var isAnual = (ano === "2022" || ano === "2023" || ano === "2025");
         var titulo = ano;
-        if (setor === "SEATE") {
-            titulo = ano + " - SEATE";
-        } else if (setor === "NAHORA") {
-            titulo = ano + " - NAHORA";
-        } else {
-            titulo = ano + " - SEATE + NAHORA";
-        }
-        
-        if (isMensal) {
-            titulo = titulo + " (Mensal)";
-        } else if (isAnual) {
-            titulo = titulo + " (Total Anual)";
-        }
+        if (setor === "SEATE") { titulo = ano + " - SEATE"; }
+        else if (setor === "NAHORA") { titulo = ano + " - NAHORA"; }
+        else { titulo = ano + " - SEATE + NAHORA"; }
+        titulo += " (Mensal)";
         document.getElementById("modalEstatisticaTitulo").innerText = "Alimentar Dados Estatísticos - " + titulo;
-        
+
         var container = document.getElementById("listaAtividadesEstatistica");
-        var html = '';
-        
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Carregando...</p>';
+        document.getElementById("modalEstatistica").style.display = "block";
+        anoEstatisticaSelecionado = ano;
+
         var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-        var totalGeralSeate = 0;
-        var totalGeralNahora = 0;
-        
-        var dadosSalvos = localStorage.getItem("seate_dados_estatisticos");
-        var dadosLocais = {};
-        if (dadosSalvos) {
-            dadosLocais = JSON.parse(dadosSalvos);
-        }
-        
-        var dadosAno = null;
-        if (ano === ANO_ATUAL) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
-            
-            var seateData = {};
-            var nahoraData = {};
-            
-            var atividadesSeate = dadosPreenchidos["2025"]["SEATE"];
-            var atividadesNahora = dadosPreenchidos["2025"]["NAHORA"];
-            
-            for (var ativ in atividadesSeate) {
-                seateData[ativ] = {};
-                for (var j = 0; j < meses.length; j++) {
-                    seateData[ativ][meses[j]] = (totaisAnoAtual.porAtividadeMesSeate[ativ] && totaisAnoAtual.porAtividadeMesSeate[ativ][meses[j]]) || 0;
-                }
-                seateData[ativ]["Total"] = totaisAnoAtual.porAtividadeSeate[ativ] || 0;
-            }
-            for (var ativ in atividadesNahora) {
-                nahoraData[ativ] = {};
-                for (var j = 0; j < meses.length; j++) {
-                    nahoraData[ativ][meses[j]] = (totaisAnoAtual.porAtividadeMesNahora[ativ] && totaisAnoAtual.porAtividadeMesNahora[ativ][meses[j]]) || 0;
-                }
-                nahoraData[ativ]["Total"] = totaisAnoAtual.porAtividadeNahora[ativ] || 0;
-            }
-            
-            dadosAno = {
-                "SEATE": seateData,
-                "NAHORA": nahoraData
-            };
-        } else if (ano === "2024") {
-            // 2024 é editável e vive no Supabase (não mais no localStorage nem fixo no código)
-            dadosAno = await obterDados2024();
-        } else {
-            dadosAno = dadosPreenchidos[ano];
-        }
-        
-        if (!dadosAno) {
-            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
-            document.getElementById("modalEstatistica").style.display = "block";
+
+        // Mesma lista de atividades cadastrada em "Adicionar/Atividades",
+        // só filtrada por setor — nunca uma lista separada.
+        var atividadesSeate = await obterAtividadesPorSetor('SEATE');
+        var atividadesNahora = await obterAtividadesPorSetor('NAHORA');
+        if (atividadesSeate === null || atividadesNahora === null) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar a lista de atividades. Verifique sua conexão e tente novamente.</p>';
             return;
         }
-        
+
+        // Todos os anos vêm do Supabase agora: o ano corrente é herdado ao
+        // vivo dos registros dos servidores (mesmo cálculo de sempre); os
+        // demais anos vêm da tabela dados_historicos, alimentada pelo gestor.
+        var dadosAno;
+        if (ano === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            var seateData = {}, nahoraData = {};
+            atividadesSeate.forEach(function(ativ) {
+                seateData[ativ] = {};
+                meses.forEach(function(m) { seateData[ativ][m] = (totaisAnoAtual.porAtividadeMesSeate[ativ] && totaisAnoAtual.porAtividadeMesSeate[ativ][m]) || 0; });
+            });
+            atividadesNahora.forEach(function(ativ) {
+                nahoraData[ativ] = {};
+                meses.forEach(function(m) { nahoraData[ativ][m] = (totaisAnoAtual.porAtividadeMesNahora[ativ] && totaisAnoAtual.porAtividadeMesNahora[ativ][m]) || 0; });
+            });
+            dadosAno = { SEATE: seateData, NAHORA: nahoraData };
+        } else {
+            dadosAno = await obterDadosAno(ano);
+            if (dadosAno === null) {
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
+                return;
+            }
+        }
+
         var mostrarSeate = (setor === null || setor === "SEATE");
         var mostrarNahora = (setor === null || setor === "NAHORA");
-        
-        if (mostrarSeate) {
-            html += '<div class="titulo-secao">📍 SEATE</div>';
-            html += '<div class="tabela-estatistica-container">';
-            html += '<table class="tabela-estatistica">';
-            html += '<thead><tr>';
+        var html = '';
+        var totalGeralSeate = 0;
+        var totalGeralNahora = 0;
+
+        function renderTabelaSetor(nomeSetor, listaAtividades, dadosSetor) {
+            var totalGeralSetor = 0;
+            html += '<div class="titulo-secao">📍 ' + nomeSetor + '</div>';
+            html += '<div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr>';
             html += '<th style="text-align:left; min-width:180px;">Atividade</th>';
-            
-            if (isMensal) {
-                html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
-                html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
-                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
-            } else {
-                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">Total Anual</th>';
-            }
-            html += '</tr></thead><tbody>';
-            
-            var seateData = dadosAno["SEATE"];
-            for (var ativ in seateData) {
-                var totalAtiv = 0;
-                
-                html += '<tr>';
-                html += `<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">${escapeHtml(ativ)}</td>`;
-                
-                if (isMensal) {
-                    for (var j = 0; j < meses.length; j++) {
-                        var valorMes = 0;
-                        if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ][meses[j]] !== undefined) {
-                            valorMes = dadosLocais[ano][ativ][meses[j]];
-                        } else if (seateData[ativ] && seateData[ativ][meses[j]] !== undefined) {
-                            valorMes = seateData[ativ][meses[j]];
-                        }
-                        totalAtiv += valorMes;
-                        html += `<td><input type="number" class="input-mes-estatistica" data-atividade="${escapeHtml(ativ)}" data-mes="${meses[j]}" value="${valorMes}" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>`;
-                    }
-                    html += `<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);">${totalAtiv}</td>`;
-                } else {
-                    var valorAnual = 0;
-                    if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ]["Total"] !== undefined) {
-                        valorAnual = dadosLocais[ano][ativ]["Total"];
-                    } else if (typeof seateData[ativ] === 'number') {
-                        valorAnual = seateData[ativ];
-                    }
-                    totalAtiv = valorAnual;
-                    html += `<td><input type="number" class="input-total-anual" data-atividade="${escapeHtml(ativ)}" value="${valorAnual}" min="0" style="width:80px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem; font-weight:600;"></td>`;
-                }
-                totalGeralSeate += totalAtiv;
-                html += '</tr>';
-            }
-            
-            html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
-            html += `<td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td>`;
-            if (isMensal) {
-                var totaisMensaisSeate = {};
+            html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
+            html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
+            html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th></tr></thead><tbody>';
+
+            for (var i = 0; i < listaAtividades.length; i++) {
+                var ativ = listaAtividades[i];
+                var totalLinha = 0;
+                html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td>';
                 for (var j = 0; j < meses.length; j++) {
-                    totaisMensaisSeate[meses[j]] = 0;
+                    var valorMes = (dadosSetor[ativ] && dadosSetor[ativ][meses[j]]) || 0;
+                    totalLinha += valorMes;
+                    html += '<td><input type="number" class="input-mes-estatistica" data-setor="' + nomeSetor + '" data-atividade="' + escapeHtml(ativ) + '" data-mes="' + meses[j] + '" value="' + valorMes + '" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>';
                 }
-                var inputsSeate = document.querySelectorAll('.input-mes-estatistica');
-                for (var j = 0; j < inputsSeate.length; j++) {
-                    var inp = inputsSeate[j];
-                    var ativ = inp.getAttribute('data-atividade');
-                    var mes = inp.getAttribute('data-mes');
-                    var val = parseInt(inp.value) || 0;
-                    if (seateData[ativ] !== undefined) {
-                        totaisMensaisSeate[mes] = (totaisMensaisSeate[mes] || 0) + val;
-                    }
-                }
-                for (var j = 0; j < meses.length; j++) {
-                    html += `<td style="text-align:center; background:var(--cinza-suave);">${totaisMensaisSeate[meses[j]]}</td>`;
-                }
-                html += `<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralSeate}</td>`;
-            } else {
-                html += `<td colspan="1" style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralSeate}</td>`;
+                html += '<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);" data-linha-total>' + formatarMilhar(totalLinha) + '</td></tr>';
+                totalGeralSetor += totalLinha;
             }
-            html += '</tr>';
+
+            html += '<tr class="linha-total-setor" style="font-weight:700; background:var(--cinza-suave);">';
+            html += '<td style="text-align:left; color:var(--azul-marinho);">TOTAL ' + nomeSetor + '</td>';
+            var totaisMensais = {};
+            meses.forEach(function(m) { totaisMensais[m] = 0; });
+            listaAtividades.forEach(function(ativ) {
+                meses.forEach(function(m) { totaisMensais[m] += (dadosSetor[ativ] && dadosSetor[ativ][m]) || 0; });
+            });
+            for (var j = 0; j < meses.length; j++) {
+                html += '<td style="text-align:center; background:var(--cinza-suave);" data-total-mes="' + meses[j] + '">' + formatarMilhar(totaisMensais[meses[j]]) + '</td>';
+            }
+            html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);" data-total-geral>' + formatarMilhar(totalGeralSetor) + '</td></tr>';
             html += '</tbody></table></div>';
+            return totalGeralSetor;
         }
-        
-        if (mostrarNahora) {
-            html += '<div class="titulo-secao">📍 NAHORA</div>';
-            html += '<div class="tabela-estatistica-container">';
-            html += '<table class="tabela-estatistica">';
-            html += '<thead><tr>';
-            html += '<th style="text-align:left; min-width:180px;">Atividade</th>';
-            
-            if (isMensal) {
-                html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
-                html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
-                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
-            } else {
-                html += '<th style="background:var(--destaque); color:var(--azul-marinho);">Total Anual</th>';
-            }
-            html += '</tr></thead><tbody>';
-            
-            var nahoraData = dadosAno["NAHORA"];
-            for (var ativ in nahoraData) {
-                var totalAtiv = 0;
-                
-                html += '<tr>';
-                html += `<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">${escapeHtml(ativ)}</td>`;
-                
-                if (isMensal) {
-                    for (var j = 0; j < meses.length; j++) {
-                        var valorMes = 0;
-                        if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ][meses[j]] !== undefined) {
-                            valorMes = dadosLocais[ano][ativ][meses[j]];
-                        } else if (nahoraData[ativ] && nahoraData[ativ][meses[j]] !== undefined) {
-                            valorMes = nahoraData[ativ][meses[j]];
-                        }
-                        totalAtiv += valorMes;
-                        html += `<td><input type="number" class="input-mes-estatistica" data-atividade="${escapeHtml(ativ)}" data-mes="${meses[j]}" value="${valorMes}" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>`;
-                    }
-                    html += `<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);">${totalAtiv}</td>`;
-                } else {
-                    var valorAnual = 0;
-                    if (dadosLocais[ano] && dadosLocais[ano][ativ] && dadosLocais[ano][ativ]["Total"] !== undefined) {
-                        valorAnual = dadosLocais[ano][ativ]["Total"];
-                    } else if (typeof nahoraData[ativ] === 'number') {
-                        valorAnual = nahoraData[ativ];
-                    }
-                    totalAtiv = valorAnual;
-                    html += `<td><input type="number" class="input-total-anual" data-atividade="${escapeHtml(ativ)}" value="${valorAnual}" min="0" style="width:80px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem; font-weight:600;"></td>`;
-                }
-                totalGeralNahora += totalAtiv;
-                html += '</tr>';
-            }
-            
-            html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
-            html += `<td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td>`;
-            if (isMensal) {
-                var totaisMensaisNahora = {};
-                for (var j = 0; j < meses.length; j++) {
-                    totaisMensaisNahora[meses[j]] = 0;
-                }
-                var inputsNahora = document.querySelectorAll('.input-mes-estatistica');
-                for (var j = 0; j < inputsNahora.length; j++) {
-                    var inp = inputsNahora[j];
-                    var ativ = inp.getAttribute('data-atividade');
-                    var mes = inp.getAttribute('data-mes');
-                    var val = parseInt(inp.value) || 0;
-                    if (nahoraData[ativ] !== undefined) {
-                        totaisMensaisNahora[mes] = (totaisMensaisNahora[mes] || 0) + val;
-                    }
-                }
-                for (var j = 0; j < meses.length; j++) {
-                    html += `<td style="text-align:center; background:var(--cinza-suave);">${totaisMensaisNahora[meses[j]]}</td>`;
-                }
-                html += `<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralNahora}</td>`;
-            } else {
-                html += `<td colspan="1" style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">${totalGeralNahora}</td>`;
-            }
-            html += '</tr>';
-            html += '</tbody></table></div>';
-        }
-        
+
+        if (mostrarSeate) { totalGeralSeate = renderTabelaSetor('SEATE', atividadesSeate, dadosAno.SEATE || {}); }
+        if (mostrarNahora) { totalGeralNahora = renderTabelaSetor('NAHORA', atividadesNahora, dadosAno.NAHORA || {}); }
+
         if (setor === null) {
-            html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-            html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + (totalGeralSeate + totalGeralNahora).toLocaleString();
+            html += '<div id="totalGeralBanner" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+            html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralSeate + totalGeralNahora);
             html += '</div>';
         }
-        
-        if (isMensal) {
-            html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">';
-            html += '💡 Os totais são calculados automaticamente ao salvar.';
-            html += '</div>';
-        } else {
-            html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">';
-            html += '💡 Informe o total anual para cada atividade.';
-            html += '</div>';
-        }
-        
+
+        html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">💡 Os totais são recalculados automaticamente ao digitar.</div>';
+
         container.innerHTML = html;
-        
+
         // ============================================================
-        // RESTAURAR ESTADO DE TRAVAMENTO PARA O ANO ATUAL
+        // RESTAURAR ESTADO DE TRAVAMENTO PARA O ANO ATUAL (mantido igual)
         // ============================================================
         var travaVar = 'edicaoTravada' + ano;
         var travaAtual = window[travaVar] || false;
         var btn = document.getElementById("btnTravarEdicao");
         var inputs = document.querySelectorAll('#listaAtividadesEstatistica input');
-        
+
         if (travaAtual) {
             btn.innerHTML = '🔓 Liberar Edição';
             btn.classList.add('travado');
@@ -1450,120 +1065,95 @@ async function abrirModalIndicador(ano, setor) {
                 inputs[i].style.cursor = '';
             }
         }
-        // ============================================================
-        
-        if (isMensal) {
-            var inputs = document.querySelectorAll('.input-mes-estatistica');
-            for (var i = 0; i < inputs.length; i++) {
-                inputs[i].addEventListener('input', function() {
-                    recalcularTotalLinha(this);
-                });
-            }
+
+        var inputsMes = document.querySelectorAll('.input-mes-estatistica');
+        for (var i = 0; i < inputsMes.length; i++) {
+            inputsMes[i].addEventListener('input', function() { recalcularTotalLinha(this); });
         }
-        
-        document.getElementById("modalEstatistica").style.display = "block";
-        anoEstatisticaSelecionado = ano;
-        
+
     } catch(e) {
         console.warn('Erro ao abrir modal indicador:', e.message);
         feedback("Erro ao abrir modal!");
     }
 }
 
-function salvarDadosEstatisticaModal() {
-    try {
-        var ano = anoEstatisticaSelecionado || "2024";
-        var isMensal = (ano === "2024" || ano === ANO_ATUAL);
-        var isAnual = (ano === "2022" || ano === "2023" || ano === "2025");
-        
-        if (isMensal) {
-            var inputs = document.querySelectorAll('.input-mes-estatistica');
-            var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-            var dadosSalvos = {};
-            
-            for (var i = 0; i < inputs.length; i++) {
-                var inp = inputs[i];
-                var atividade = inp.getAttribute('data-atividade');
-                var mes = inp.getAttribute('data-mes');
-                var valor = parseInt(inp.value) || 0;
-                
-                if (!dadosSalvos[ano]) dadosSalvos[ano] = {};
-                if (!dadosSalvos[ano][atividade]) dadosSalvos[ano][atividade] = {};
-                dadosSalvos[ano][atividade][mes] = valor;
-            }
-            
-            for (var ativ in dadosSalvos[ano]) {
-                var total = 0;
-                for (var j = 0; j < meses.length; j++) {
-                    total += dadosSalvos[ano][ativ][meses[j]] || 0;
-                }
-                dadosSalvos[ano][ativ]["Total"] = total;
-            }
-            
-            if (ano === "2024") {
-                // 2024 é editável de verdade: grava no Supabase, separado por setor
-                var atividadesSeate2024 = dadosPreenchidos["2025"]["SEATE"];
-                var dadosSeate2024 = {};
-                var dadosNahora2024 = {};
-                for (var ativ in dadosSalvos[ano]) {
-                    var alvo = (atividadesSeate2024[ativ] !== undefined) ? dadosSeate2024 : dadosNahora2024;
-                    alvo[ativ] = {};
-                    for (var j = 0; j < meses.length; j++) {
-                        alvo[ativ][meses[j]] = dadosSalvos[ano][ativ][meses[j]] || 0;
-                    }
-                }
-                dbSalvarDados2024(dadosSeate2024, dadosNahora2024);
-                invalidarCacheDados2024();
-            } else {
-                var dadosExistentes = localStorage.getItem("seate_dados_estatisticos");
-                var dadosCompletos = dadosExistentes ? JSON.parse(dadosExistentes) : {};
-                for (var ativ in dadosSalvos[ano]) {
-                    if (!dadosCompletos[ano]) dadosCompletos[ano] = {};
-                    dadosCompletos[ano][ativ] = dadosSalvos[ano][ativ];
-                }
-                localStorage.setItem("seate_dados_estatisticos", JSON.stringify(dadosCompletos));
-            }
-            
-        } else if (isAnual) {
-            var inputsTotal = document.querySelectorAll('.input-total-anual');
-            var dadosSalvos = {};
-            
-            for (var i = 0; i < inputsTotal.length; i++) {
-                var inp = inputsTotal[i];
-                var atividade = inp.getAttribute('data-atividade');
-                var valor = parseInt(inp.value) || 0;
-                
-                if (!dadosSalvos[ano]) dadosSalvos[ano] = {};
-                if (!dadosSalvos[ano][atividade]) dadosSalvos[ano][atividade] = {};
-                dadosSalvos[ano][atividade]["Total"] = valor;
-                
-                var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-                var valorMensal = Math.round(valor / 12);
-                for (var j = 0; j < meses.length; j++) {
-                    dadosSalvos[ano][atividade][meses[j]] = valorMensal;
-                }
-                var somaMeses = 0;
-                for (var j = 0; j < meses.length; j++) {
-                    somaMeses += dadosSalvos[ano][atividade][meses[j]];
-                }
-                if (somaMeses !== valor && valor > 0) {
-                    var diferenca = valor - somaMeses;
-                    dadosSalvos[ano][atividade]["Dezembro"] += diferenca;
-                }
-            }
-            
-            var dadosExistentes = localStorage.getItem("seate_dados_estatisticos");
-            var dadosCompletos = dadosExistentes ? JSON.parse(dadosExistentes) : {};
-            for (var ativ in dadosSalvos[ano]) {
-                if (!dadosCompletos[ano]) dadosCompletos[ano] = {};
-                dadosCompletos[ano][ativ] = dadosSalvos[ano][ativ];
-            }
-            localStorage.setItem("seate_dados_estatisticos", JSON.stringify(dadosCompletos));
+// Recalcula, ao vivo, o total da linha, o total do setor (por mês e
+// geral) e o total geral do ano (SEATE + NAHORA) — já com a máscara de
+// milhar (000.000). Antes essa função era chamada mas não existia, então
+// os totais nunca se atualizavam ao digitar.
+function recalcularTotalLinha(inputEl) {
+    var linha = inputEl.closest('tr');
+    var tabela = inputEl.closest('table');
+    if (!linha || !tabela) return;
+
+    var inputsLinha = linha.querySelectorAll('.input-mes-estatistica');
+    var totalLinha = 0;
+    for (var i = 0; i < inputsLinha.length; i++) { totalLinha += parseInt(inputsLinha[i].value) || 0; }
+    var celulaLinha = linha.querySelector('[data-linha-total]');
+    if (celulaLinha) celulaLinha.innerText = formatarMilhar(totalLinha);
+
+    var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    var totaisMensais = {};
+    meses.forEach(function(m) { totaisMensais[m] = 0; });
+    var totalTabela = 0;
+    var inputsTabela = tabela.querySelectorAll('.input-mes-estatistica');
+    for (var i = 0; i < inputsTabela.length; i++) {
+        var mes = inputsTabela[i].getAttribute('data-mes');
+        var val = parseInt(inputsTabela[i].value) || 0;
+        totaisMensais[mes] += val;
+        totalTabela += val;
+    }
+    var linhaTotalSetor = tabela.querySelector('.linha-total-setor');
+    if (linhaTotalSetor) {
+        for (var j = 0; j < meses.length; j++) {
+            var celulaMes = linhaTotalSetor.querySelector('[data-total-mes="' + meses[j] + '"]');
+            if (celulaMes) celulaMes.innerText = formatarMilhar(totaisMensais[meses[j]]);
         }
-        
+        var celulaGeralSetor = linhaTotalSetor.querySelector('[data-total-geral]');
+        if (celulaGeralSetor) celulaGeralSetor.innerText = formatarMilhar(totalTabela);
+    }
+
+    var banner = document.getElementById("totalGeralBanner");
+    if (banner) {
+        var container = document.getElementById("listaAtividadesEstatistica");
+        var todosInputs = container.querySelectorAll('.input-mes-estatistica');
+        var totalGeralGeral = 0;
+        for (var i = 0; i < todosInputs.length; i++) { totalGeralGeral += parseInt(todosInputs[i].value) || 0; }
+        banner.innerText = 'TOTAL GERAL ' + anoEstatisticaSelecionado + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralGeral);
+    }
+}
+
+async function salvarDadosEstatisticaModal() {
+    try {
+        var ano = anoEstatisticaSelecionado;
+        if (!ano) { feedback("Selecione um ano primeiro!"); return; }
+        if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+
+        var inputs = document.querySelectorAll('.input-mes-estatistica');
+        var dadosSeate = {};
+        var dadosNahora = {};
+
+        for (var i = 0; i < inputs.length; i++) {
+            var inp = inputs[i];
+            var setorInput = inp.getAttribute('data-setor');
+            var atividade = inp.getAttribute('data-atividade');
+            var mes = inp.getAttribute('data-mes');
+            var valor = parseInt(inp.value) || 0;
+            var alvo = (setorInput === 'NAHORA') ? dadosNahora : dadosSeate;
+            if (!alvo[atividade]) alvo[atividade] = {};
+            alvo[atividade][mes] = valor;
+        }
+
+        var sucesso = await dbSalvarDadosAno(ano, dadosSeate, dadosNahora);
+        if (!sucesso) {
+            feedback("Erro ao salvar os dados. Tente novamente em alguns segundos.");
+            return;
+        }
+        invalidarCacheDadosAno(ano);
+
         feedback("Dados salvos com sucesso!");
         fecharModalEstatistica();
-        
+
         if (typeof atualizarEstatisticas === 'function') {
             atualizarEstatisticas();
         }
@@ -1711,7 +1301,7 @@ function criarGraficoEvolucao() {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        callback: function(value) { return value.toLocaleString(); },
+                        callback: function(value) { return formatarMilhar(value); },
                         font: { size: 9 }
                     }
                 },
@@ -1745,7 +1335,7 @@ function criarGraficoEvolucao() {
                             ctx.textBaseline = 'bottom';
                             var x = bar.x;
                             var y = bar.y - 4;
-                            ctx.fillText(data.toLocaleString(), x, y);
+                            ctx.fillText(formatarMilhar(data), x, y);
                         }
                     });
                 });
