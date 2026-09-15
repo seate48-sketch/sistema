@@ -246,36 +246,50 @@ async function calcularTotalAnoAtual() {
     return totais.totalGeral;
 }
 
-// ==================== DADOS DE 2024 (EDITÁVEL NO SUPABASE) ====================
-// 2022, 2023 e 2025 continuam fixos no código (dadosFixos/dadosPreenchidos).
-// Só 2024 é lido/gravado no banco, permitindo edição mês a mês.
-var _dados2024Promise = null;
-function obterDados2024() {
-    if (!_dados2024Promise) { _dados2024Promise = dbCarregarDados2024(); }
-    return _dados2024Promise;
+// ==================== DADOS HISTÓRICOS (2022 a 2025, EDITÁVEIS NO SUPABASE) ====================
+// Generalizado: TODOS os anos (2022, 2023, 2024, 2025) vivem 100% na tabela
+// "dados_historicos" do Supabase agora — nada mais fica fixo no código nem
+// no localStorage. Um cache por ano evita buscas repetidas na mesma sessão.
+var _dadosAnoCache = {};
+function obterDadosAno(ano) {
+    ano = String(ano);
+    if (!_dadosAnoCache[ano]) { _dadosAnoCache[ano] = dbCarregarDadosAno(ano); }
+    return _dadosAnoCache[ano];
 }
-function invalidarCacheDados2024() {
-    _dados2024Promise = null;
+function invalidarCacheDadosAno(ano) {
+    if (ano) { delete _dadosAnoCache[String(ano)]; }
+    else { _dadosAnoCache = {}; }
 }
 
 // Retorna {seateTotal, nahoraTotal} para qualquer ano do painel, decidindo a
-// fonte certa: ano atual -> Supabase (registros); 2024 -> Supabase (editável);
-// os demais -> dadosFixos (fixo no código, definido em cada página).
+// fonte certa: ano atual -> Supabase (registros, ao vivo, herdado do que
+// cada servidor preencheu); os demais anos -> Supabase (dados_historicos,
+// alimentados manualmente pelo gestor).
 async function obterSeateNahoraPorAno(ano) {
     if (ano === ANO_ATUAL) {
         var t = await obterTotaisAnoAtual();
         return { seateTotal: t.seateTotal, nahoraTotal: t.nahoraTotal };
     }
-    if (ano === "2024") {
-        var dados2024 = await obterDados2024();
-        var seateTotal = 0, nahoraTotal = 0;
-        for (var ativ in dados2024.SEATE) { for (var m in dados2024.SEATE[ativ]) seateTotal += dados2024.SEATE[ativ][m] || 0; }
-        for (var ativ in dados2024.NAHORA) { for (var m in dados2024.NAHORA[ativ]) nahoraTotal += dados2024.NAHORA[ativ][m] || 0; }
-        return { seateTotal: seateTotal, nahoraTotal: nahoraTotal };
-    }
-    var dadosAno = (typeof dadosFixos !== 'undefined') ? dadosFixos[ano] : null;
-    return dadosAno ? { seateTotal: dadosAno.seate, nahoraTotal: dadosAno.nahora } : { seateTotal: 0, nahoraTotal: 0 };
+    var dadosAno = await obterDadosAno(ano);
+    if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0 };
+    var seateTotal = 0, nahoraTotal = 0;
+    for (var ativ in dadosAno.SEATE) { for (var m in dadosAno.SEATE[ativ]) seateTotal += dadosAno.SEATE[ativ][m] || 0; }
+    for (var ativ in dadosAno.NAHORA) { for (var m in dadosAno.NAHORA[ativ]) nahoraTotal += dadosAno.NAHORA[ativ][m] || 0; }
+    return { seateTotal: seateTotal, nahoraTotal: nahoraTotal };
 }
+
+// ==================== ATIVIDADES POR SETOR (MESMA LISTA DE "ADICIONAR/ATIVIDADES") ====================
+var _atividadesPorSetorCache = {};
+function obterAtividadesPorSetor(setor) {
+    if (!_atividadesPorSetorCache[setor]) { _atividadesPorSetorCache[setor] = dbCarregarAtividadesPorSetor(setor); }
+    return _atividadesPorSetorCache[setor];
+}
+
+// ==================== FORMATAÇÃO DE NÚMEROS (PADRÃO 000.000) ====================
+function formatarMilhar(valor) {
+    return (valor || 0).toLocaleString('pt-BR');
+}
+window.formatarMilhar = formatarMilhar;
 
 // ==================== DADOS GLOBAIS ====================
 // Lista canônica de atividades (mesma usada em dados_iniciais.sql) — fonte única
