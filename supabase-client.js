@@ -931,14 +931,16 @@ async function dbExcluirMensagemIndividual(nomeServidor) {
 // =====================================================
 // DADOS HISTÓRICOS EDITÁVEIS (hoje só usado para 2024)
 // =====================================================
-async function dbCarregarDados2024() {
+// Generalizada para qualquer ano (antes só existia para 2024) — todos os
+// anos de 2022 em diante vivem 100% na tabela dados_historicos agora.
+async function dbCarregarDadosAno(ano) {
     const meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
     const vazio = { SEATE: {}, NAHORA: {} };
-    if (!supabaseDisponivel || !db) return vazio;
+    if (!supabaseDisponivel || !db) return null;
 
     try {
-        const { data, error } = await db.from(TABLES.DADOS_HISTORICOS).select('setor, atividade, mes, valor').eq('ano', '2024');
-        if (error) { console.error('dbCarregarDados2024:', error); return vazio; }
+        const { data, error } = await db.from(TABLES.DADOS_HISTORICOS).select('setor, atividade, mes, valor').eq('ano', String(ano));
+        if (error) { console.error('dbCarregarDadosAno:', error); return null; }
 
         const resultado = { SEATE: {}, NAHORA: {} };
         (data || []).forEach(linha => {
@@ -952,31 +954,50 @@ async function dbCarregarDados2024() {
         });
         return resultado;
     } catch(e) {
-        console.error('❌ Erro em dbCarregarDados2024:', e.message);
-        return vazio;
+        console.error('❌ Erro em dbCarregarDadosAno:', e.message);
+        return null;
     }
 }
 
-async function dbSalvarDados2024(dadosSeate, dadosNahora) {
-    if (!supabaseDisponivel || !db) return;
+// Lista as atividades cadastradas em "Adicionar/Atividades" para um
+// setor específico — é a MESMA lista usada lá, filtrada, nunca uma
+// cópia separada.
+async function dbCarregarAtividadesPorSetor(setor) {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from(TABLES.ATIVIDADES)
+            .select('nome').eq('setor', setor).order('ordem');
+        if (error) { console.error('dbCarregarAtividadesPorSetor:', error); return null; }
+        return data.map(a => a.nome);
+    } catch(e) {
+        console.error('❌ Erro em dbCarregarAtividadesPorSetor:', e.message);
+        return null;
+    }
+}
+
+// Generalizada para qualquer ano (antes só existia para 2024).
+async function dbSalvarDadosAno(ano, dadosSeate, dadosNahora) {
+    if (!supabaseDisponivel || !db) return false;
     try {
         const linhas = [];
         const montar = (setor, dados) => {
             for (const ativ in dados) {
                 for (const mes in dados[ativ]) {
-                    linhas.push({ ano: '2024', setor: setor, atividade: ativ, mes: mes, valor: dados[ativ][mes] || 0 });
+                    linhas.push({ ano: String(ano), setor: setor, atividade: ativ, mes: mes, valor: dados[ativ][mes] || 0 });
                 }
             }
         };
         montar('SEATE', dadosSeate);
         montar('NAHORA', dadosNahora);
 
-        if (linhas.length === 0) return;
+        if (linhas.length === 0) return true;
         const { error } = await db.from(TABLES.DADOS_HISTORICOS).upsert(linhas, { onConflict: 'ano,setor,atividade,mes' });
-        if (error) console.error('dbSalvarDados2024:', error);
-        else logDebug('✅ Dados de 2024 salvos (' + linhas.length + ' registros).');
+        if (error) { console.error('dbSalvarDadosAno:', error); return false; }
+        logDebug('✅ Dados de ' + ano + ' salvos (' + linhas.length + ' registros).');
+        return true;
     } catch(e) {
-        console.error('❌ Erro em dbSalvarDados2024:', e.message);
+        console.error('❌ Erro em dbSalvarDadosAno:', e.message);
+        return false;
     }
 }
 
