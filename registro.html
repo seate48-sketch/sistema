@@ -471,54 +471,27 @@ function exibirMensagemBloqueio() {
     document.body.appendChild(overlay);
 }
 
-function servidorJaVisualizouMensagemIndividual(mensagemId) {
-    if (!USUARIO_LOGADO) return true;
-    var vistasStr = localStorage.getItem("seate_mensagem_individual_vistas");
-    if (!vistasStr) return false;
-    var vistas = JSON.parse(vistasStr);
-    return vistas.indexOf(USUARIO_LOGADO + "_" + mensagemId) !== -1;
-}
-
-function marcarMensagemIndividualComoVisualizada(mensagemId) {
-    if (!USUARIO_LOGADO) return;
-    var vistasStr = localStorage.getItem("seate_mensagem_individual_vistas");
-    var vistas = vistasStr ? JSON.parse(vistasStr) : [];
-    var chave = USUARIO_LOGADO + "_" + mensagemId;
-    if (vistas.indexOf(chave) === -1) {
-        vistas.push(chave);
-        localStorage.setItem("seate_mensagem_individual_vistas", JSON.stringify(vistas));
-    }
-}
-
 var _mensagemIndividualAtual = null;
 
+// 100% Supabase: sem cópia da mensagem nem do "já vi" no localStorage.
+// Se não houver conexão, simplesmente não mostra nada (em vez de arriscar
+// mostrar uma mensagem antiga que já foi excluída pelo gestor).
 async function verificarMensagemIndividual() {
-    if (!USUARIO_LOGADO) return;
-    var mensagemObj = null;
-    if (supabaseDisponivel) {
-        try {
-            var row = await dbCarregarMensagemIndividual(USUARIO_LOGADO);
-            if (row) {
-                mensagemObj = { id: row.id, texto: row.conteudo };
-                localStorage.setItem("seate_mensagem_individual_" + USUARIO_LOGADO, JSON.stringify(mensagemObj));
-            }
-        } catch(e) { console.warn('Erro ao verificar mensagem individual:', e.message); }
-    }
-    if (!mensagemObj) {
-        var stored = localStorage.getItem("seate_mensagem_individual_" + USUARIO_LOGADO);
-        if (!stored) return;
-        mensagemObj = JSON.parse(stored);
-    }
-    _mensagemIndividualAtual = mensagemObj;
+    if (!USUARIO_LOGADO || !supabaseDisponivel) return;
+    var row = null;
+    try {
+        row = await dbCarregarMensagemIndividual(USUARIO_LOGADO);
+    } catch(e) { console.warn('Erro ao verificar mensagem individual:', e.message); return; }
+    if (!row) { _mensagemIndividualAtual = null; return; }
+
+    _mensagemIndividualAtual = { id: row.id, texto: row.conteudo };
     var jaViu;
-    if (supabaseDisponivel) {
-        try { jaViu = await dbServidorViuMensagemIndividual(mensagemObj.id, USUARIO_LOGADO); }
-        catch(e) { console.warn('Erro ao verificar visualização:', e.message); jaViu = servidorJaVisualizouMensagemIndividual(mensagemObj.id); }
-    } else {
-        jaViu = servidorJaVisualizouMensagemIndividual(mensagemObj.id);
-    }
+    try {
+        jaViu = await dbServidorViuMensagemIndividual(row.id, USUARIO_LOGADO);
+    } catch(e) { console.warn('Erro ao verificar visualização da mensagem individual:', e.message); return; }
     if (jaViu) { return; }
-    document.getElementById("mensagemIndividualTexto").innerText = mensagemObj.texto;
+
+    document.getElementById("mensagemIndividualTexto").innerText = _mensagemIndividualAtual.texto;
     document.getElementById("modalIndividual").style.display = "flex";
     var mainContent = document.getElementById("mainContent");
     var appContainer = document.getElementById("appContainer");
@@ -529,11 +502,9 @@ async function verificarMensagemIndividual() {
 }
 
 function fecharModalIndividual() {
-    if (_mensagemIndividualAtual) {
-        marcarMensagemIndividualComoVisualizada(_mensagemIndividualAtual.id);
-        if (supabaseDisponivel) {
-            dbMarcarMensagemIndividualVista(_mensagemIndividualAtual.id, USUARIO_LOGADO).catch(function(e) { console.warn('Erro ao marcar mensagem individual como vista:', e.message); });
-        }
+    if (_mensagemIndividualAtual && supabaseDisponivel) {
+        dbMarcarMensagemIndividualVista(_mensagemIndividualAtual.id, USUARIO_LOGADO)
+            .catch(function(e) { console.warn('Erro ao marcar mensagem individual como vista:', e.message); });
     }
     document.getElementById("modalIndividual").style.display = "none";
     var mainContent = document.getElementById("mainContent");
@@ -544,55 +515,25 @@ function fecharModalIndividual() {
     if(btnDesempenho) { btnDesempenho.disabled = false; }
 }
 
-function servidorJaVisualizouMensagemEmergente(mensagemId) {
-    if (!USUARIO_LOGADO) return true;
-    var vistasStr = localStorage.getItem("seate_mensagem_vistas");
-    if (!vistasStr) return false;
-    var vistas = JSON.parse(vistasStr);
-    return vistas.indexOf(USUARIO_LOGADO + "_" + mensagemId) !== -1;
-}
-
-function marcarMensagemEmergenteComoVisualizada(mensagemId) {
-    if (!USUARIO_LOGADO) return;
-    var vistasStr = localStorage.getItem("seate_mensagem_vistas");
-    var vistas = vistasStr ? JSON.parse(vistasStr) : [];
-    var chave = USUARIO_LOGADO + "_" + mensagemId;
-    if (vistas.indexOf(chave) === -1) {
-        vistas.push(chave);
-        localStorage.setItem("seate_mensagem_vistas", JSON.stringify(vistas));
-    }
-}
-
 var _mensagemEmergenteAtual = null;
 
 async function verificarMensagemEmergente() {
-    var mensagemObj = null;
-    if (supabaseDisponivel) {
-        try {
-            var row = await dbCarregarMensagemEmergente();
-            if (row) {
-                mensagemObj = { id: row.id, texto: row.conteudo };
-                localStorage.setItem("seate_mensagem_emergente", JSON.stringify(mensagemObj));
-            }
-        } catch(e) { console.warn('Erro ao verificar mensagem emergente:', e.message); }
-    }
-    if (!mensagemObj) {
-        var stored = localStorage.getItem("seate_mensagem_emergente");
-        if (!stored) return;
-        mensagemObj = JSON.parse(stored);
-    }
-    _mensagemEmergenteAtual = mensagemObj;
+    if (!supabaseDisponivel) return;
+    var row = null;
+    try {
+        row = await dbCarregarMensagemEmergente();
+    } catch(e) { console.warn('Erro ao verificar mensagem emergente:', e.message); return; }
+    if (!row) { _mensagemEmergenteAtual = null; return; }
+
+    _mensagemEmergenteAtual = { id: row.id, texto: row.conteudo };
     var jaViu = true;
     if (USUARIO_LOGADO) {
-        if (supabaseDisponivel) {
-            try { jaViu = await dbServidorViuMensagemEmergente(mensagemObj.id, USUARIO_LOGADO); }
-            catch(e) { console.warn('Erro ao verificar visualização:', e.message); jaViu = servidorJaVisualizouMensagemEmergente(mensagemObj.id); }
-        } else {
-            jaViu = servidorJaVisualizouMensagemEmergente(mensagemObj.id);
-        }
+        try {
+            jaViu = await dbServidorViuMensagemEmergente(row.id, USUARIO_LOGADO);
+        } catch(e) { console.warn('Erro ao verificar visualização da mensagem emergente:', e.message); return; }
     }
     if (jaViu) { return; }
-    document.getElementById("mensagemEmergenteTexto").innerText = mensagemObj.texto;
+    document.getElementById("mensagemEmergenteTexto").innerText = _mensagemEmergenteAtual.texto;
     document.getElementById("modalEmergente").style.display = "flex";
     var mainContent = document.getElementById("mainContent");
     var appContainer = document.getElementById("appContainer");
@@ -603,11 +544,8 @@ async function verificarMensagemEmergente() {
 }
 
 function fecharModalEmergente() {
-    if (_mensagemEmergenteAtual) {
-        marcarMensagemEmergenteComoVisualizada(_mensagemEmergenteAtual.id);
-        if (USUARIO_LOGADO && supabaseDisponivel) {
-            dbMarcarMensagemEmergenteVista(_mensagemEmergenteAtual.id, USUARIO_LOGADO).catch(function(e) { console.warn('Erro ao marcar mensagem emergente como vista:', e.message); });
-        }
+    if (_mensagemEmergenteAtual && USUARIO_LOGADO && supabaseDisponivel) {
+        dbMarcarMensagemEmergenteVista(_mensagemEmergenteAtual.id, USUARIO_LOGADO).catch(function(e) { console.warn('Erro ao marcar mensagem emergente como vista:', e.message); });
     }
     document.getElementById("modalEmergente").style.display = "none";
     var mainContent = document.getElementById("mainContent");
