@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=3">
-    <link rel="icon" href="icons/favicon-32.png?v=3">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=3">
+    <link rel="manifest" href="manifest.json?v=4">
+    <link rel="icon" href="icons/favicon-32.png?v=4">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=3').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=4').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=3"></script>
-    <script src="supabase-client.js?v=3"></script>
+    <script src="config.js?v=4"></script>
+    <script src="supabase-client.js?v=4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -862,7 +862,7 @@
     </div>
 </div>
 
-<script src="common.js?v=3"></script>
+<script src="common.js?v=4"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -970,28 +970,17 @@ async function abrirModalIndicador(ano, setor) {
             return;
         }
 
-        // Todos os anos vêm do Supabase agora: o ano corrente é herdado ao
-        // vivo dos registros dos servidores (mesmo cálculo de sempre); os
-        // demais anos vêm da tabela dados_historicos, alimentada pelo gestor.
-        var dadosAno;
-        if (ano === ANO_ATUAL) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
-            var seateData = {}, nahoraData = {};
-            atividadesSeate.forEach(function(ativ) {
-                seateData[ativ] = {};
-                meses.forEach(function(m) { seateData[ativ][m] = (totaisAnoAtual.porAtividadeMesSeate[ativ] && totaisAnoAtual.porAtividadeMesSeate[ativ][m]) || 0; });
-            });
-            atividadesNahora.forEach(function(ativ) {
-                nahoraData[ativ] = {};
-                meses.forEach(function(m) { nahoraData[ativ][m] = (totaisAnoAtual.porAtividadeMesNahora[ativ] && totaisAnoAtual.porAtividadeMesNahora[ativ][m]) || 0; });
-            });
-            dadosAno = { SEATE: seateData, NAHORA: nahoraData };
-        } else {
-            dadosAno = await obterDadosAno(ano);
-            if (dadosAno === null) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
-                return;
-            }
+        // Todos os anos vêm do Supabase, sempre em dados_historicos — o
+        // gestor alimenta manualmente qualquer ano, inclusive o corrente.
+        // O ano corrente é especial só na hora de mostrar o TOTAL (fora
+        // deste modal): ali, o que for alimentado aqui é SOMADO com o que
+        // já foi herdado automaticamente dos registros dos servidores —
+        // nunca sobrescreve, e por isso os campos abaixo mostram só a
+        // parte alimentada manualmente (evita contar tudo em dobro).
+        var dadosAno = await obterDadosAno(ano);
+        if (dadosAno === null) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
+            return;
         }
 
         // ============================================================
@@ -1059,9 +1048,14 @@ async function abrirModalIndicador(ano, setor) {
         if (mostrarNahora) { totalGeralNahora = renderTabelaSetor('NAHORA', atividadesNahoraCompleta, dadosAno.NAHORA || {}); }
 
         if (setor === null) {
-            html += '<div id="totalGeralBanner" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-            html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralSeate + totalGeralNahora);
+            var rotuloBanner = (ano === ANO_ATUAL) ? 'TOTAL ALIMENTADO MANUALMENTE ' + ano + ' (SEATE + NAHORA)' : 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA)';
+            html += '<div id="totalGeralBanner" data-rotulo="' + rotuloBanner + '" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+            html += rotuloBanner + ': ' + formatarMilhar(totalGeralSeate + totalGeralNahora);
             html += '</div>';
+        }
+
+        if (ano === ANO_ATUAL) {
+            html += '<div style="margin-top:8px; padding:10px; background:var(--cinza-suave); border-radius:10px; font-size:0.8rem; color:#555;">ℹ️ O ano corrente já tem os meses com registros dos servidores contados automaticamente. Use estes campos apenas para os meses que ainda não têm registro (ex.: antes do sistema entrar em uso) — o total aqui alimentado é <strong>somado</strong> ao que já veio dos registros no card "Indicadores Gerais" e nas demais telas, nunca substitui.</div>';
         }
 
         html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">💡 Os totais são recalculados automaticamente ao digitar.</div>';
@@ -1147,7 +1141,8 @@ function recalcularTotalLinha(inputEl) {
         var todosInputs = container.querySelectorAll('.input-mes-estatistica');
         var totalGeralGeral = 0;
         for (var i = 0; i < todosInputs.length; i++) { totalGeralGeral += parseInt(todosInputs[i].value) || 0; }
-        banner.innerText = 'TOTAL GERAL ' + anoEstatisticaSelecionado + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralGeral);
+        var rotulo = banner.getAttribute('data-rotulo') || ('TOTAL GERAL ' + anoEstatisticaSelecionado + ' (SEATE + NAHORA)');
+        banner.innerText = rotulo + ': ' + formatarMilhar(totalGeralGeral);
     }
 }
 
@@ -1184,6 +1179,9 @@ async function salvarDadosEstatisticaModal() {
 
         if (typeof atualizarEstatisticas === 'function') {
             atualizarEstatisticas();
+        }
+        if (typeof renderizarIndicadores === 'function') {
+            renderizarIndicadores();
         }
         
     } catch(e) {
