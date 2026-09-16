@@ -31,7 +31,8 @@ const SUPABASE_CONFIG = {
         MENSAGENS_INDIVIDUAIS_VISTAS: 'mensagens_individuais_vistas',
         OBS_SERVIDORES: 'obs_servidores',
         LISTA_VISUALIZACAO: 'lista_visualizacao',
-        DADOS_HISTORICOS: 'dados_historicos'
+        DADOS_HISTORICOS: 'dados_historicos',
+        ESTATISTICAS_TRAVA: 'estatisticas_trava'
     },
     
     // ========================================
