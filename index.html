@@ -994,6 +994,24 @@ async function abrirModalIndicador(ano, setor) {
             }
         }
 
+        // ============================================================
+        // CORREÇÃO: incluir também atividades que têm dados salvos mas
+        // não estão (mais) na lista cadastrada em "Adicionar/Atividades"
+        // (por exemplo, uma atividade renomeada ou excluída depois que
+        // já havia registros/lançamentos com o nome antigo). Sem isso,
+        // esses valores existiam nos dados mas ficavam de fora da
+        // tabela — os totais mensais e o total do ano saíam menores
+        // que o valor real.
+        // ============================================================
+        var atividadesSeateCompleta = atividadesSeate.slice();
+        for (var ativOrfa in (dadosAno.SEATE || {})) {
+            if (atividadesSeateCompleta.indexOf(ativOrfa) === -1) { atividadesSeateCompleta.push(ativOrfa); }
+        }
+        var atividadesNahoraCompleta = atividadesNahora.slice();
+        for (var ativOrfa2 in (dadosAno.NAHORA || {})) {
+            if (atividadesNahoraCompleta.indexOf(ativOrfa2) === -1) { atividadesNahoraCompleta.push(ativOrfa2); }
+        }
+
         var mostrarSeate = (setor === null || setor === "SEATE");
         var mostrarNahora = (setor === null || setor === "NAHORA");
         var html = '';
@@ -1037,8 +1055,8 @@ async function abrirModalIndicador(ano, setor) {
             return totalGeralSetor;
         }
 
-        if (mostrarSeate) { totalGeralSeate = renderTabelaSetor('SEATE', atividadesSeate, dadosAno.SEATE || {}); }
-        if (mostrarNahora) { totalGeralNahora = renderTabelaSetor('NAHORA', atividadesNahora, dadosAno.NAHORA || {}); }
+        if (mostrarSeate) { totalGeralSeate = renderTabelaSetor('SEATE', atividadesSeateCompleta, dadosAno.SEATE || {}); }
+        if (mostrarNahora) { totalGeralNahora = renderTabelaSetor('NAHORA', atividadesNahoraCompleta, dadosAno.NAHORA || {}); }
 
         if (setor === null) {
             html += '<div id="totalGeralBanner" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
