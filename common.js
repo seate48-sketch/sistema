@@ -267,8 +267,19 @@ function invalidarCacheDadosAno(ano) {
 // alimentados manualmente pelo gestor).
 async function obterSeateNahoraPorAno(ano) {
     if (ano === ANO_ATUAL) {
+        // Ano corrente = registros reais dos servidores (automático, mês a
+        // mês conforme cada um preenche) SOMADO com o que o gestor alimentar
+        // manualmente em "Dados Estatísticos" para os meses ainda sem
+        // registro — os dois nunca se sobrepõem porque tratam de meses
+        // diferentes, então somar é seguro.
         var t = await obterTotaisAnoAtual();
-        return { seateTotal: t.seateTotal, nahoraTotal: t.nahoraTotal };
+        var manual = await obterDadosAno(ano);
+        var seateManual = 0, nahoraManual = 0;
+        if (manual) {
+            for (var ativ in manual.SEATE) { for (var m in manual.SEATE[ativ]) seateManual += manual.SEATE[ativ][m] || 0; }
+            for (var ativ in manual.NAHORA) { for (var m in manual.NAHORA[ativ]) nahoraManual += manual.NAHORA[ativ][m] || 0; }
+        }
+        return { seateTotal: t.seateTotal + seateManual, nahoraTotal: t.nahoraTotal + nahoraManual };
     }
     var dadosAno = await obterDadosAno(ano);
     if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0 };
