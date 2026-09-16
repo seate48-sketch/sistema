@@ -827,8 +827,26 @@ tr:hover{background:var(--cinza-suave);}
     .tabela-estatistica .input-mes-estatistica{width:32px;font-size:0.6rem;padding:2px 0;}
     .modal-estatistica-content{max-width:100%;width:100%;margin:0;border-radius:0;max-height:100vh;}
     .modal-estatistica-body{padding:12px;}
+
+    /* ===== AJUSTES RESPONSIVOS ADICIONAIS ===== */
+    body{padding:6px;}
+    .app-container{border-radius:12px;}
+    .card{padding:16px;overflow-x:auto;}
+    .indicadores-grid{grid-template-columns:repeat(2,1fr);}
+    .graficos-grid{grid-template-columns:1fr;}
+    .ranking-table{min-width:460px;font-size:0.8rem;}
+    .header-titles h1{font-size:1rem;}
+    .header-titles p{font-size:0.75rem;}
+    .user-box, .version-tag{font-size:0.7rem;}
+    /* Impede zoom automático em iOS ao focar campos (exige 16px minimo) */
+    input, select, textarea{font-size:16px;}
+    button, .btn, .tab-link{min-height:40px;}
 }
 
 @media (max-width:480px){
     .tabela-estatistica .input-mes-estatistica{width:28px;font-size:0.55rem;padding:1px 0;}
+    .indicadores-grid{grid-template-columns:1fr;}
+    .header-titles h1{font-size:0.9rem;}
+    .card{padding:12px;}
+    .acesso-rapido-grid{grid-template-columns:1fr;}
 }
