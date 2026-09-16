@@ -975,6 +975,36 @@ async function dbCarregarAtividadesPorSetor(setor) {
     }
 }
 
+// ==================== TRAVA DE EDIÇÃO DOS DADOS ESTATÍSTICOS (POR ANO) ====================
+// Antes essa trava só existia como variável de memória do navegador —
+// nunca era salva de verdade, então "resetava" toda vez que a página
+// era recarregada ou aberta em outro aparelho. Agora vive no banco.
+async function dbCarregarTravaAno(ano) {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from(TABLES.ESTATISTICAS_TRAVA)
+            .select('travado').eq('ano', String(ano)).maybeSingle();
+        if (error) { console.error('dbCarregarTravaAno:', error); return null; }
+        return data ? data.travado : false;
+    } catch(e) {
+        console.error('❌ Erro em dbCarregarTravaAno:', e.message);
+        return null;
+    }
+}
+
+async function dbSalvarTravaAno(ano, travado) {
+    if (!supabaseDisponivel || !db) return false;
+    try {
+        const { error } = await db.from(TABLES.ESTATISTICAS_TRAVA)
+            .upsert({ ano: String(ano), travado: travado }, { onConflict: 'ano' });
+        if (error) { console.error('dbSalvarTravaAno:', error); return false; }
+        return true;
+    } catch(e) {
+        console.error('❌ Erro em dbSalvarTravaAno:', e.message);
+        return false;
+    }
+}
+
 // Generalizada para qualquer ano (antes só existia para 2024).
 async function dbSalvarDadosAno(ano, dadosSeate, dadosNahora) {
     if (!supabaseDisponivel || !db) return false;
