@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=3">
-    <link rel="icon" href="icons/favicon-32.png?v=3">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=3">
+    <link rel="manifest" href="manifest.json?v=4">
+    <link rel="icon" href="icons/favicon-32.png?v=4">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=3').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=4').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Estatística</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=3"></script>
+    <script src="config.js?v=4"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=3"></script>
+    <script src="supabase-client.js?v=4"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=3"></script>
+    <script src="common.js?v=4"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -785,8 +785,26 @@ async function abrirModalIndicador(ano, setor) {
         
         if (isAnoAtual) {
             var totaisAnoAtual = await obterTotaisAnoAtual();
-            var seateTotais = totaisAnoAtual.porAtividadeSeate;
-            var nahoraTotais = totaisAnoAtual.porAtividadeNahora;
+            var seateTotais = Object.assign({}, totaisAnoAtual.porAtividadeSeate);
+            var nahoraTotais = Object.assign({}, totaisAnoAtual.porAtividadeNahora);
+
+            // Soma o que o gestor alimentou manualmente em "Dados Estatísticos"
+            // (meses do ano corrente que ainda não têm registro dos
+            // servidores) — nunca se sobrepõe ao que já vem dos registros,
+            // porque tratam de meses diferentes.
+            var manualAnoAtual = await obterDadosAno(ano);
+            if (manualAnoAtual) {
+                for (var ativManual in (manualAnoAtual.SEATE || {})) {
+                    var totalManual = 0;
+                    for (var mesManual in manualAnoAtual.SEATE[ativManual]) { totalManual += manualAnoAtual.SEATE[ativManual][mesManual] || 0; }
+                    seateTotais[ativManual] = (seateTotais[ativManual] || 0) + totalManual;
+                }
+                for (var ativManual2 in (manualAnoAtual.NAHORA || {})) {
+                    var totalManual2 = 0;
+                    for (var mesManual2 in manualAnoAtual.NAHORA[ativManual2]) { totalManual2 += manualAnoAtual.NAHORA[ativManual2][mesManual2] || 0; }
+                    nahoraTotais[ativManual2] = (nahoraTotais[ativManual2] || 0) + totalManual2;
+                }
+            }
             
             var seateTotal = 0;
             var nahoraTotal = 0;
@@ -1141,6 +1159,7 @@ async function criarGraficoTop10() {
     var todasAtividades = {};
     var anos = getAnosDisponiveis();
     var totaisAnoAtual = await obterTotaisAnoAtual();
+    var manualAnoAtualTop10 = await obterDadosAno(ANO_ATUAL);
     
     for (var a = 0; a < anos.length; a++) {
         var ano = anos[a];
@@ -1153,6 +1172,16 @@ async function criarGraficoTop10() {
             for (var ativ in totaisAnoAtual.porAtividadeNahora) {
                 if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
                 todasAtividades[ativ] += totaisAnoAtual.porAtividadeNahora[ativ];
+            }
+            if (manualAnoAtualTop10) {
+                for (var ativM in (manualAnoAtualTop10.SEATE || {})) {
+                    if (!todasAtividades[ativM]) todasAtividades[ativM] = 0;
+                    for (var mM in manualAnoAtualTop10.SEATE[ativM]) { todasAtividades[ativM] += manualAnoAtualTop10.SEATE[ativM][mM] || 0; }
+                }
+                for (var ativM2 in (manualAnoAtualTop10.NAHORA || {})) {
+                    if (!todasAtividades[ativM2]) todasAtividades[ativM2] = 0;
+                    for (var mM2 in manualAnoAtualTop10.NAHORA[ativM2]) { todasAtividades[ativM2] += manualAnoAtualTop10.NAHORA[ativM2][mM2] || 0; }
+                }
             }
             continue;
         }
