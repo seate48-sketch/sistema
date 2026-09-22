@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=5">
-    <link rel="icon" href="icons/favicon-32.png?v=5">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=5">
+    <link rel="manifest" href="manifest.json?v=6">
+    <link rel="icon" href="icons/favicon-32.png?v=6">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=5').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=6').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Atividades</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
     <!-- ======================================== -->
-    <script src="config.js?v=5"></script>
+    <script src="config.js?v=6"></script>
 
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=5"></script>
+    <script src="supabase-client.js?v=6"></script>
 
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=5"></script>
+    <script src="common.js?v=6"></script>
 
     <style>
         .dragging {
@@ -175,7 +175,7 @@
         .acoes-cell .btn-atribuir-rapido {
             font-size: 0.7rem;
             padding: 3px 10px;
-            margin: 1px 2px;
+            margin: 2px 6px;
             white-space: nowrap;
             border-radius: 14px;
             display: inline-block;
@@ -256,7 +256,6 @@
             <a href="servidores.html" class="tab-link">Servidores/Colaboradores</a>
             <a href="atividades.html" class="tab-link active">Adicionar/Atividades</a>
             <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
-            <a href="visualizar.html" class="tab-link">Distribuicao/Atividades</a>
             <a href="estatistica.html" class="tab-link">Estatistica</a>
         </div>
         
@@ -516,9 +515,27 @@ function editarAtividade(idx) {
     } 
 }
 
-function excluirAtividade(idx) { 
+async function excluirAtividade(idx) { 
     var nome = atividades[idx]; 
-    if(confirm("Excluir \"" + nome + "\"?")) { 
+
+    var uso = null;
+    if (supabaseDisponivel) {
+        try { uso = await dbVerificarUsoAtividade(nome); }
+        catch(e) { console.warn('Erro ao verificar uso da atividade:', e.message); }
+    }
+
+    var mensagem = "Excluir \"" + nome + "\"?";
+    if (uso && (uso.registros > 0 || uso.historico > 0 || uso.atribuicoes > 0)) {
+        mensagem = "ATENÇÃO: já existe dado cadastrado para \"" + nome + "\":\n\n";
+        if (uso.registros > 0) mensagem += "• " + uso.registros + " registro(s) de atividades diárias de servidores\n";
+        if (uso.historico > 0) mensagem += "• " + uso.historico + " lançamento(s) em Dados Estatísticos\n";
+        if (uso.atribuicoes > 0) mensagem += "• " + uso.atribuicoes + " servidor(es) atribuído(s) a ela\n";
+        mensagem += "\nExcluir NÃO apaga esses dados já salvos, mas eles deixam de estar ligados a uma atividade cadastrada. Tem certeza que deseja excluir mesmo assim?";
+    } else if (uso === null && supabaseDisponivel) {
+        mensagem = "Não foi possível verificar se existem dados cadastrados para \"" + nome + "\" (falha na conexão). Deseja excluir mesmo assim, sem essa conferência?";
+    }
+
+    if(confirm(mensagem)) { 
         atividades.splice(idx,1); 
         if(atribuicoes[nome]) delete atribuicoes[nome]; 
         salvarAtividades(); 
