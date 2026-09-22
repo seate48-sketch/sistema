@@ -1490,172 +1490,78 @@ function abrirModalAnaliseAtividade(ano) {
         var container = document.getElementById("listaAnaliseAtividades");
         
         if (tituloElement) {
-            tituloElement.innerText = "📊 Análise Detalhada por Atividade - " + ano;
+            tituloElement.innerText = "\ud83d\udcca An\u00e1lise Detalhada por Atividade - " + ano;
         }
         
         if (!container) {
-            console.warn('Container listaAnaliseAtividades não encontrado');
+            console.warn('Container listaAnaliseAtividades n\u00e3o encontrado');
             return;
         }
-        
-        var html = '';
-        var totalSeate = 0;
-        var totalNahora = 0;
-        
-        if (ano === "2026") {
-            var seateTotais = {};
-            var nahoraTotais = {};
-            var temRegistros = false;
-            
-            for (var i = 0; i < servidores.length; i++) {
-                var nome = servidores[i];
-                var lotacao = getLotacaoServidor(nome);
-                var chave = "seate_v5_" + nome;
-                var registros = localStorage.getItem(chave);
-                
-                if (registros) {
-                    try {
-                        var dados = JSON.parse(registros);
-                        for (var data in dados) {
-                            if (data.startsWith("2026-") && dados[data]?.atividades) {
-                                temRegistros = true;
-                                var atividadesDia = dados[data].atividades;
-                                for (var ativ in atividadesDia) {
-                                    var valor = atividadesDia[ativ] || 0;
-                                    if (lotacao === "SEATE") {
-                                        seateTotais[ativ] = (seateTotais[ativ] || 0) + valor;
-                                    } else if (lotacao === "NAHORA") {
-                                        nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + valor;
-                                    }
-                                }
-                            }
-                        }
-                    } catch(e) {}
-                }
+
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Carregando...</p>';
+        document.getElementById("modalAnaliseAtividade").style.display = "block";
+
+        // 100% Supabase: soma os registros reais dos servidores (para o ano
+        // corrente) com o que foi alimentado manualmente em "Dados
+        // Estat\u00edsticos" (v\u00e1lido para todos os anos) \u2014 mesma l\u00f3gica j\u00e1
+        // usada nos Indicadores Gerais, sem depender mais de localStorage
+        // nem de dados fixos no c\u00f3digo.
+        buscarAnaliseAtividade(ano, container);
+    } catch(e) {
+        console.warn('Erro ao abrir modal de an\u00e1lise:', e.message);
+        feedback("Erro ao abrir an\u00e1lise detalhada!");
+    }
+}
+
+async function buscarAnaliseAtividade(ano, container) {
+    try {
+        var seateTotais = {};
+        var nahoraTotais = {};
+
+        if (ano === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+        }
+        var manualAno = await obterDadosAno(ano);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var totalM = 0;
+                for (var mesM in manualAno.SEATE[ativM]) { totalM += manualAno.SEATE[ativM][mesM] || 0; }
+                seateTotais[ativM] = (seateTotais[ativM] || 0) + totalM;
             }
-            
-            if (!temRegistros) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para 2026</p>';
-                document.getElementById("modalAnaliseAtividade").style.display = "block";
-                return;
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var totalM2 = 0;
+                for (var mesM2 in manualAno.NAHORA[ativM2]) { totalM2 += manualAno.NAHORA[ativM2][mesM2] || 0; }
+                nahoraTotais[ativM2] = (nahoraTotais[ativM2] || 0) + totalM2;
             }
-            
-            for (var ativ in seateTotais) {
-                totalSeate += seateTotais[ativ];
-            }
-            for (var ativ in nahoraTotais) {
-                totalNahora += nahoraTotais[ativ];
-            }
-            
-            var todasAtividades = {};
-            for (var ativ in seateTotais) {
-                todasAtividades[ativ] = { seate: seateTotais[ativ], nahora: nahoraTotais[ativ] || 0 };
-            }
-            for (var ativ in nahoraTotais) {
-                if (todasAtividades[ativ]) {
-                    todasAtividades[ativ].nahora = nahoraTotais[ativ];
-                } else {
-                    todasAtividades[ativ] = { seate: 0, nahora: nahoraTotais[ativ] };
-                }
-            }
-            
-            var items = [];
-            for (var ativ in todasAtividades) {
-                var total = todasAtividades[ativ].seate + todasAtividades[ativ].nahora;
-                if (total > 0) {
-                    items.push({ nome: ativ, seate: todasAtividades[ativ].seate, nahora: todasAtividades[ativ].nahora, total: total });
-                }
-            }
-            items.sort(function(a, b) { return b.total - a.total; });
-            
-            if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para 2026</p>';
-                document.getElementById("modalAnaliseAtividade").style.display = "block";
-                return;
-            }
-            
-            html += '<div class="titulo-secao">📍 ATIVIDADES - 2026</div>';
-            html += '<div class="tabela-estatistica-container">';
-            html += '<table class="tabela-estatistica">';
-            html += '<thead><tr>';
-            html += '<th style="text-align:left; min-width:200px;">Atividade</th>';
-            html += '<th style="text-align:center; background:#0F2D52; color:#fff;">SEATE</th>';
-            html += '<th style="text-align:center; background:#B30000; color:#fff;">NAHORA</th>';
-            html += '<th style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
-            html += '</tr></thead><tbody>';
-            
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                html += '<tr>';
-                html += '<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td>';
-                html += '<td style="text-align:center; font-weight:600;">' + item.seate.toLocaleString() + '</td>';
-                html += '<td style="text-align:center; font-weight:600;">' + item.nahora.toLocaleString() + '</td>';
-                html += '<td style="text-align:center; font-weight:700; background:var(--cinza-suave);">' + item.total.toLocaleString() + '</td>';
-                html += '</tr>';
-            }
-            
-            html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
-            html += '<td style="text-align:left; color:var(--azul-marinho);">TOTAL GERAL</td>';
-            html += '<td style="text-align:center; background:#0F2D52; color:#fff;">' + totalSeate.toLocaleString() + '</td>';
-            html += '<td style="text-align:center; background:#B30000; color:#fff;">' + totalNahora.toLocaleString() + '</td>';
-            html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + (totalSeate + totalNahora).toLocaleString() + '</td>';
-            html += '</tr>';
-            html += '</tbody></table></div>';
-            
-            container.innerHTML = html;
-            document.getElementById("modalAnaliseAtividade").style.display = "block";
+        }
+
+        var totalSeate = 0, totalNahora = 0;
+        for (var ativ in seateTotais) { totalSeate += seateTotais[ativ]; }
+        for (var ativ in nahoraTotais) { totalNahora += nahoraTotais[ativ]; }
+
+        if (totalSeate === 0 && totalNahora === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Nenhum dado encontrado para ' + ano + '</p>';
             return;
         }
-        
-        var dadosPre = window.dadosPreenchidos ? window.dadosPreenchidos[ano] : null;
-        
-        if (!dadosPre) {
-            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
-            document.getElementById("modalAnaliseAtividade").style.display = "block";
-            return;
-        }
-        
-        var seateData = dadosPre["SEATE"] || {};
-        var nahoraData = dadosPre["NAHORA"] || {};
-        
+
         var todasAtividades = {};
-        for (var ativ in seateData) {
-            var valor = seateData[ativ];
-            if (Array.isArray(valor)) {
-                valor = valor.reduce(function(a, b) { return a + b; }, 0);
-            }
-            todasAtividades[ativ] = { seate: valor, nahora: 0 };
-            totalSeate += valor;
+        for (var ativ in seateTotais) { todasAtividades[ativ] = { seate: seateTotais[ativ], nahora: nahoraTotais[ativ] || 0 }; }
+        for (var ativ in nahoraTotais) {
+            if (todasAtividades[ativ]) { todasAtividades[ativ].nahora = nahoraTotais[ativ]; }
+            else { todasAtividades[ativ] = { seate: 0, nahora: nahoraTotais[ativ] }; }
         }
-        for (var ativ in nahoraData) {
-            var valor = nahoraData[ativ];
-            if (Array.isArray(valor)) {
-                valor = valor.reduce(function(a, b) { return a + b; }, 0);
-            }
-            if (todasAtividades[ativ]) {
-                todasAtividades[ativ].nahora = valor;
-            } else {
-                todasAtividades[ativ] = { seate: 0, nahora: valor };
-            }
-            totalNahora += valor;
-        }
-        
+
         var items = [];
         for (var ativ in todasAtividades) {
             var total = todasAtividades[ativ].seate + todasAtividades[ativ].nahora;
-            if (total > 0) {
-                items.push({ nome: ativ, seate: todasAtividades[ativ].seate, nahora: todasAtividades[ativ].nahora, total: total });
-            }
+            if (total > 0) { items.push({ nome: ativ, seate: todasAtividades[ativ].seate, nahora: todasAtividades[ativ].nahora, total: total }); }
         }
         items.sort(function(a, b) { return b.total - a.total; });
-        
-        if (items.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Nenhum dado disponível para ' + ano + '</p>';
-            document.getElementById("modalAnaliseAtividade").style.display = "block";
-            return;
-        }
-        
-        html += '<div class="titulo-secao">📍 ATIVIDADES - ' + ano + '</div>';
+
+        var html = '';
+        html += '<div class="titulo-secao">\ud83d\udccd ATIVIDADES - ' + ano + '</div>';
         html += '<div class="tabela-estatistica-container">';
         html += '<table class="tabela-estatistica">';
         html += '<thead><tr>';
@@ -1664,31 +1570,29 @@ function abrirModalAnaliseAtividade(ano) {
         html += '<th style="text-align:center; background:#B30000; color:#fff;">NAHORA</th>';
         html += '<th style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
         html += '</tr></thead><tbody>';
-        
+
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
             html += '<tr>';
             html += '<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td>';
-            html += '<td style="text-align:center; font-weight:600;">' + item.seate.toLocaleString() + '</td>';
-            html += '<td style="text-align:center; font-weight:600;">' + item.nahora.toLocaleString() + '</td>';
-            html += '<td style="text-align:center; font-weight:700; background:var(--cinza-suave);">' + item.total.toLocaleString() + '</td>';
+            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(item.seate) + '</td>';
+            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(item.nahora) + '</td>';
+            html += '<td style="text-align:center; font-weight:700; background:var(--cinza-suave);">' + formatarMilhar(item.total) + '</td>';
             html += '</tr>';
         }
-        
+
         html += '<tr style="font-weight:700; background:var(--cinza-suave);">';
         html += '<td style="text-align:left; color:var(--azul-marinho);">TOTAL GERAL</td>';
-        html += '<td style="text-align:center; background:#0F2D52; color:#fff;">' + totalSeate.toLocaleString() + '</td>';
-        html += '<td style="text-align:center; background:#B30000; color:#fff;">' + totalNahora.toLocaleString() + '</td>';
-        html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + (totalSeate + totalNahora).toLocaleString() + '</td>';
+        html += '<td style="text-align:center; background:#0F2D52; color:#fff;">' + formatarMilhar(totalSeate) + '</td>';
+        html += '<td style="text-align:center; background:#B30000; color:#fff;">' + formatarMilhar(totalNahora) + '</td>';
+        html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(totalSeate + totalNahora) + '</td>';
         html += '</tr>';
         html += '</tbody></table></div>';
-        
+
         container.innerHTML = html;
-        document.getElementById("modalAnaliseAtividade").style.display = "block";
-        
     } catch(e) {
-        console.warn('Erro ao abrir modal de análise:', e.message);
-        feedback("Erro ao abrir análise detalhada!");
+        console.warn('Erro ao buscar an\u00e1lise de atividade:', e.message);
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">N\u00e3o foi poss\u00edvel carregar a an\u00e1lise. Verifique sua conex\u00e3o e tente novamente.</p>';
     }
 }
 
