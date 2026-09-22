@@ -975,6 +975,29 @@ async function dbCarregarAtividadesPorSetor(setor) {
     }
 }
 
+// Verifica, antes de excluir uma atividade, se já existe algo salvo
+// com o nome dela — registros diários de servidores, dados
+// estatísticos alimentados manualmente, ou servidores atribuídos.
+// Usa uma função no próprio banco (verificar_uso_atividade) para
+// fazer as 3 contagens de uma vez.
+async function dbVerificarUsoAtividade(nomeAtividade) {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.rpc('verificar_uso_atividade', { nome_atividade: nomeAtividade });
+        if (error) { console.error('dbVerificarUsoAtividade:', error); return null; }
+        const linha = data && data[0];
+        if (!linha) return { registros: 0, historico: 0, atribuicoes: 0 };
+        return {
+            registros: Number(linha.registros_count) || 0,
+            historico: Number(linha.historico_count) || 0,
+            atribuicoes: Number(linha.atribuicoes_count) || 0
+        };
+    } catch(e) {
+        console.error('❌ Erro em dbVerificarUsoAtividade:', e.message);
+        return null;
+    }
+}
+
 // ==================== TRAVA DE EDIÇÃO DOS DADOS ESTATÍSTICOS (POR ANO) ====================
 // Antes essa trava só existia como variável de memória do navegador —
 // nunca era salva de verdade, então "resetava" toda vez que a página
