@@ -1142,7 +1142,7 @@ function selecionarServidorAtribuicoes(nome) {
         }
         var tituloElement = document.getElementById("tituloServidorSelecionado");
         var listaElement = document.getElementById("listaAtividadesServidorSelecionado");
-        if(tituloElement) tituloElement.innerHTML = `Atividades de ${escapeHtml(nome)} (Lotação: ${escapeHtml(getLotacaoServidor(nome))})`; 
+        if(tituloElement) tituloElement.innerHTML = `Atividades de ${escapeHtml(nome)} (Lotação: ${escapeHtml(getLotacaoServidor(nome))}) <button class="btn-acessar-registros" style="margin-left:12px;" onclick="acessarRegistro('${nome.replace(/'/g,"\\'")}')">Ver Registro</button>`;
         if(!listaElement) return;
         if(ativs.length === 0) {
             listaElement.innerHTML = '<span class="sem-atividades">Nenhuma atividade</span>'; 
