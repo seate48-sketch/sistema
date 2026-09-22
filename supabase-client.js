@@ -478,6 +478,39 @@ async function dbCarregarRegistros(nomeServidor) {
     }
 }
 
+// Busca os registros de VÁRIOS servidores dentro de um período (datas
+// no formato 'YYYY-MM-DD'), já trazendo o nome do servidor junto — usado
+// no relatório "Servidores" da tela Estatística, para montar, por
+// servidor, quais atividades ele realizou e o total de cada uma.
+async function dbCarregarRegistrosServidoresPeriodo(nomesServidores, dataInicio, dataFim) {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const ids = [];
+        for (const nome of nomesServidores) {
+            const serv = await obterServidorPorNome(nome);
+            if (serv) ids.push(serv.id);
+        }
+        if (ids.length === 0) return [];
+
+        const { data, error } = await db
+            .from(TABLES.REGISTROS)
+            .select('data, atividades, servidores(nome)')
+            .in('servidor_id', ids)
+            .gte('data', dataInicio)
+            .lte('data', dataFim);
+        if (error) { console.error('dbCarregarRegistrosServidoresPeriodo:', error); return null; }
+
+        return data.map(r => ({
+            servidor: r.servidores ? r.servidores.nome : '(servidor removido)',
+            data: r.data,
+            atividades: r.atividades || {}
+        }));
+    } catch(e) {
+        console.error('❌ Erro em dbCarregarRegistrosServidoresPeriodo:', e.message);
+        return null;
+    }
+}
+
 async function dbSalvarRegistroDia(nomeServidor, data, objAtividades, ausencia) {
     if (!supabaseDisponivel || !db) {
         console.warn('⚠️ Supabase indisponível. Salvando registro apenas no localStorage.');
