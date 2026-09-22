@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=6">
-    <link rel="icon" href="icons/favicon-32.png?v=6">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
+    <link rel="manifest" href="manifest.json?v=7">
+    <link rel="icon" href="icons/favicon-32.png?v=7">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=7">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=6').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=7').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Estatística</title>
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=6"></script>
+    <script src="config.js?v=7"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=6"></script>
+    <script src="supabase-client.js?v=7"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=6"></script>
+    <script src="common.js?v=7"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -293,6 +293,34 @@
             outline: none;
             border-color: var(--destaque);
         }
+        .multi-select-box {
+            max-height: 140px;
+            overflow-y: auto;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            padding: 8px 12px;
+            background: var(--branco);
+        }
+        .multi-select-box label {
+            display: block;
+            font-weight: 400;
+            font-size: 0.82rem;
+            padding: 3px 0;
+            cursor: pointer;
+            color: var(--azul-marinho);
+        }
+        .multi-select-box input[type=checkbox] { margin-right: 6px; }
+        .relatorio-servidor-bloco {
+            background: var(--cinza-suave);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            border: 1px solid var(--cinza-borda);
+        }
+        .relatorio-servidor-bloco h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 8px;
+        }
         
         /* ===== BOTÕES UNIFICADOS ===== */
         .btn-acao {
@@ -454,6 +482,8 @@
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
             .tabela-resultados { font-size: 0.7rem; }
             .tabela-resultados th, .tabela-resultados td { padding: 4px 6px; }
+            .multi-select-box { max-height: 110px; }
+            .relatorio-servidor-bloco { padding: 10px 12px; }
         }
     </style>
 </head>
@@ -501,11 +531,30 @@
             <div class="card">
                 <h3>Analise de Atividades</h3>
                 <div class="graficos-grid">
-                    <div class="grafico-card" id="graficoAnualCard">
-                        <h4>Evolucao Anual - TOTAL GERAL</h4>
-                        <canvas id="graficoAnual"></canvas>
+                    <div class="grafico-card grafico-full" id="graficoTop10ConfigCard">
+                        <h4>Top 10 Atividades Mais Realizadas</h4>
+                        <div class="filtros-resultados" style="margin-bottom:12px;">
+                            <div class="form-group">
+                                <label>Setor</label>
+                                <select id="selectSetorTop10Config">
+                                    <option value="ambos">Ambos (SEATE + NAHORA)</option>
+                                    <option value="SEATE">SEATE</option>
+                                    <option value="NAHORA">NAHORA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano de</label>
+                                <select id="selectAnoDeTop10Config"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano até</label>
+                                <select id="selectAnoAteTop10Config"></select>
+                            </div>
+                            <button class="btn-acao" onclick="atualizarGraficoTop10Config()" style="align-self:flex-end;">Atualizar Gráfico</button>
+                        </div>
+                        <canvas id="graficoTop10Config" style="max-height:300px;"></canvas>
                     </div>
-                    
+
                     <div class="grafico-card" id="graficoTop10Card">
                         <h4 id="tituloTop10Geral">Top 10 Atividades Mais Realizadas (2022-2026)</h4>
                         <canvas id="graficoTop10"></canvas>
@@ -532,26 +581,20 @@
                 <!-- Filtros -->
                 <div class="filtros-resultados">
                     <div class="form-group">
-                        <label>Ano</label>
-                        <select id="selectAnoResultado"></select>
+                        <label>Ano de</label>
+                        <select id="selectAnoDeResultado"></select>
                     </div>
                     <div class="form-group">
-                        <label>Mes</label>
-                        <select id="selectMesResultado">
-                            <option value="todos">Todos</option>
-                            <option value="0">Janeiro</option>
-                            <option value="1">Fevereiro</option>
-                            <option value="2">Marco</option>
-                            <option value="3">Abril</option>
-                            <option value="4">Maio</option>
-                            <option value="5">Junho</option>
-                            <option value="6">Julho</option>
-                            <option value="7">Agosto</option>
-                            <option value="8">Setembro</option>
-                            <option value="9">Outubro</option>
-                            <option value="10">Novembro</option>
-                            <option value="11">Dezembro</option>
-                        </select>
+                        <label>Ano até</label>
+                        <select id="selectAnoAteResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês de</label>
+                        <select id="selectMesDeResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês até</label>
+                        <select id="selectMesAteResultado"></select>
                     </div>
                     <div class="form-group">
                         <label>Setor</label>
@@ -561,11 +604,9 @@
                             <option value="NAHORA">NAHORA</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 2; min-width: 200px;">
-                        <label>Atividade</label>
-                        <select id="selectAtividadeResultado">
-                            <option value="">Selecione uma atividade...</option>
-                        </select>
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Atividade(s) (vazio = todas)</label>
+                        <div class="multi-select-box" id="multiSelectAtividadeResultado"></div>
                     </div>
                 </div>
                 
@@ -577,17 +618,17 @@
                     <button class="btn-acao-limpar" onclick="limparFiltrosResultados()">Limpar Filtros</button>
                 </div>
                 
-                <!-- Título da Atividade Selecionada -->
+                <!-- Título do Resultado -->
                 <div id="tituloResultadoAtividade" style="font-size: 1.1rem; font-weight: 700; color: var(--azul-marinho); margin-bottom: 12px;"></div>
                 
                 <!-- Tabela de Resultados -->
                 <div class="tabela-resultados-container" id="containerTabelaResultados">
                     <div style="text-align:center; padding: 40px; color: #888;">
-                        Selecione uma atividade e clique em Filtrar para exibir os resultados.
+                        Selecione o período (e, se quiser, uma ou mais atividades) e clique em Filtrar para exibir os resultados.
                     </div>
                 </div>
                 
-                <!-- Resumo Analítico da Atividade -->
+                <!-- Resumo Analítico -->
                 <div id="resumoAnaliticoAtividade"></div>
             </div>
             <!-- ===== FIM RESULTADOS POR ATIVIDADE ===== -->
@@ -595,14 +636,52 @@
             
             <!-- ===== ATIVIDADES MAIS ATRIBUÍDAS ===== -->
             <div class="card">
-                <h3>Atividades Mais Atribuidas</h3>
+                <h3>Atividades Menos Realizadas</h3>
                 <div id="rankingAtividades" class="ranking-table"></div>
             </div>
             
-            <!-- ===== SERVIDORES COM MAIS ATIVIDADES ===== -->
-            <div class="card">
-                <h3>Servidores com Mais Atividades</h3>
-                <div id="rankingServidores" class="ranking-table"></div>
+            <!-- ===== RELATÓRIO POR SERVIDOR ===== -->
+            <div class="card" id="cardRelatorioServidor">
+                <h3>Relatório por Servidor</h3>
+                <div style="background:#FFF3CD; border:1px solid var(--destaque); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#664d03;">
+                    ⚠️ <strong>Atenção:</strong> os dados por servidor só existem a partir de <strong>Setembro/2026</strong> — quando o registro diário de atividades entrou em uso. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais não têm vínculo com nenhum servidor específico).
+                </div>
+
+                <div class="filtros-resultados">
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Servidor(es)</label>
+                        <div class="multi-select-box" id="multiSelectServidoresRelatorio"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano de</label>
+                        <select id="selectAnoDeServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês de</label>
+                        <select id="selectMesDeServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês até</label>
+                        <select id="selectMesAteServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Atividades (opcional — vazio = todas)</label>
+                        <div class="multi-select-box" id="multiSelectAtividadesRelatorio"></div>
+                    </div>
+                </div>
+
+                <div class="grupo-botoes">
+                    <button class="btn-acao" onclick="filtrarRelatorioServidor()">Filtrar</button>
+                    <button class="btn-acao-limpar" onclick="limparFiltrosRelatorioServidor()">Limpar Filtros</button>
+                </div>
+
+                <div id="containerRelatorioServidor" style="margin-top:16px;">
+                    <div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>
+                </div>
             </div>
         </div>
     </main>
@@ -1066,87 +1145,112 @@ function fecharModalGraficoEvolucao() {
     }
 }
 
+
 // ============================================================
-// GRÁFICO ANUAL
+// GRÁFICO TOP 10 ATIVIDADES - CONFIGURÁVEL (setor + período)
 // ============================================================
-function criarGraficoAnual() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
-    var ctx = document.getElementById('graficoAnual').getContext('2d');
+function renderizarSelectsAnoTop10Config() {
     var anos = getAnosDisponiveis();
-    var valoresTotais = [];
-    
-    async function montar() {
-    for (var i = 0; i < anos.length; i++) {
-        var ano = anos[i];
-        var totaisAno = await obterSeateNahoraPorAno(ano);
-        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+    var selectDe = document.getElementById("selectAnoDeTop10Config");
+    var selectAte = document.getElementById("selectAnoAteTop10Config");
+    if (!selectDe || !selectAte) return;
+    var html = '';
+    for (var i = 0; i < anos.length; i++) { html += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selectDe.innerHTML = html;
+    selectAte.innerHTML = html;
+    // Padrão: só o ano corrente (não acumulado)
+    selectDe.value = ANO_ATUAL;
+    selectAte.value = ANO_ATUAL;
+}
+
+async function atualizarGraficoTop10Config() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+
+    var setor = document.getElementById("selectSetorTop10Config").value;
+    var anoDe = parseInt(document.getElementById("selectAnoDeTop10Config").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteTop10Config").value);
+    if (anoDe > anoAte) { var tmp = anoDe; anoDe = anoAte; anoAte = tmp; }
+
+    var ctx = document.getElementById('graficoTop10Config').getContext('2d');
+    var todasAtividades = {};
+
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var anoStr = String(ano);
+        var seateTotais = {}, nahoraTotais = {};
+
+        if (anoStr === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+        }
+        var manualAno = await obterDadosAno(anoStr);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
+                seateTotais[ativM] = (seateTotais[ativM] || 0) + t;
+            }
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
+                nahoraTotais[ativM2] = (nahoraTotais[ativM2] || 0) + t2;
+            }
+        }
+
+        if (setor === "ambos" || setor === "SEATE") {
+            for (var ativ in seateTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + seateTotais[ativ]; }
+        }
+        if (setor === "ambos" || setor === "NAHORA") {
+            for (var ativ in nahoraTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + nahoraTotais[ativ]; }
+        }
     }
-    
-    var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
-    
-    if (window.chartAnual) { window.chartAnual.destroy(); }
-    
-    window.chartAnual = new Chart(ctx, {
+
+    var items = [];
+    for (var ativ in todasAtividades) { if (todasAtividades[ativ] > 0) items.push({ nome: ativ, total: todasAtividades[ativ] }); }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    var coresTop10 = gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, valores.length || 1);
+
+    var periodoTexto = (anoDe === anoAte) ? String(anoDe) : (anoDe + ' a ' + anoAte + ', acumulado');
+    var setorTexto = (setor === "ambos") ? "SEATE + NAHORA" : setor;
+    document.querySelector('#graficoTop10ConfigCard h4').textContent = 'Top 10 Atividades Mais Realizadas — ' + periodoTexto + ' (' + setorTexto + ')';
+
+    if (window.chartTop10Config) { window.chartTop10Config.destroy(); }
+
+    if (top10.length === 0) {
+        window.chartTop10Config = null;
+        ctx.canvas.parentElement.querySelectorAll('.sem-dados-top10-config').forEach(function(el) { el.remove(); });
+        var aviso = document.createElement('div');
+        aviso.className = 'sem-dados-top10-config';
+        aviso.style.cssText = 'text-align:center; padding:30px; color:#888;';
+        aviso.textContent = 'Nenhum dado encontrado para esse setor/período.';
+        ctx.canvas.style.display = 'none';
+        ctx.canvas.parentElement.appendChild(aviso);
+        return;
+    }
+    ctx.canvas.style.display = '';
+    var avisoExistente = ctx.canvas.parentElement.querySelector('.sem-dados-top10-config');
+    if (avisoExistente) avisoExistente.remove();
+
+    window.chartTop10Config = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: anos,
-            datasets: [{
-                label: 'TOTAL GERAL (SEATE + NAHORA)',
-                data: valoresTotais,
-                backgroundColor: cores,
-                borderColor: cores.map(c => c),
-                borderWidth: 2,
-                borderRadius: 6
-            }]
-        },
+        data: { labels: labels, datasets: [{ label: 'Total no período', data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
         plugins: [valorTopoPlugin],
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
             plugins: {
-                legend: { 
-                    display: true,
-                    position: 'top',
-                    labels: { 
-                        boxWidth: 14, 
-                        padding: 12, 
-                        font: { size: 11, weight: 'bold' },
-                        color: '#0F2D52'
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Total: ' + formatarMilhar(context.parsed.y);
-                        }
-                    }
-                }
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
             },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) { return formatarMilhar(value); },
-                        font: { size: 9 }
-                    }
-                },
-                x: {
-                    ticks: { font: { size: 10 } }
-                }
-            },
-            onClick: function(event, elements) {
-                if (elements.length > 0) {
-                    var index = elements[0].index;
-                    var anos = getAnosDisponiveis();
-                    var ano = anos[index];
-                    abrirModalIndicador(ano, null);
-                }
+                y: { ticks: { font: { size: 9 } } },
+                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
         }
     });
-    }
-    montar();
 }
+
 
 // ============================================================
 // GRÁFICO TOP 10 ATIVIDADES (2022-2026)
@@ -1424,52 +1528,230 @@ var dadosFiltradosAtuais = {};
 
 // ==================== CARREGAR ATIVIDADES NO SELECT ====================
 // ==================== CARREGAR ANOS NO SELECT DE RESULTADOS ====================
-function renderizarSelectAnoResultado() {
-    var select = document.getElementById("selectAnoResultado");
-    if (!select) return;
+function renderizarSelectsPeriodoResultado() {
     var anos = getAnosDisponiveis();
-    var html = '';
-    for (var i = 0; i < anos.length; i++) {
-        var selecionado = (anos[i] === ANO_ATUAL) ? ' selected' : '';
-        html += '<option value="' + anos[i] + '"' + selecionado + '>' + anos[i] + '</option>';
-    }
-    select.innerHTML = html;
+    var selAnoDe = document.getElementById("selectAnoDeResultado");
+    var selAnoAte = document.getElementById("selectAnoAteResultado");
+    if (!selAnoDe || !selAnoAte) return;
+    var htmlAnos = '';
+    for (var i = 0; i < anos.length; i++) { htmlAnos += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selAnoDe.innerHTML = htmlAnos;
+    selAnoAte.innerHTML = htmlAnos;
+    selAnoDe.value = ANO_ATUAL;
+    selAnoAte.value = ANO_ATUAL;
+
+    var selMesDe = document.getElementById("selectMesDeResultado");
+    var selMesAte = document.getElementById("selectMesAteResultado");
+    var htmlMeses = '';
+    for (var m = 0; m < MESES_NOMES_RELATORIO.length; m++) { htmlMeses += '<option value="' + m + '">' + MESES_NOMES_RELATORIO[m] + '</option>'; }
+    selMesDe.innerHTML = htmlMeses;
+    selMesAte.innerHTML = htmlMeses;
+    selMesDe.value = 0;
+    selMesAte.value = 11;
 }
 
 function carregarAtividadesSelect() {
-    var select = document.getElementById("selectAtividadeResultado");
-    if (!select) return;
-    
-    var html = '<option value="">Selecione uma atividade...</option>';
+    var container = document.getElementById("multiSelectAtividadeResultado");
+    if (!container) return;
+    var html = '';
     for (var i = 0; i < atividades.length; i++) {
-        html += '<option value="' + escapeHtml(atividades[i]) + '">' + escapeHtml(atividades[i]) + '</option>';
+        var nome = atividades[i];
+        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-atividade-resultado"> ' + escapeHtml(nome) + '</label>';
     }
-    select.innerHTML = html;
+    if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+    container.innerHTML = html;
 }
 
-// ==================== FILTRAR RESULTADOS ====================
+// ==================== FILTRAR RESULTADOS (múltiplas atividades, período flexível) ====================
 async function filtrarResultados() {
-    var atividade = document.getElementById("selectAtividadeResultado").value;
-    var ano = parseInt(document.getElementById("selectAnoResultado").value);
-    var mes = document.getElementById("selectMesResultado").value;
+    var anoDe = parseInt(document.getElementById("selectAnoDeResultado").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteResultado").value);
+    var mesDe = parseInt(document.getElementById("selectMesDeResultado").value);
+    var mesAte = parseInt(document.getElementById("selectMesAteResultado").value);
     var setor = document.getElementById("selectSetorResultado").value;
-    
-    if (!atividade) {
-        feedback("Selecione uma atividade!");
+    if (anoDe > anoAte) { var tA = anoDe; anoDe = anoAte; anoAte = tA; }
+    if (anoDe === anoAte && mesDe > mesAte) { var tM = mesDe; mesDe = mesAte; mesAte = tM; }
+
+    var atividadesSelecionadas = Array.prototype.map.call(
+        document.querySelectorAll('.chk-atividade-resultado:checked'), function(c) { return c.value; }
+    );
+    var listaAtividades = atividadesSelecionadas.length > 0 ? atividadesSelecionadas : atividades.slice();
+
+    if (listaAtividades.length === 0) {
+        feedback("Nenhuma atividade cadastrada para consultar!");
         return;
     }
-    
-    var tituloElement = document.getElementById("tituloResultadoAtividade");
-    tituloElement.textContent = "RESULTADOS: " + atividade + " (" + ano + ")";
-    
-    var dadosAtividade = await buscarDadosAtividade(atividade, ano, mes, setor);
-    dadosFiltradosAtuais = dadosAtividade;
-    
-    renderizarTabelaResultados(dadosAtividade, atividade, setor);
-    renderizarResumoAnalitico(dadosAtividade, atividade, setor);
+
+    var periodoTexto = (anoDe === anoAte)
+        ? anoDe + ' (' + MESES_NOMES_RELATORIO[mesDe] + (mesDe === mesAte ? '' : ' a ' + MESES_NOMES_RELATORIO[mesAte]) + ')'
+        : (anoDe + '-' + MESES_NOMES_RELATORIO[mesDe] + ' até ' + anoAte + '-' + MESES_NOMES_RELATORIO[mesAte]);
+    document.getElementById("tituloResultadoAtividade").textContent = "RESULTADOS: " + listaAtividades.length + " atividade(s) — " + periodoTexto;
+
+    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Carregando...</div>';
+
+    var resultado = await buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, mesAte, setor);
+    dadosFiltradosAtuais = resultado;
+
+    renderizarTabelaResultadosMulti(resultado, setor);
+    renderizarResumoAnaliticoMulti(resultado, setor, periodoTexto);
 }
 
-// ==================== BUSCAR DADOS DA ATIVIDADE ====================
+// Monta o intervalo (ano, mesIndex) a percorrer entre anoDe/mesDe e anoAte/mesAte
+function montarIntervaloAnoMes(anoDe, anoAte, mesDe, mesAte) {
+    var pontos = [];
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var inicio = (ano === anoDe) ? mesDe : 0;
+        var fim = (ano === anoAte) ? mesAte : 11;
+        for (var m = inicio; m <= fim; m++) { pontos.push({ ano: ano, mes: m }); }
+    }
+    return pontos;
+}
+
+// ==================== BUSCAR DADOS DE VÁRIAS ATIVIDADES NUM PERÍODO ====================
+async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, mesAte, setor) {
+    var pontos = montarIntervaloAnoMes(anoDe, anoAte, mesDe, mesAte);
+    var porAno = {}; // cache: ano -> {isAnoAtual, totaisAnoAtual, dadosAno}
+
+    async function obterFonteAno(ano) {
+        if (porAno[ano]) return porAno[ano];
+        var anoStr = String(ano);
+        var isAnoAtual = (anoStr === ANO_ATUAL);
+        var fonte = {
+            isAnoAtual: isAnoAtual,
+            totaisAnoAtual: isAnoAtual ? await obterTotaisAnoAtual() : null,
+            dadosAno: await obterDadosAno(anoStr)
+        };
+        porAno[ano] = fonte;
+        return fonte;
+    }
+
+    var porAtividade = [];
+    var totalGeralGeral = 0, totalSeateGeralGeral = 0, totalNahoraGeralGeral = 0;
+
+    for (var a = 0; a < listaAtividades.length; a++) {
+        var atividade = listaAtividades[a];
+        var linhas = [];
+        var totalSeateAtiv = 0, totalNahoraAtiv = 0;
+
+        for (var p = 0; p < pontos.length; p++) {
+            var ano = pontos[p].ano;
+            var mesIndex = pontos[p].mes;
+            var mesNome = MESES_NOMES_RELATORIO[mesIndex];
+            var fonte = await obterFonteAno(ano);
+            var valorSeate = 0, valorNahora = 0;
+
+            if (fonte.isAnoAtual) {
+                var porMesSeate = fonte.totaisAnoAtual.porAtividadeMesSeate[atividade] || {};
+                var porMesNahora = fonte.totaisAnoAtual.porAtividadeMesNahora[atividade] || {};
+                valorSeate += porMesSeate[mesNome] || 0;
+                valorNahora += porMesNahora[mesNome] || 0;
+            }
+            if (fonte.dadosAno) {
+                var seateData = fonte.dadosAno["SEATE"] || {};
+                var nahoraData = fonte.dadosAno["NAHORA"] || {};
+                valorSeate += (seateData[atividade] && seateData[atividade][mesNome]) || 0;
+                valorNahora += (nahoraData[atividade] && nahoraData[atividade][mesNome]) || 0;
+            }
+
+            if (setor === "SEATE") valorNahora = 0;
+            else if (setor === "NAHORA") valorSeate = 0;
+
+            var total = valorSeate + valorNahora;
+            if (total > 0) {
+                linhas.push({ ano: ano, mesNome: mesNome, seate: valorSeate, nahora: valorNahora, total: total });
+            }
+            totalSeateAtiv += valorSeate;
+            totalNahoraAtiv += valorNahora;
+        }
+
+        var totalAtiv = totalSeateAtiv + totalNahoraAtiv;
+        if (totalAtiv > 0) {
+            porAtividade.push({ nome: atividade, linhas: linhas, totalSeate: totalSeateAtiv, totalNahora: totalNahoraAtiv, total: totalAtiv });
+        }
+        totalGeralGeral += totalAtiv;
+        totalSeateGeralGeral += totalSeateAtiv;
+        totalNahoraGeralGeral += totalNahoraAtiv;
+    }
+
+    porAtividade.sort(function(a, b) { return b.total - a.total; });
+
+    return {
+        porAtividade: porAtividade,
+        totalGeral: totalGeralGeral,
+        totalSeate: totalSeateGeralGeral,
+        totalNahora: totalNahoraGeralGeral
+    };
+}
+
+// ==================== RENDERIZAR TABELA DE RESULTADOS (múltiplas atividades) ====================
+function renderizarTabelaResultadosMulti(resultado, setor) {
+    var container = document.getElementById("containerTabelaResultados");
+
+    if (resultado.porAtividade.length === 0 || resultado.totalGeral === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhum dado encontrado para os filtros selecionados.</div>';
+        return;
+    }
+
+    var html = '';
+    for (var a = 0; a < resultado.porAtividade.length; a++) {
+        var bloco = resultado.porAtividade[a];
+        html += '<div class="relatorio-servidor-bloco">';
+        html += '<h4>' + escapeHtml(bloco.nome) + '</h4>';
+        html += '<table class="tabela-resultados"><thead><tr><th>Ano/Mes</th>';
+        if (setor === "ambos" || setor === "SEATE") html += '<th>SEATE</th>';
+        if (setor === "ambos" || setor === "NAHORA") html += '<th>NAHORA</th>';
+        html += '<th>TOTAL</th></tr></thead><tbody>';
+        for (var i = 0; i < bloco.linhas.length; i++) {
+            var item = bloco.linhas[i];
+            html += '<tr><td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
+            if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(item.seate) + '</td>';
+            if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(item.nahora) + '</td>';
+            html += '<td>' + formatarMilhar(item.total) + '</td></tr>';
+        }
+        html += '<tr class="total-row"><td><strong>SUBTOTAL</strong></td>';
+        if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(bloco.totalSeate) + '</td>';
+        if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(bloco.totalNahora) + '</td>';
+        html += '<td>' + formatarMilhar(bloco.total) + '</td></tr>';
+        html += '</tbody></table></div>';
+    }
+
+    html += '<div style="margin-top:8px; padding:14px; background:var(--destaque); border-radius:14px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+    html += 'TOTAL GERAL DO PERÍODO: ' + formatarMilhar(resultado.totalGeral);
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// ==================== RESUMO ANALÍTICO (múltiplas atividades) ====================
+function renderizarResumoAnaliticoMulti(resultado, setor, periodoTexto) {
+    var container = document.getElementById("resumoAnaliticoAtividade");
+
+    if (resultado.porAtividade.length === 0 || resultado.totalGeral === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    var total = resultado.totalGeral;
+    var percentSeate = total > 0 ? Math.round((resultado.totalSeate / total) * 100) : 0;
+    var percentNahora = total > 0 ? Math.round((resultado.totalNahora / total) * 100) : 0;
+    var maisRealizada = resultado.porAtividade[0];
+    var menosRealizada = resultado.porAtividade[resultado.porAtividade.length - 1];
+
+    var html = '<div class="resumo-atividade">';
+    html += '<h4>Resumo Analitico — ' + escapeHtml(periodoTexto) + '</h4>';
+    html += '<p><strong>Atividades no resultado:</strong> ' + resultado.porAtividade.length + '</p>';
+    html += '<p><strong>Total geral:</strong> ' + formatarMilhar(total) + '</p>';
+    html += '<p><strong>Distribuicao:</strong> SEATE ' + percentSeate + '% | NAHORA ' + percentNahora + '%</p>';
+    html += '<p><strong>Atividade com mais volume:</strong> ' + escapeHtml(maisRealizada.nome) + ' (' + formatarMilhar(maisRealizada.total) + ')</p>';
+    if (resultado.porAtividade.length > 1) {
+        html += '<p><strong>Atividade com menos volume (no resultado):</strong> ' + escapeHtml(menosRealizada.nome) + ' (' + formatarMilhar(menosRealizada.total) + ')</p>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+
 async function buscarDadosAtividade(atividade, ano, mes, setor) {
     var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
     var resultados = [];
@@ -1663,59 +1945,207 @@ function renderizarResumoAnalitico(dadosAtividade, atividade, setor) {
 
 // ==================== LIMPAR FILTROS ====================
 function limparFiltrosResultados() {
-    document.getElementById("selectAnoResultado").value = ANO_ATUAL;
-    document.getElementById("selectMesResultado").value = "todos";
+    document.getElementById("selectAnoDeResultado").value = ANO_ATUAL;
+    document.getElementById("selectAnoAteResultado").value = ANO_ATUAL;
+    document.getElementById("selectMesDeResultado").value = 0;
+    document.getElementById("selectMesAteResultado").value = 11;
     document.getElementById("selectSetorResultado").value = "ambos";
-    document.getElementById("selectAtividadeResultado").value = "";
+    document.querySelectorAll('.chk-atividade-resultado').forEach(function(c) { c.checked = false; });
     document.getElementById("tituloResultadoAtividade").textContent = "";
-    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding: 40px; color: #888;">Selecione uma atividade e clique em Filtrar para exibir os resultados.</div>';
+    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding: 40px; color: #888;">Selecione o período (e, se quiser, uma ou mais atividades) e clique em Filtrar para exibir os resultados.</div>';
     document.getElementById("resumoAnaliticoAtividade").innerHTML = '';
     dadosFiltradosAtuais = {};
     feedback("Filtros limpos!");
 }
 
+// ============================================================
+// RELATÓRIO POR SERVIDOR (filtrável) — servidor(es) + período + atividades
+// ============================================================
+var MESES_NOMES_RELATORIO = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+function renderizarMultiSelectServidoresRelatorio() {
+    var container = document.getElementById("multiSelectServidoresRelatorio");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < servidores.length; i++) {
+        var nome = servidores[i];
+        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-servidor-relatorio"> ' + escapeHtml(nome) + '</label>';
+    }
+    if (servidores.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhum servidor cadastrado</span>';
+    container.innerHTML = html;
+}
+
+function renderizarMultiSelectAtividadesRelatorio() {
+    var container = document.getElementById("multiSelectAtividadesRelatorio");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < atividades.length; i++) {
+        var nome = atividades[i];
+        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-atividade-relatorio"> ' + escapeHtml(nome) + '</label>';
+    }
+    if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+    container.innerHTML = html;
+}
+
+function renderizarSelectsPeriodoServidorRelatorio() {
+    var anos = getAnosDisponiveis();
+    var selAnoDe = document.getElementById("selectAnoDeServidorRelatorio");
+    var selAnoAte = document.getElementById("selectAnoAteServidorRelatorio");
+    var htmlAnos = '';
+    for (var i = 0; i < anos.length; i++) { htmlAnos += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selAnoDe.innerHTML = htmlAnos;
+    selAnoAte.innerHTML = htmlAnos;
+    selAnoDe.value = ANO_ATUAL;
+    selAnoAte.value = ANO_ATUAL;
+
+    var selMesDe = document.getElementById("selectMesDeServidorRelatorio");
+    var selMesAte = document.getElementById("selectMesAteServidorRelatorio");
+    var htmlMeses = '';
+    for (var m = 0; m < MESES_NOMES_RELATORIO.length; m++) { htmlMeses += '<option value="' + m + '">' + MESES_NOMES_RELATORIO[m] + '</option>'; }
+    selMesDe.innerHTML = htmlMeses;
+    selMesAte.innerHTML = htmlMeses;
+    selMesDe.value = 0;
+    selMesAte.value = 11;
+}
+
+function limparFiltrosRelatorioServidor() {
+    document.querySelectorAll('.chk-servidor-relatorio').forEach(function(c) { c.checked = false; });
+    document.querySelectorAll('.chk-atividade-relatorio').forEach(function(c) { c.checked = false; });
+    document.getElementById("selectAnoDeServidorRelatorio").value = ANO_ATUAL;
+    document.getElementById("selectAnoAteServidorRelatorio").value = ANO_ATUAL;
+    document.getElementById("selectMesDeServidorRelatorio").value = 0;
+    document.getElementById("selectMesAteServidorRelatorio").value = 11;
+    document.getElementById("containerRelatorioServidor").innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>';
+    feedback("Filtros limpos!");
+}
+
+async function filtrarRelatorioServidor() {
+    var servidoresSelecionados = Array.prototype.map.call(
+        document.querySelectorAll('.chk-servidor-relatorio:checked'), function(c) { return c.value; }
+    );
+    var container = document.getElementById("containerRelatorioServidor");
+
+    if (servidoresSelecionados.length === 0) {
+        feedback("Selecione ao menos um servidor!");
+        return;
+    }
+    if (!supabaseDisponivel) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Sem conexão com o servidor. Tente novamente.</div>';
+        return;
+    }
+
+    var atividadesSelecionadas = Array.prototype.map.call(
+        document.querySelectorAll('.chk-atividade-relatorio:checked'), function(c) { return c.value; }
+    );
+    var filtrarPorAtividade = atividadesSelecionadas.length > 0;
+
+    var anoDe = parseInt(document.getElementById("selectAnoDeServidorRelatorio").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteServidorRelatorio").value);
+    var mesDe = parseInt(document.getElementById("selectMesDeServidorRelatorio").value);
+    var mesAte = parseInt(document.getElementById("selectMesAteServidorRelatorio").value);
+    if (anoDe > anoAte) { var tA = anoDe; anoDe = anoAte; anoAte = tA; }
+    if (anoDe === anoAte && mesDe > mesAte) { var tM = mesDe; mesDe = mesAte; mesAte = tM; }
+
+    var dataInicio = anoDe + '-' + String(mesDe + 1).padStart(2, '0') + '-01';
+    var ultimoDia = new Date(anoAte, mesAte + 1, 0).getDate();
+    var dataFim = anoAte + '-' + String(mesAte + 1).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
+
+    container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Carregando...</div>';
+
+    var registrosBrutos = null;
+    try {
+        registrosBrutos = await dbCarregarRegistrosServidoresPeriodo(servidoresSelecionados, dataInicio, dataFim);
+    } catch(e) {
+        console.warn('Erro ao buscar registros por servidor:', e.message);
+    }
+    if (registrosBrutos === null) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Não foi possível carregar os dados. Verifique sua conexão e tente novamente.</div>';
+        return;
+    }
+
+    // Agrupa por servidor (sem somar entre eles) e, dentro de cada um, por atividade
+    var porServidor = {};
+    servidoresSelecionados.forEach(function(nome) { porServidor[nome] = {}; });
+
+    registrosBrutos.forEach(function(reg) {
+        if (!porServidor[reg.servidor]) porServidor[reg.servidor] = {};
+        for (var ativ in reg.atividades) {
+            if (filtrarPorAtividade && atividadesSelecionadas.indexOf(ativ) === -1) continue;
+            var valor = reg.atividades[ativ] || 0;
+            porServidor[reg.servidor][ativ] = (porServidor[reg.servidor][ativ] || 0) + valor;
+        }
+    });
+
+    var html = '';
+    for (var i = 0; i < servidoresSelecionados.length; i++) {
+        var nomeServ = servidoresSelecionados[i];
+        var atividadesServ = porServidor[nomeServ] || {};
+        var itens = Object.entries(atividadesServ).sort(function(a, b) { return b[1] - a[1]; });
+        var totalServ = itens.reduce(function(s, item) { return s + item[1]; }, 0);
+
+        html += '<div class="relatorio-servidor-bloco">';
+        html += '<h4>' + escapeHtml(nomeServ) + '</h4>';
+        if (itens.length === 0) {
+            html += '<div style="color:#888; font-size:0.85rem;">Nenhum registro encontrado para esse período (e, se aplicável, para as atividades selecionadas).</div>';
+        } else {
+            html += '<table class="tabela-resultados"><thead><tr><th>Atividade</th><th>Total</th></tr></thead><tbody>';
+            for (var j = 0; j < itens.length; j++) {
+                html += '<tr><td>' + escapeHtml(itens[j][0]) + '</td><td>' + formatarMilhar(itens[j][1]) + '</td></tr>';
+            }
+            html += '<tr class="total-row"><td><strong>TOTAL</strong></td><td>' + formatarMilhar(totalServ) + '</td></tr>';
+            html += '</tbody></table>';
+        }
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
 // ==================== EXPORTAR CSV ====================
 function exportarCSV() {
-    var dados = dadosFiltradosAtuais.dados;
-    var atividade = document.getElementById("selectAtividadeResultado").value;
+    var resultado = dadosFiltradosAtuais;
     var setor = document.getElementById("selectSetorResultado").value;
-    var ano = document.getElementById("selectAnoResultado").value;
-    
-    if (!dados || dados.length === 0 || dadosFiltradosAtuais.totalGeral === 0) {
+
+    if (!resultado || !resultado.porAtividade || resultado.porAtividade.length === 0 || !resultado.totalGeral) {
         feedback("Nao ha dados para exportar. Aplique os filtros primeiro.");
         return;
     }
-    
-    var csv = "Ano/Mes";
+
+    var csv = "Atividade;Ano/Mes";
     if (setor === "ambos" || setor === "SEATE") csv += ";SEATE";
     if (setor === "ambos" || setor === "NAHORA") csv += ";NAHORA";
-    csv += ";TOTAL;ACUMULADO\n";
-    
-    var acumulado = 0;
-    for (var i = 0; i < dados.length; i++) {
-        var item = dados[i];
-        acumulado += item.total;
-        csv += item.ano + "-" + item.mesNome;
-        if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
-        if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
-        csv += ";" + item.total + ";" + acumulado + "\n";
+    csv += ";TOTAL\n";
+
+    for (var a = 0; a < resultado.porAtividade.length; a++) {
+        var bloco = resultado.porAtividade[a];
+        for (var i = 0; i < bloco.linhas.length; i++) {
+            var item = bloco.linhas[i];
+            csv += bloco.nome + ";" + item.ano + "-" + item.mesNome;
+            if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
+            if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
+            csv += ";" + item.total + "\n";
+        }
+        csv += bloco.nome + ";SUBTOTAL";
+        if (setor === "ambos" || setor === "SEATE") csv += ";" + bloco.totalSeate;
+        if (setor === "ambos" || setor === "NAHORA") csv += ";" + bloco.totalNahora;
+        csv += ";" + bloco.total + "\n";
     }
-    
-    csv += "TOTAL";
-    if (setor === "ambos" || setor === "SEATE") csv += ";" + dadosFiltradosAtuais.totalSeate;
-    if (setor === "ambos" || setor === "NAHORA") csv += ";" + dadosFiltradosAtuais.totalNahora;
-    csv += ";" + dadosFiltradosAtuais.totalGeral + ";" + acumulado + "\n";
-    
+
+    csv += "TOTAL GERAL;;";
+    if (setor === "ambos" || setor === "SEATE") csv += ";" + resultado.totalSeate;
+    if (setor === "ambos" || setor === "NAHORA") csv += ";" + resultado.totalNahora;
+    csv += ";" + resultado.totalGeral + "\n";
+
     var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     var link = document.createElement("a");
     var url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "resultados_" + atividade + "_" + ano + "_" + new Date().toISOString().slice(0,10) + ".csv");
+    link.setAttribute("download", "resultados_atividades_" + new Date().toISOString().slice(0,10) + ".csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     feedback("CSV exportado com sucesso!");
 }
 
@@ -1727,8 +2157,14 @@ async function gerarRelatorioAnalitico() {
         if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
         feedback("Gerando relatorio analitico...");
         
-        var ano = parseInt(document.getElementById("selectAnoResultado").value);
-        var mes = document.getElementById("selectMesResultado").value;
+        // O relatório PDF usa o "Ano de" e o intervalo de mês como
+        // referência (ano único; se o intervalo de mês cobrir o ano
+        // inteiro, considera "todos os meses" — mantém o relatório PDF
+        // simples, focado num ano por vez).
+        var ano = parseInt(document.getElementById("selectAnoDeResultado").value);
+        var mesDeRel = parseInt(document.getElementById("selectMesDeResultado").value);
+        var mesAteRel = parseInt(document.getElementById("selectMesAteResultado").value);
+        var mes = (mesDeRel === 0 && mesAteRel === 11) ? "todos" : String(mesDeRel);
         var setor = document.getElementById("selectSetorResultado").value;
         
         var todasAtividades = atividades.slice();
@@ -1911,46 +2347,44 @@ async function gerarRelatorioAnalitico() {
 }
 
 // ==================== ATUALIZAR ESTATÍSTICAS ====================
-function atualizarEstatisticas() {
-    var totalServidores = servidores.length;
-    var totalAtividades = atividades.length;
-    var totalAtribuicoes = 0;
-    for (var a in atribuicoes) {
-        totalAtribuicoes += atribuicoes[a].length;
-    }
-    
-    var countAtiv = {};
-    for (var a in atribuicoes) {
-        countAtiv[a] = atribuicoes[a].length;
-    }
-    var rankAtiv = Object.entries(countAtiv).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
-    var htmlAtiv = '<table class="ranking-table"><thead><tr><th>Atividade</th><th>Quantidade</th></tr></thead><tbody>';
-    for (var i = 0; i < rankAtiv.length; i++) {
-        htmlAtiv += '<tr><td>' + escapeHtml(rankAtiv[i][0]) + '</td><td>' + rankAtiv[i][1] + '</td></tr>';
-    }
-    if (rankAtiv.length === 0) htmlAtiv += '<tr><td colspan="2" style="text-align:center;">Nenhuma atribuicao cadastrada</td></tr>';
-    htmlAtiv += '</tbody></table>';
-    document.getElementById("rankingAtividades").innerHTML = htmlAtiv;
-    
-    var countServ = {};
-    for (var a in atribuicoes) {
-        for (var j = 0; j < atribuicoes[a].length; j++) {
-            var serv = atribuicoes[a][j];
-            countServ[serv] = (countServ[serv] || 0) + 1;
+// "Atividades Menos Realizadas": dados reais do Supabase (não mais
+// atribuição) — soma todos os anos (2022 até o corrente) e os dois
+// setores, e mostra as 10 atividades com MENOR volume executado —
+// inclusive as que nunca foram lançadas (total 0), como sinal de
+// possível atividade obsoleta ou mal aproveitada.
+async function atualizarEstatisticas() {
+    var todasAtividades = {};
+    atividades.forEach(function(nome) { todasAtividades[nome] = 0; });
+
+    var anos = getAnosDisponiveis();
+    var totaisAnoAtual = await obterTotaisAnoAtual();
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        if (ano === ANO_ATUAL) {
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+        }
+        var manualAno = await obterDadosAno(ano);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
+                todasAtividades[ativM] = (todasAtividades[ativM] || 0) + t;
+            }
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
+                todasAtividades[ativM2] = (todasAtividades[ativM2] || 0) + t2;
+            }
         }
     }
-    var rankServ = Object.entries(countServ).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
-    var htmlServ = '<table class="ranking-table"><thead><tr><th>Servidor</th><th>Quantidade</th><th>Acoes</th></tr></thead><tbody>';
-    for (var i = 0; i < rankServ.length; i++) {
-        var servidor = rankServ[i][0];
-        var quantidade = rankServ[i][1];
-        htmlServ += '<tr><td>' + escapeHtml(servidor) + '</td><td>' + quantidade + '</td>';
-        htmlServ += '<td><button class="btn-acessar-registros" onclick="acessarAtribuicoesServidor(\'' + servidor.replace(/'/g, "\\'") + '\')">Acessar Atividades</button></td>';
-        htmlServ += '</tr>';
+
+    var itemsAtiv = Object.entries(todasAtividades).sort(function(a, b) { return a[1] - b[1]; }).slice(0, 10);
+    var htmlAtiv = '<table class="ranking-table"><thead><tr><th>Atividade</th><th>Total Realizado</th></tr></thead><tbody>';
+    for (var i = 0; i < itemsAtiv.length; i++) {
+        htmlAtiv += '<tr><td>' + escapeHtml(itemsAtiv[i][0]) + '</td><td>' + formatarMilhar(itemsAtiv[i][1]) + '</td></tr>';
     }
-    if (rankServ.length === 0) htmlServ += '<tr><td colspan="3" style="text-align:center;">Nenhuma atribuicao cadastrada</td></tr>';
-    htmlServ += '</tbody></table>';
-    document.getElementById("rankingServidores").innerHTML = htmlServ;
+    if (itemsAtiv.length === 0) htmlAtiv += '<tr><td colspan="2" style="text-align:center;">Nenhuma atividade cadastrada</td></tr>';
+    htmlAtiv += '</tbody></table>';
+    document.getElementById("rankingAtividades").innerHTML = htmlAtiv;
 }
 
 function acessarAtribuicoesServidor(nome) {
@@ -2135,12 +2569,10 @@ async function gerarRelatorioPDF() {
             `;
         }
         
-        var canvasAnual = document.getElementById('graficoAnual');
         var canvasTop10 = document.getElementById('graficoTop10');
         var canvasTop10ServicosAnoAtual = document.getElementById('graficoTop10ServicosAnoAtual');
         var canvasMensal = document.getElementById('graficoMensalAnoAtual');
         
-        var imgAnual = canvasAnual ? canvasAnual.toDataURL('image/png', 0.95) : '';
         var imgTop10 = canvasTop10 ? canvasTop10.toDataURL('image/png', 0.95) : '';
         var imgTop10ServicosAnoAtual = canvasTop10ServicosAnoAtual ? canvasTop10ServicosAnoAtual.toDataURL('image/png', 0.95) : '';
         var imgMensal = canvasMensal ? canvasMensal.toDataURL('image/png', 0.95) : '';
@@ -2185,12 +2617,6 @@ async function gerarRelatorioPDF() {
         
         html += `
                     </tbody></table>
-                
-                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #0F2D52; padding-left: 12px;">Analise: Evolucao Anual</h2>
-                <div style="text-align: center; margin: 10px 0;">
-                    <img src="${imgAnual}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
-                </div>
-                ${analiseEvolucao}
                 
                 <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #DC2626; padding-left: 12px;">Analise: Top 10 Atividades (2022-${ANO_ATUAL})</h2>
                 <div style="text-align: center; margin: 10px 0;">
@@ -2256,16 +2682,20 @@ async function iniciarPagina() {
     document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
     document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Servicos Mais Executados em " + ANO_ATUAL;
     document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
-    renderizarSelectAnoResultado();
+    renderizarSelectsPeriodoResultado();
     await carregarDados();
     renderizarIndicadores();
-    criarGraficoAnual();
+    renderizarSelectsAnoTop10Config();
+    atualizarGraficoTop10Config();
     criarGraficoTop10();
     criarGraficoTop10ServicosAnoAtual();
     criarGraficoMensalAnoAtual();
     atualizarEstatisticas();
     atualizarDisplayMes();
     carregarAtividadesSelect();
+    renderizarMultiSelectServidoresRelatorio();
+    renderizarMultiSelectAtividadesRelatorio();
+    renderizarSelectsPeriodoServidorRelatorio();
     iniciarSincronizacaoTempoReal();
 }
 iniciarPagina();
