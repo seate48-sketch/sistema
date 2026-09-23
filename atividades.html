@@ -267,6 +267,13 @@
                     <label>Nome da Atividade</label>
                     <input type="text" id="novaAtividade" placeholder="Digite o nome da atividade">
                 </div>
+                <div class="form-group">
+                    <label>Setor</label>
+                    <select id="novoSetorAtividade">
+                        <option value="SEATE">SEATE</option>
+                        <option value="NAHORA">NAHORA</option>
+                    </select>
+                </div>
                 <button class="btn btn-primary" onclick="adicionarAtividade()">Adicionar Atividade</button>
             </div>
             <div class="card">
@@ -283,7 +290,7 @@
                             <col class="col-acoes">
                         </colgroup>
                         <thead>
-                            <tr><th style="text-align:center;">Código</th><th style="text-align:center;"></th><th style="text-align:left;">Nome da Atividade</th><th style="text-align:left;">Ações</th></tr>
+                            <tr><th style="text-align:center;">Código</th><th style="text-align:center;"></th><th style="text-align:left;">Nome da Atividade</th><th style="text-align:center;">Setor</th><th style="text-align:left;">Ações</th></tr>
                         </thead>
                         <tbody id="corpoAtividades"></tbody>
                     </table>
@@ -299,35 +306,16 @@
 
 <div id="modalEdicaoAtividade" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEdicao()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Servidor</label><input type="text" id="modalServidorNome" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Atividade Atual</label><input type="text" id="modalAtividadeAtual" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Substituir por</label><select id="modalNovaAtividade" class="select-atribuir-rapido" style="width:100%;padding:10px;"></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEdicao()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoAtividade()">Salvar</button></div></div></div>
 
+<!-- Modal para editar nome e setor de uma atividade cadastrada -->
+<div id="modalEditarNomeSetor" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEditarNomeSetor()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Nome da Atividade</label><input type="text" id="editarNomeAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"></div><div class="form-group" style="margin-top:12px;"><label>Setor</label><select id="editarSetorAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEditarNomeSetor()">Cancelar</button><button class="btn btn-primary" onclick="salvarEdicaoNomeSetor()">Salvar</button></div></div></div>
+
 <script>
 // Lista canônica de atividades já vem de common.js (const atividadesPadrao), evitando
 // manter aqui uma segunda cópia que poderia divergir com o tempo.
 
 var draggingIndex = null;
 var atividadeOriginal = null;
-
-function salvarOrdemAtividades() {
-    localStorage.setItem("seate_ordem_atividades", JSON.stringify(atividades));
-}
-
-function carregarOrdemAtividades() {
-    var storedOrdem = localStorage.getItem("seate_ordem_atividades");
-    if(storedOrdem) {
-        var ordemSalva = JSON.parse(storedOrdem);
-        var atividadesSet = new Set(atividades);
-        var ordemSet = new Set(ordemSalva);
-        var ordemValida = true;
-        for(var i = 0; i < atividades.length; i++) {
-            if(!ordemSet.has(atividades[i])) {
-                ordemValida = false;
-                break;
-            }
-        }
-        if(ordemValida && ordemSalva.length === atividades.length) {
-            atividades = ordemSalva;
-        }
-    }
-}
+var setoresAtividades = {}; // nome da atividade -> "SEATE" ou "NAHORA"
 
 // ============================================================
 // CORREÇÃO: Renderizar Atividades com select melhorado
@@ -358,8 +346,11 @@ function renderizarAtividades() {
         html += '</span>';
         html += '</td>';
         html += '<td style="word-break:break-word;">' + escapeHtml(ativ) + '</td>';
+        var setorAtual = (typeof setoresAtividades !== 'undefined' && setoresAtividades[ativ]) ? setoresAtividades[ativ] : 'SEATE';
+        var corSetor = setorAtual === 'NAHORA' ? '#B30000' : '#0F2D52';
+        html += '<td style="text-align:center;"><span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';
         html += '<td class="acoes-cell">';
-        html += '<button class="btn-editar" onclick="editarAtividade(' + idx + ')">Editar</button>';
+        html += '<button class="btn-editar" onclick="abrirModalEditarNomeSetor(' + idx + ')">Editar</button>';
         html += '<button class="btn-excluir-circular" onclick="excluirAtividade(' + idx + ')">Excluir</button>';
         html += '<button class="btn-atribuir-rapido" onclick="mostrarSelectAtribuicao(' + idx + ')">Atribuir</button>';
         html += '<span id="atrib-select-' + idx + '" class="atribuicao-rapida-container">';
@@ -443,7 +434,6 @@ function drop(event) {
     var novoIndex = targetIndex;
     if(draggingIndex < targetIndex) { novoIndex = targetIndex - 1; }
     atividades.splice(novoIndex, 0, atividadeMovida);
-    salvarOrdemAtividades();
     salvarAtividades();
     var novasAtribuicoes = {};
     for(var a in atribuicoes) { novasAtribuicoes[a] = atribuicoes[a]; }
@@ -466,7 +456,6 @@ function moverAtividade(idx, direcao) {
     var temp = atividades[idx];
     atividades[idx] = atividades[novoIndex];
     atividades[novoIndex] = temp;
-    salvarOrdemAtividades();
     salvarAtividades();
     renderizarAtividades();
     atualizarSelects();
@@ -476,44 +465,79 @@ function moverAtividade(idx, direcao) {
     feedback("Atividade movida com sucesso!");
 }
 
-function adicionarAtividade() { 
+async function adicionarAtividade() { 
     var nova = document.getElementById("novaAtividade").value.trim(); 
     if(!nova) { feedback("Digite o nome!"); return; } 
     if(atividades.indexOf(nova) !== -1) { feedback("Ja cadastrada!"); return; } 
+    var setorEscolhido = document.getElementById("novoSetorAtividade").value;
     atividades.push(nova); 
-    salvarAtividades(); 
-    salvarOrdemAtividades();
+    await salvarAtividades(); 
+    if (supabaseDisponivel) {
+        try { await dbSalvarSetorAtividade(nova, setorEscolhido); }
+        catch(e) { console.warn('Erro ao salvar setor da nova atividade:', e.message); }
+    }
+    if (typeof setoresAtividades !== 'undefined') { setoresAtividades[nova] = setorEscolhido; }
     renderizarAtividades(); 
     atualizarSelects(); 
     if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
     atualizarSelectVisualizacao(); 
     if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
     document.getElementById("novaAtividade").value = ""; 
+    document.getElementById("novoSetorAtividade").value = "SEATE";
     feedback("Adicionada!"); 
 }
 
-function editarAtividade(idx) { 
-    var novo = prompt("Novo nome:", atividades[idx]); 
-    if(novo && novo.trim()) { 
-        novo = novo.trim(); 
-        if(atividades.indexOf(novo) !== -1 && atividades[idx] !== novo) { feedback("Nome ja existe!"); return; } 
-        var antigo = atividades[idx]; 
-        atividades[idx] = novo; 
-        if(atribuicoes[antigo]) { 
-            atribuicoes[novo] = atribuicoes[antigo]; 
-            delete atribuicoes[antigo]; 
-            salvarAtribuicoes(); 
-        } 
-        salvarAtividades(); 
-        salvarOrdemAtividades();
-        renderizarAtividades(); 
-        atualizarSelects(); 
-        renderizarListaServidoresAtribuicoes(); 
-        if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
-        if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
-        if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
-        feedback("Editada!"); 
-    } 
+var idxEditandoAtividade = null;
+
+function abrirModalEditarNomeSetor(idx) {
+    idxEditandoAtividade = idx;
+    var nomeAtual = atividades[idx];
+    document.getElementById("editarNomeAtividadeInput").value = nomeAtual;
+    var setorAtual = (typeof setoresAtividades !== 'undefined' && setoresAtividades[nomeAtual]) ? setoresAtividades[nomeAtual] : 'SEATE';
+    document.getElementById("editarSetorAtividadeInput").value = setorAtual;
+    document.getElementById("modalEditarNomeSetor").style.display = "block";
+}
+
+function fecharModalEditarNomeSetor() {
+    document.getElementById("modalEditarNomeSetor").style.display = "none";
+    idxEditandoAtividade = null;
+}
+
+async function salvarEdicaoNomeSetor() {
+    if (idxEditandoAtividade === null) return;
+    var novo = document.getElementById("editarNomeAtividadeInput").value.trim();
+    var novoSetor = document.getElementById("editarSetorAtividadeInput").value;
+    if (!novo) { feedback("Digite o nome!"); return; }
+    if (atividades.indexOf(novo) !== -1 && atividades[idxEditandoAtividade] !== novo) { feedback("Nome ja existe!"); return; }
+
+    var antigo = atividades[idxEditandoAtividade];
+    var nomeMudou = antigo !== novo;
+
+    atividades[idxEditandoAtividade] = novo;
+    if (atribuicoes[antigo]) {
+        atribuicoes[novo] = atribuicoes[antigo];
+        delete atribuicoes[antigo];
+        salvarAtribuicoes();
+    }
+    await salvarAtividades();
+
+    if (supabaseDisponivel) {
+        try { await dbSalvarSetorAtividade(novo, novoSetor); }
+        catch(e) { console.warn('Erro ao salvar setor da atividade:', e.message); }
+    }
+    if (typeof setoresAtividades !== 'undefined') {
+        if (nomeMudou) { delete setoresAtividades[antigo]; }
+        setoresAtividades[novo] = novoSetor;
+    }
+
+    renderizarAtividades();
+    atualizarSelects();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+    fecharModalEditarNomeSetor();
+    feedback("Atividade atualizada!");
 }
 
 async function excluirAtividade(idx) { 
@@ -550,7 +574,6 @@ async function excluirAtividade(idx) {
             }
         }
         salvarAtividades(); 
-        salvarOrdemAtividades();
         salvarAtribuicoes(); 
         renderizarAtividades(); 
         atualizarSelects(); 
@@ -629,13 +652,22 @@ function confirmarAtribuicaoRapida(idx, nomeAtividade) {
 
 async function carregarDadosCompletos() {
     await carregarDados();
-    var storedAtividades = localStorage.getItem("seate_atividades");
-    if(!storedAtividades) {
+    // carregarDados() já traz a lista de atividades do Supabase, na ordem
+    // certa (coluna "ordem"). Antes, o código reaplicava por cima uma
+    // ordem antiga guardada só neste navegador (localStorage) — isso
+    // desfazia, na hora de abrir a página, o reposicionamento por
+    // arrastar feito em qualquer outro dispositivo/navegador. Agora só
+    // usamos a lista padrão como último recurso, se o banco realmente
+    // não tiver nenhuma atividade cadastrada.
+    if (!atividades || atividades.length === 0) {
         atividades = [...atividadesPadrao];
         salvarAtividades();
-        salvarOrdemAtividades();
-    } else {
-        carregarOrdemAtividades();
+    }
+    if (supabaseDisponivel) {
+        try {
+            var mapa = await dbCarregarSetoresAtividades();
+            if (mapa) { setoresAtividades = mapa; }
+        } catch(e) { console.warn('Erro ao carregar setores das atividades:', e.message); }
     }
 }
 
