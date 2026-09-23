@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=8">
-    <link rel="icon" href="icons/favicon-32.png?v=8">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=8">
+    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="icon" href="icons/favicon-32.png?v=9">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=8').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=9').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Estatística</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=8"></script>
+    <script src="config.js?v=9"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=8"></script>
+    <script src="supabase-client.js?v=9"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=8"></script>
+    <script src="common.js?v=9"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -295,30 +295,33 @@
         }
         .pill-select-box {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            max-height: 150px;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 180px;
             overflow-y: auto;
             border: 2px solid var(--cinza-borda);
             border-radius: 14px;
-            padding: 10px 12px;
+            padding: 8px;
             background: var(--branco);
-            align-content: flex-start;
         }
         .pill-item {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            border: 1.5px solid var(--cinza-borda);
-            background: var(--cinza-suave);
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: var(--branco);
             color: var(--azul-marinho);
-            font-size: 0.78rem;
+            font-size: 0.82rem;
             cursor: pointer;
             user-select: none;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
-        .pill-item:hover { border-color: var(--azul-institucional); }
+        .pill-item:hover { background: var(--cinza-suave); border-color: var(--cinza-borda); }
         .pill-item.selecionado {
             background: var(--azul-institucional);
             color: var(--branco);
@@ -476,12 +479,12 @@
             to { transform: translateY(0); opacity: 1; }
         }
         
-        @media (max-width: 1024px) {
+        @média (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .graficos-grid { grid-template-columns: 1fr; }
             .filtros-resultados .form-group { min-width: 120px; }
         }
-        @media (max-width: 768px) {
+        @média (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
@@ -492,7 +495,7 @@
             .grupo-botoes .btn-acao-relatorio,
             .grupo-botoes .btn-acao-limpar { width: 100%; text-align: center; }
         }
-        @media (max-width: 480px) {
+        @média (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
             .tabela-resultados { font-size: 0.7rem; }
@@ -643,7 +646,7 @@
                 <div class="grupo-botoes">
                     <button class="btn-acao" onclick="filtrarResultados()">Filtrar</button>
                     <button class="btn-acao-exportar" onclick="exportarCSV()">Exportar CSV</button>
-                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatorio Analitico</button>
+                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatorio Analítico</button>
                     <button class="btn-acao-limpar" onclick="limparFiltrosResultados()">Limpar Filtros</button>
                 </div>
                 
@@ -662,12 +665,6 @@
             </div>
             <!-- ===== FIM RESULTADOS POR ATIVIDADE ===== -->
             <!-- ============================================================ -->
-            
-            <!-- ===== ATIVIDADES MAIS ATRIBUÍDAS ===== -->
-            <div class="card">
-                <h3>Atividades Menos Realizadas</h3>
-                <div id="rankingAtividades" class="ranking-table"></div>
-            </div>
             
             <!-- ===== RELATÓRIO POR SERVIDOR ===== -->
             <div class="card" id="cardRelatorioServidor">
@@ -875,15 +872,15 @@ async function renderizarIndicadores() {
 async function abrirModalIndicador(ano, setor) {
     try {
         var isAnoAtual = (ano === ANO_ATUAL);
-        var titulo = ano;
+        var título = ano;
         if (setor === "SEATE") {
-            titulo = ano + " - SEATE";
+            título = ano + " - SEATE";
         } else if (setor === "NAHORA") {
-            titulo = ano + " - NAHORA";
+            título = ano + " - NAHORA";
         } else {
-            titulo = ano + " - SEATE + NAHORA";
+            título = ano + " - SEATE + NAHORA";
         }
-        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + titulo;
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + título;
         
         var container = document.getElementById("listaAtividadesEstatistica");
         var html = '';
@@ -982,7 +979,7 @@ async function abrirModalIndicador(ano, setor) {
         } else {
             var dadosPre = await obterDadosAno(ano);
             if (!dadosPre) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados nao disponiveis para este ano.</p>';
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
                 document.getElementById("modalEstatistica").style.display = "block";
                 return;
             }
@@ -1161,8 +1158,8 @@ function abrirModalGraficoEvolucao() {
             criarGraficoEvolucao();
         }, 300);
     } catch(e) {
-        console.warn('Erro ao abrir grafico evolucao:', e.message);
-        feedback("Erro ao abrir grafico!");
+        console.warn('Erro ao abrir gráfico evolucao:', e.message);
+        feedback("Erro ao abrir gráfico!");
     }
 }
 
@@ -1662,7 +1659,7 @@ function renderizarResumoAnaliticoMulti(resultado, setor, periodoTexto) {
     var menosRealizada = resultado.porAtividade[resultado.porAtividade.length - 1];
 
     var html = '<div class="resumo-atividade">';
-    html += '<h4>Resumo Analitico — ' + escapeHtml(periodoTexto) + '</h4>';
+    html += '<h4>Resumo Analítico — ' + escapeHtml(periodoTexto) + '</h4>';
     html += '<p><strong>Atividades no resultado:</strong> ' + resultado.porAtividade.length + '</p>';
     html += '<p><strong>Total geral:</strong> ' + formatarMilhar(total) + '</p>';
     html += '<p><strong>Distribuicao:</strong> SEATE ' + percentSeate + '% | NAHORA ' + percentNahora + '%</p>';
@@ -1825,14 +1822,14 @@ function renderizarResumoAnalitico(dadosAtividade, atividade, setor) {
     var total = dadosAtividade.totalGeral;
     var totalSeate = dadosAtividade.totalSeate;
     var totalNahora = dadosAtividade.totalNahora;
-    var media = dados.length > 0 ? Math.round(total / dados.length) : 0;
+    var média = dados.length > 0 ? Math.round(total / dados.length) : 0;
     
     var maior = dados.reduce(function(a, b) { return a.total > b.total ? a : b; });
     var menor = dados.reduce(function(a, b) { return a.total < b.total ? a : b; });
     
     var primeiro = dados[0];
-    var ultimo = dados[dados.length - 1];
-    var variacao = primeiro.total > 0 ? Math.round(((ultimo.total - primeiro.total) / primeiro.total) * 100) : 0;
+    var último = dados[dados.length - 1];
+    var variacao = primeiro.total > 0 ? Math.round(((último.total - primeiro.total) / primeiro.total) * 100) : 0;
     
     var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
     var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
@@ -1845,9 +1842,9 @@ function renderizarResumoAnalitico(dadosAtividade, atividade, setor) {
     else tendencia = 'Estavel';
     
     var html = '<div class="resumo-atividade">';
-    html += '<h4>Resumo Analitico: ' + escapeHtml(atividade) + '</h4>';
+    html += '<h4>Resumo Analítico: ' + escapeHtml(atividade) + '</h4>';
     html += '<p><strong>Total de registros:</strong> ' + formatarMilhar(total) + '</p>';
-    html += '<p><strong>Media mensal:</strong> ' + formatarMilhar(media) + '</p>';
+    html += '<p><strong>Média mensal:</strong> ' + formatarMilhar(média) + '</p>';
     html += '<p><strong>Maior mes:</strong> ' + maior.ano + '-' + maior.mesNome + ' com ' + formatarMilhar(maior.total) + ' registros</p>';
     html += '<p><strong>Menor mes:</strong> ' + menor.ano + '-' + menor.mesNome + ' com ' + formatarMilhar(menor.total) + ' registros</p>';
     html += '<p><strong>Variacao:</strong> ' + (variacao > 0 ? '+' : '') + variacao + '% (' + tendencia + ')</p>';
@@ -2062,7 +2059,7 @@ function exportarCSV() {
     var setor = document.getElementById("selectSetorResultado").value;
 
     if (!resultado || !resultado.porAtividade || resultado.porAtividade.length === 0 || !resultado.totalGeral) {
-        feedback("Nao ha dados para exportar. Aplique os filtros primeiro.");
+        feedback("Não ha dados para exportar. Aplique os filtros primeiro.");
         return;
     }
 
@@ -2110,7 +2107,7 @@ function exportarCSV() {
 async function gerarRelatorioAnalitico() {
     try {
         if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
-        feedback("Gerando relatorio analitico...");
+        feedback("Gerando relatorio analítico...");
         
         // O relatório PDF usa o "Ano de" e o intervalo de mês como
         // referência (ano único; se o intervalo de mês cobrir o ano
@@ -2130,7 +2127,7 @@ async function gerarRelatorioAnalitico() {
         
         var html = `
             <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto;">
-                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Analitico por Atividade</h1>
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Analítico por Atividade</h1>
                 <p style="text-align: center; color: #666; margin-bottom: 5px;">Ano: ${ano} | Setor: ${setor === 'ambos' ? 'Ambos' : setor}</p>
                 <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
                 <div style="border-bottom: 2px solid #D1D5DB; margin-bottom: 20px;"></div>
@@ -2162,14 +2159,14 @@ async function gerarRelatorioAnalitico() {
             var total = dadosAtividade.totalGeral;
             var totalSeate = dadosAtividade.totalSeate;
             var totalNahora = dadosAtividade.totalNahora;
-            var media = dados.length > 0 ? Math.round(total / dados.length) : 0;
+            var média = dados.length > 0 ? Math.round(total / dados.length) : 0;
             
             var maior = dados.length > 0 ? dados.reduce(function(a, b) { return a.total > b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
             var menor = dados.length > 0 ? dados.reduce(function(a, b) { return a.total < b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
             
             var primeiro = dados.length > 0 ? dados[0] : { total: 0 };
-            var ultimo = dados.length > 0 ? dados[dados.length - 1] : { total: 0 };
-            var variacao = primeiro.total > 0 ? Math.round(((ultimo.total - primeiro.total) / primeiro.total) * 100) : 0;
+            var último = dados.length > 0 ? dados[dados.length - 1] : { total: 0 };
+            var variacao = primeiro.total > 0 ? Math.round(((último.total - primeiro.total) / primeiro.total) * 100) : 0;
             
             var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
             var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
@@ -2231,7 +2228,7 @@ async function gerarRelatorioAnalitico() {
                     <div style="background: white; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0F2D52;">
                         <strong style="color: #0F2D52;">Analise:</strong><br>
                         • <strong>Total de registros:</strong> ${formatarMilhar(total)}<br>
-                        • <strong>Media mensal:</strong> ${formatarMilhar(media)}<br>
+                        • <strong>Média mensal:</strong> ${formatarMilhar(média)}<br>
                         • <strong>Maior mes:</strong> ${maior.ano}-${maior.mesNome} com ${formatarMilhar(maior.total)} registros<br>
                         • <strong>Menor mes:</strong> ${menor.ano}-${menor.mesNome} com ${formatarMilhar(menor.total)} registros<br>
                         • <strong>Variacao:</strong> ${variacao > 0 ? '+' : ''}${variacao}% (${tendencia})<br>
@@ -2256,7 +2253,7 @@ async function gerarRelatorioAnalitico() {
         } else {
             html += `
                 <div style="text-align:center; padding: 30px; color: #888;">
-                    Nenhuma atividade com dados no periodo selecionado.
+                    Nenhuma atividade com dados no período selecionado.
                 </div>
             `;
         }
@@ -2288,67 +2285,16 @@ async function gerarRelatorioAnalitico() {
         
         html2pdf().set(opt).from(container).save().then(function() {
             container.style.display = "none";
-            feedback("Relatorio analitico gerado com sucesso!");
+            feedback("Relatorio analítico gerado com sucesso!");
         }).catch(function(erroPdf) {
             container.style.display = "none";
-            console.warn('Erro ao gerar PDF do relatorio analitico:', erroPdf.message);
+            console.warn('Erro ao gerar PDF do relatorio analítico:', erroPdf.message);
             feedback("Erro ao gerar o PDF. Tente novamente.");
         });
         
     } catch(e) {
-        console.warn('Erro ao gerar relatorio analitico:', e.message);
-        feedback("Erro ao gerar relatorio analitico!");
-    }
-}
-
-// ==================== ATUALIZAR ESTATÍSTICAS ====================
-// "Atividades Menos Realizadas": dados reais do Supabase (não mais
-// atribuição) — soma todos os anos (2022 até o corrente) e os dois
-// setores, e mostra as 10 atividades com MENOR volume executado —
-// inclusive as que nunca foram lançadas (total 0), como sinal de
-// possível atividade obsoleta ou mal aproveitada.
-async function atualizarEstatisticas() {
-    var todasAtividades = {};
-    atividades.forEach(function(nome) { todasAtividades[nome] = 0; });
-
-    var anos = getAnosDisponiveis();
-    var totaisAnoAtual = await obterTotaisAnoAtual();
-    for (var i = 0; i < anos.length; i++) {
-        var ano = anos[i];
-        if (ano === ANO_ATUAL) {
-            for (var ativ in totaisAnoAtual.porAtividadeSeate) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
-            for (var ativ in totaisAnoAtual.porAtividadeNahora) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
-        }
-        var manualAno = await obterDadosAno(ano);
-        if (manualAno) {
-            for (var ativM in (manualAno.SEATE || {})) {
-                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
-                todasAtividades[ativM] = (todasAtividades[ativM] || 0) + t;
-            }
-            for (var ativM2 in (manualAno.NAHORA || {})) {
-                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
-                todasAtividades[ativM2] = (todasAtividades[ativM2] || 0) + t2;
-            }
-        }
-    }
-
-    var itemsAtiv = Object.entries(todasAtividades).sort(function(a, b) { return a[1] - b[1]; }).slice(0, 10);
-    var htmlAtiv = '<table class="ranking-table"><thead><tr><th>Atividade</th><th>Total Realizado</th></tr></thead><tbody>';
-    for (var i = 0; i < itemsAtiv.length; i++) {
-        htmlAtiv += '<tr><td>' + escapeHtml(itemsAtiv[i][0]) + '</td><td>' + formatarMilhar(itemsAtiv[i][1]) + '</td></tr>';
-    }
-    if (itemsAtiv.length === 0) htmlAtiv += '<tr><td colspan="2" style="text-align:center;">Nenhuma atividade cadastrada</td></tr>';
-    htmlAtiv += '</tbody></table>';
-    document.getElementById("rankingAtividades").innerHTML = htmlAtiv;
-}
-
-function acessarAtribuicoesServidor(nome) {
-    try {
-        localStorage.setItem("seate_servidor_selecionado", nome);
-        window.location.href = "atribuicoes.html";
-    } catch(e) {
-        console.warn('Erro ao acessar atribuicoes:', e.message);
-        feedback("Erro ao acessar atribuicoes!");
+        console.warn('Erro ao gerar relatorio analítico:', e.message);
+        feedback("Erro ao gerar relatorio analítico!");
     }
 }
 
@@ -2391,7 +2337,7 @@ async function gerarRelatorioPDF() {
                 • O ano de <strong>${maiorAno.ano}</strong> registrou o maior volume de atividades com <strong>${formatarMilhar(maiorAno.total)}</strong> registros.<br>
                 • O ano de <strong>${menorAno.ano}</strong> registrou o menor volume com <strong>${formatarMilhar(menorAno.total)}</strong> registros.<br>
                 • Comparando ${primeiroAno.ano} com ${ultimoAno.ano}, houve uma variacao de <strong>${variacaoTotal > 0 ? '+' : ''}${variacaoTotal}%</strong> no total de atividades.<br>
-                • Em media, o SEATE realizou <strong>${formatarMilhar(Math.round(totalSeateGeral / dadosAnuais.length))}</strong> atividades por ano, enquanto o NAHORA realizou <strong>${formatarMilhar(Math.round(totalNahoraGeral / dadosAnuais.length))}</strong>.
+                • Em média, o SEATE realizou <strong>${formatarMilhar(Math.round(totalSeateGeral / dadosAnuais.length))}</strong> atividades por ano, enquanto o NAHORA realizou <strong>${formatarMilhar(Math.round(totalNahoraGeral / dadosAnuais.length))}</strong>.
             </div>
         `;
         
@@ -2441,7 +2387,7 @@ async function gerarRelatorioPDF() {
             analiseTop10 = `
                 <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #DC2626;">
                     <strong>Analise do Top 10 Atividades:</strong><br>
-                    • Nenhum dado disponivel para analise.
+                    • Nenhum dado disponível para analise.
                 </div>
             `;
         }
@@ -2469,17 +2415,17 @@ async function gerarRelatorioPDF() {
             var percentTop1AnoAtual = Math.round((top1AnoAtual.total / totalAnoAtual) * 100);
             analiseTopAnoAtual = `
                 <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
-                    <strong>Analise do Top 10 Servicos ${ANO_ATUAL}:</strong><br>
-                    • O servico mais executado em ${ANO_ATUAL} foi <strong>"${top1AnoAtual.nome}"</strong> com <strong>${formatarMilhar(top1AnoAtual.total)}</strong> registros, representando <strong>${percentTop1AnoAtual}%</strong> do total.<br>
-                    • Os 5 servicos mais executados totalizam <strong>${formatarMilhar(top5AnoAtual.reduce(function(s, item) { return s + item.total; }, 0))}</strong> registros.<br>
+                    <strong>Analise do Top 10 Serviços ${ANO_ATUAL}:</strong><br>
+                    • O serviço mais executado em ${ANO_ATUAL} foi <strong>"${top1AnoAtual.nome}"</strong> com <strong>${formatarMilhar(top1AnoAtual.total)}</strong> registros, representando <strong>${percentTop1AnoAtual}%</strong> do total.<br>
+                    • Os 5 serviços mais executados totalizam <strong>${formatarMilhar(top5AnoAtual.reduce(function(s, item) { return s + item.total; }, 0))}</strong> registros.<br>
                     • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${formatarMilhar(totalAnoAtual)}</strong>.
                 </div>
             `;
         } else {
             analiseTopAnoAtual = `
                 <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
-                    <strong>Analise do Top 10 Servicos ${ANO_ATUAL}:</strong><br>
-                    • Nenhum dado disponivel para analise.
+                    <strong>Analise do Top 10 Serviços ${ANO_ATUAL}:</strong><br>
+                    • Nenhum dado disponível para analise.
                 </div>
             `;
         }
@@ -2511,7 +2457,7 @@ async function gerarRelatorioPDF() {
                     <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
                     • O mes com maior volume de atividades foi <strong>${mesMaisAlto}</strong> com <strong>${formatarMilhar(valorMaisAlto)}</strong> registros.<br>
                     • O mes com menor volume foi <strong>${mesMaisBaixo}</strong> com <strong>${formatarMilhar(valorMaisBaixo)}</strong> registros.<br>
-                    • A media mensal de atividades em ${ANO_ATUAL} foi de <strong>${formatarMilhar(mediaMensal)}</strong> registros.<br>
+                    • A média mensal de atividades em ${ANO_ATUAL} foi de <strong>${formatarMilhar(mediaMensal)}</strong> registros.<br>
                     • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${formatarMilhar(totalMensal)}</strong>.
                 </div>
             `;
@@ -2519,7 +2465,7 @@ async function gerarRelatorioPDF() {
             analiseMensal = `
                 <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1F4E79;">
                     <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
-                    • Nenhum dado disponivel para analise.
+                    • Nenhum dado disponível para analise.
                 </div>
             `;
         }
@@ -2579,7 +2525,7 @@ async function gerarRelatorioPDF() {
                 </div>
                 ${analiseTop10}
                 
-                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Analise: Top 10 Servicos ${ANO_ATUAL}</h2>
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Analise: Top 10 Serviços ${ANO_ATUAL}</h2>
                 <div style="text-align: center; margin: 10px 0;">
                     <img src="${imgTop10ServicosAnoAtual}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
                 </div>
@@ -2643,7 +2589,6 @@ async function iniciarPagina() {
     renderizarSelectsAnoTop10MenosConfig();
     atualizarGraficoTop10MenosConfig();
     criarGraficoMensalAnoAtual();
-    atualizarEstatisticas();
     atualizarDisplayMes();
     carregarAtividadesSelect();
     renderizarMultiSelectServidoresRelatorio();
