@@ -1028,6 +1028,22 @@ async function dbCarregarAtividadesPorSetor(setor) {
     }
 }
 
+// Exclui de verdade a linha da atividade no banco. Antes, excluir uma
+// atividade só tirava ela da lista local e regravava (upsert) as que
+// sobraram — a linha antiga nunca era removida do Supabase, ficava
+// órfã lá e reaparecia em qualquer tela que buscasse os dados de novo.
+async function dbExcluirAtividade(nome) {
+    if (!supabaseDisponivel || !db) return false;
+    try {
+        const { error } = await db.from(TABLES.ATIVIDADES).delete().eq('nome', nome);
+        if (error) { console.error('dbExcluirAtividade:', error); return false; }
+        return true;
+    } catch(e) {
+        console.error('❌ Erro em dbExcluirAtividade:', e.message);
+        return false;
+    }
+}
+
 // Verifica, antes de excluir uma atividade, se já existe algo salvo
 // com o nome dela — registros diários de servidores, dados
 // estatísticos alimentados manualmente, ou servidores atribuídos.
