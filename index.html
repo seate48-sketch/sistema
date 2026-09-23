@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=8">
-    <link rel="icon" href="icons/favicon-32.png?v=8">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=8">
+    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="icon" href="icons/favicon-32.png?v=9">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=8').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=9').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=8"></script>
-    <script src="supabase-client.js?v=8"></script>
+    <script src="config.js?v=9"></script>
+    <script src="supabase-client.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -484,7 +484,7 @@
             width: 90%;
         }
         
-        @media (max-width: 768px) {
+        @média (max-width: 768px) {
             .card-duplo .card-metade {
                 flex: 1 1 100%;
                 padding: 8px 12px;
@@ -495,7 +495,7 @@
             }
         }
         
-        @media (max-width: 1024px) {
+        @média (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .comunicados-tres-colunas { flex-wrap: wrap; }
             .comunicado-coluna { flex: 1 1 100%; max-width: 100%; }
@@ -506,7 +506,7 @@
             }
             .modal-estatistica-content { max-width: 98%; width: 98%; }
         }
-        @media (max-width: 768px) {
+        @média (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .acesso-rapido-grid { grid-template-columns: 1fr; }
             .linha-mes-referencia .form-group select,
@@ -538,7 +538,7 @@
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
         }
-        @media (max-width: 480px) {
+        @média (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
         }
@@ -619,7 +619,7 @@
         .mover-botoes-serv {
             display: none;
         }
-        @media (hover: none) and (pointer: coarse) {
+        @média (hover: none) and (pointer: coarse) {
             .drag-handle-serv { display: none; }
             .mover-botoes-serv { display: inline-flex; flex-direction: column; gap: 2px; }
             .btn-mover-serv {
@@ -861,7 +861,7 @@
     </div>
 </div>
 
-<script src="common.js?v=8"></script>
+<script src="common.js?v=9"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -946,12 +946,12 @@ var edicaoTravada2025 = false;
 
 async function abrirModalIndicador(ano, setor) {
     try {
-        var titulo = ano;
-        if (setor === "SEATE") { titulo = ano + " - SEATE"; }
-        else if (setor === "NAHORA") { titulo = ano + " - NAHORA"; }
-        else { titulo = ano + " - SEATE + NAHORA"; }
-        titulo += " (Mensal)";
-        document.getElementById("modalEstatisticaTitulo").innerText = "Alimentar Dados Estatísticos - " + titulo;
+        var título = ano;
+        if (setor === "SEATE") { título = ano + " - SEATE"; }
+        else if (setor === "NAHORA") { título = ano + " - NAHORA"; }
+        else { título = ano + " - SEATE + NAHORA"; }
+        título += " (Mensal)";
+        document.getElementById("modalEstatisticaTitulo").innerText = "Alimentar Dados Estatísticos - " + título;
 
         var container = document.getElementById("listaAtividadesEstatistica");
         container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Carregando...</p>';
