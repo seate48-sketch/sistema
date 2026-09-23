@@ -851,7 +851,7 @@ const valorTopoPlugin = {
             var meta = chart.getDatasetMeta(datasetIndex);
             meta.data.forEach(function(bar, index) {
                 var data = dataset.data[index];
-                if (data > 0) {
+                if (data !== undefined && data !== null) {
                     ctx.fillStyle = '#0F2D52';
                     ctx.font = 'bold 10px Arial';
                     ctx.textAlign = 'center';
