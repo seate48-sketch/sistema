@@ -815,7 +815,27 @@
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
 async function calcularDadosMensaisAnoAtual() {
     var totais = await obterTotaisAnoAtual();
-    return totais.porMes;
+    var dadosMensais = Object.assign({}, totais.porMes);
+
+    // Soma tambem o que foi alimentado manualmente em "Dados Estatisticos"
+    // para o ano corrente (ex.: Janeiro-Agosto/2026, antes dos registros
+    // diarios existirem) -- sem isso, esses meses ficavam sempre com 0
+    // neste grafico, mesmo tendo dado real alimentado manualmente.
+    var manualAno = await obterDadosAno(ANO_ATUAL);
+    if (manualAno) {
+        for (var ativ in (manualAno.SEATE || {})) {
+            for (var mes in manualAno.SEATE[ativ]) {
+                dadosMensais[mes] = (dadosMensais[mes] || 0) + (manualAno.SEATE[ativ][mes] || 0);
+            }
+        }
+        for (var ativ2 in (manualAno.NAHORA || {})) {
+            for (var mes2 in manualAno.NAHORA[ativ2]) {
+                dadosMensais[mes2] = (dadosMensais[mes2] || 0) + (manualAno.NAHORA[ativ2][mes2] || 0);
+            }
+        }
+    }
+
+    return dadosMensais;
 }
 
 // ==================== FUNÇÃO: GERAR CORES EM DEGRADÊ ====================
