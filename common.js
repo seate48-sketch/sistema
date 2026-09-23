@@ -1333,7 +1333,7 @@ function configurarNavegacao() {
             return;
         }
         
-        var paginas = {
+        var páginas = {
             'principal': 'index.html',
             'servidores': 'servidores.html',
             'atividades': 'atividades.html',
@@ -1347,8 +1347,8 @@ function configurarNavegacao() {
                 try {
                     e.preventDefault();
                     var id = this.getAttribute('data-tab');
-                    if(paginas[id]) {
-                        window.location.href = paginas[id];
+                    if(páginas[id]) {
+                        window.location.href = páginas[id];
                     } else {
                         var texto = this.textContent.trim();
                         if (texto.indexOf('Adicionar') !== -1) window.location.href = 'atividades.html';
