@@ -1039,10 +1039,10 @@ async function dbVerificarUsoAtividade(nomeAtividade) {
         const { data, error } = await db.rpc('verificar_uso_atividade', { nome_atividade: nomeAtividade });
         if (error) { console.error('dbVerificarUsoAtividade:', error); return null; }
         const linha = data && data[0];
-        if (!linha) return { registros: 0, historico: 0, atribuicoes: 0 };
+        if (!linha) return { registros: 0, histórico: 0, atribuicoes: 0 };
         return {
             registros: Number(linha.registros_count) || 0,
-            historico: Number(linha.historico_count) || 0,
+            histórico: Number(linha.historico_count) || 0,
             atribuicoes: Number(linha.atribuicoes_count) || 0
         };
     } catch(e) {
