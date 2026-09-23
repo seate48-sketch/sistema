@@ -96,10 +96,13 @@
             width: 3%;
         }
         #tabelaAtividades colgroup .col-nome {
-            width: 31%;
+            width: 26%;
+        }
+        #tabelaAtividades colgroup .col-setor {
+            width: 9%;
         }
         #tabelaAtividades colgroup .col-acoes {
-            width: 62%;
+            width: 58%;
         }
         /* ===== FIM AJUSTE DE COLUNAS ===== */
 
@@ -281,12 +284,13 @@
                 <div class="search-box">
                     <input type="text" id="searchAtividade" placeholder="Buscar atividade..." onkeyup="filtrarAtividades()">
                 </div>
-                <div class="tabela-container">
-                    <table id="tabelaAtividades" style="width:100%; table-layout:fixed;">
+                <div class="tabela-container" style="overflow-x:auto;">
+                    <table id="tabelaAtividades" style="width:100%; table-layout:fixed; min-width:640px;">
                         <colgroup>
                             <col class="col-codigo">
                             <col class="col-arraste">
                             <col class="col-nome">
+                            <col class="col-setor">
                             <col class="col-acoes">
                         </colgroup>
                         <thead>
