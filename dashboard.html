@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=8">
-    <link rel="icon" href="icons/favicon-32.png?v=8">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=8">
+    <link rel="manifest" href="manifest-dashboard.json?v=9">
+    <link rel="icon" href="icons/favicon-32.png?v=9">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=8').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=9').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
 
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,19 +25,19 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
     <!-- ======================================== -->
-    <script src="config.js?v=8"></script>
+    <script src="config.js?v=9"></script>
 
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=8"></script>
+    <script src="supabase-client.js?v=9"></script>
 
     <!-- ======================================== -->
     <!-- 4. COMMON.JS (só funções utilitárias      -->
     <!-- e de cálculo — nenhuma tela daqui usa     -->
     <!-- login/edição, então nada disso é exposto) -->
     <!-- ======================================== -->
-    <script src="common.js?v=8"></script>
+    <script src="common.js?v=9"></script>
 
     <!-- ======================================== -->
     <!-- 5. CHART.JS                             -->
@@ -148,16 +148,16 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
-        @media (max-width: 1024px) {
+        @média (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .graficos-grid { grid-template-columns: 1fr; }
         }
-        @media (max-width: 768px) {
+        @média (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
         }
-        @media (max-width: 480px) {
+        @média (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
         }
@@ -204,7 +204,7 @@
                     </div>
 
                     <div class="grafico-card" id="graficoTop10ServicosAnoAtualCard">
-                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Servicos Mais Executados</h4>
+                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Serviços Mais Executados</h4>
                         <canvas id="graficoTop10ServicosAnoAtual"></canvas>
                     </div>
 
@@ -353,8 +353,8 @@ var anoEstatisticaSelecionado = null;
 async function abrirModalIndicador(ano, setor) {
     try {
         var isAnoAtual = (ano === ANO_ATUAL);
-        var titulo = (setor === "SEATE") ? (ano + " - SEATE") : (setor === "NAHORA") ? (ano + " - NAHORA") : (ano + " - SEATE + NAHORA");
-        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + titulo;
+        var título = (setor === "SEATE") ? (ano + " - SEATE") : (setor === "NAHORA") ? (ano + " - NAHORA") : (ano + " - SEATE + NAHORA");
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + título;
 
         var container = document.getElementById("listaAtividadesEstatistica");
         var html = '';
@@ -424,7 +424,7 @@ async function abrirModalIndicador(ano, setor) {
         } else {
             var dadosPre = await obterDadosAno(ano);
             if (!dadosPre) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados nao disponiveis para este ano.</p>';
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
                 document.getElementById("modalEstatistica").style.display = "block";
                 return;
             }
@@ -481,7 +481,7 @@ function fecharModalEstatistica() {
 
 // ==================== GRÁFICO EVOLUÇÃO ANUAL (MODAL AMPLIADO) ====================
 function criarGraficoEvolucao() {
-    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
     var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
     var anos = getAnosDisponiveis();
     var valoresTotais = [];
@@ -524,8 +524,8 @@ function abrirModalGraficoEvolucao() {
         document.getElementById("modalGraficoEvolucao").style.display = "block";
         setTimeout(function() { criarGraficoEvolucao(); }, 300);
     } catch(e) {
-        console.warn('Erro ao abrir grafico evolucao:', e.message);
-        feedback("Erro ao abrir grafico!");
+        console.warn('Erro ao abrir gráfico evolucao:', e.message);
+        feedback("Erro ao abrir gráfico!");
     }
 }
 
@@ -536,7 +536,7 @@ function fecharModalGraficoEvolucao() {
 
 // ==================== GRÁFICO ANUAL (CARD PEQUENO) ====================
 function criarGraficoAnual() {
-    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
     var ctx = document.getElementById('graficoAnual').getContext('2d');
     var anos = getAnosDisponiveis();
     var valoresTotais = [];
@@ -576,7 +576,7 @@ function criarGraficoAnual() {
 
 // ==================== GRÁFICO TOP 10 ATIVIDADES (TODOS OS ANOS) ====================
 async function criarGraficoTop10() {
-    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
     var ctx = document.getElementById('graficoTop10').getContext('2d');
     var todasAtividades = {};
     var anos = getAnosDisponiveis();
@@ -647,7 +647,7 @@ async function criarGraficoTop10() {
 
 // ==================== GRÁFICO TOP 10 SERVIÇOS DO ANO ATUAL ====================
 async function criarGraficoTop10ServicosAnoAtual() {
-    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
     var ctx = document.getElementById('graficoTop10ServicosAnoAtual').getContext('2d');
     var totaisAnoAtual = await obterTotaisAnoAtual();
     var totaisAtividades = {};
@@ -683,7 +683,7 @@ async function criarGraficoTop10ServicosAnoAtual() {
 
 // ==================== GRÁFICO MENSAL DO ANO ATUAL ====================
 async function criarGraficoMensalAnoAtual() {
-    if (typeof Chart === 'undefined') { feedback("Nao foi possivel carregar os graficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
     var ctx = document.getElementById('graficoMensalAnoAtual').getContext('2d');
     var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     var mesesCompletos = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -714,7 +714,7 @@ async function criarGraficoMensalAnoAtual() {
 // ==================== INICIALIZAÇÃO (sem login, sem carregarDados()) ====================
 async function iniciarPaginaDashboard() {
     document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
-    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Servicos Mais Executados em " + ANO_ATUAL;
+    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Serviços Mais Executados em " + ANO_ATUAL;
     document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
     await renderizarIndicadores();
     criarGraficoAnual();
