@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=7">
-    <link rel="icon" href="icons/favicon-32.png?v=7">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=7">
+    <link rel="manifest" href="manifest.json?v=8">
+    <link rel="icon" href="icons/favicon-32.png?v=8">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=8">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=7').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=8').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Estatística</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=7"></script>
+    <script src="config.js?v=8"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=7"></script>
+    <script src="supabase-client.js?v=8"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=7"></script>
+    <script src="common.js?v=8"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -293,23 +293,38 @@
             outline: none;
             border-color: var(--destaque);
         }
-        .multi-select-box {
-            max-height: 140px;
+        .pill-select-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 150px;
             overflow-y: auto;
             border: 2px solid var(--cinza-borda);
             border-radius: 14px;
-            padding: 8px 12px;
+            padding: 10px 12px;
             background: var(--branco);
+            align-content: flex-start;
         }
-        .multi-select-box label {
-            display: block;
-            font-weight: 400;
-            font-size: 0.82rem;
-            padding: 3px 0;
-            cursor: pointer;
+        .pill-item {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1.5px solid var(--cinza-borda);
+            background: var(--cinza-suave);
             color: var(--azul-marinho);
+            font-size: 0.78rem;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
-        .multi-select-box input[type=checkbox] { margin-right: 6px; }
+        .pill-item:hover { border-color: var(--azul-institucional); }
+        .pill-item.selecionado {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border-color: var(--azul-institucional);
+            font-weight: 600;
+        }
         .relatorio-servidor-bloco {
             background: var(--cinza-suave);
             border-radius: 14px;
@@ -482,7 +497,7 @@
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
             .tabela-resultados { font-size: 0.7rem; }
             .tabela-resultados th, .tabela-resultados td { padding: 4px 6px; }
-            .multi-select-box { max-height: 110px; }
+            .pill-select-box { max-height: 110px; }
             .relatorio-servidor-bloco { padding: 10px 12px; }
         }
     </style>
@@ -555,19 +570,33 @@
                         <canvas id="graficoTop10Config" style="max-height:300px;"></canvas>
                     </div>
 
-                    <div class="grafico-card" id="graficoTop10Card">
-                        <h4 id="tituloTop10Geral">Top 10 Atividades Mais Realizadas (2022-2026)</h4>
-                        <canvas id="graficoTop10"></canvas>
+                    <div class="grafico-card grafico-full" id="graficoTop10MenosConfigCard">
+                        <h4>Top 10 Serviços Menos Realizados</h4>
+                        <div class="filtros-resultados" style="margin-bottom:12px;">
+                            <div class="form-group">
+                                <label>Setor</label>
+                                <select id="selectSetorTop10MenosConfig">
+                                    <option value="ambos">Ambos (SEATE + NAHORA)</option>
+                                    <option value="SEATE">SEATE</option>
+                                    <option value="NAHORA">NAHORA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano de</label>
+                                <select id="selectAnoDeTop10MenosConfig"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano até</label>
+                                <select id="selectAnoAteTop10MenosConfig"></select>
+                            </div>
+                            <button class="btn-acao" onclick="atualizarGraficoTop10MenosConfig()" style="align-self:flex-end;">Atualizar Gráfico</button>
+                        </div>
+                        <canvas id="graficoTop10MenosConfig" style="max-height:300px;"></canvas>
                     </div>
-                    
-                    <div class="grafico-card" id="graficoTop10ServicosAnoAtualCard">
-                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Servicos Mais Executados em 2026</h4>
-                        <canvas id="graficoTop10ServicosAnoAtual"></canvas>
-                    </div>
-                    
-                    <div class="grafico-card" id="graficoMensalAnoAtualCard">
+
+                    <div class="grafico-card grafico-full" id="graficoMensalAnoAtualCard">
                         <h4 id="tituloMensalAnoAtual">Atividades Mensais - 2026 (SEATE + NAHORA)</h4>
-                        <canvas id="graficoMensalAnoAtual"></canvas>
+                        <canvas id="graficoMensalAnoAtual" style="max-height:300px;"></canvas>
                     </div>
                 </div>
             </div>
@@ -585,12 +614,12 @@
                         <select id="selectAnoDeResultado"></select>
                     </div>
                     <div class="form-group">
-                        <label>Ano até</label>
-                        <select id="selectAnoAteResultado"></select>
-                    </div>
-                    <div class="form-group">
                         <label>Mês de</label>
                         <select id="selectMesDeResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteResultado"></select>
                     </div>
                     <div class="form-group">
                         <label>Mês até</label>
@@ -606,7 +635,7 @@
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 220px;">
                         <label>Atividade(s) (vazio = todas)</label>
-                        <div class="multi-select-box" id="multiSelectAtividadeResultado"></div>
+                        <div class="pill-select-box" id="multiSelectAtividadeResultado"></div>
                     </div>
                 </div>
                 
@@ -644,25 +673,25 @@
             <div class="card" id="cardRelatorioServidor">
                 <h3>Relatório por Servidor</h3>
                 <div style="background:#FFF3CD; border:1px solid var(--destaque); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#664d03;">
-                    ⚠️ <strong>Atenção:</strong> os dados por servidor só existem a partir de <strong>Setembro/2026</strong> — quando o registro diário de atividades entrou em uso. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais não têm vínculo com nenhum servidor específico).
+                    ⚠️ <strong>Atenção:</strong> <span id="textoAvisoInicioRegistros">Verificando a partir de quando existem registros de servidores...</span>
                 </div>
 
                 <div class="filtros-resultados">
                     <div class="form-group" style="flex: 2; min-width: 220px;">
                         <label>Servidor(es)</label>
-                        <div class="multi-select-box" id="multiSelectServidoresRelatorio"></div>
+                        <div class="pill-select-box" id="multiSelectServidoresRelatorio"></div>
                     </div>
                     <div class="form-group">
                         <label>Ano de</label>
                         <select id="selectAnoDeServidorRelatorio"></select>
                     </div>
                     <div class="form-group">
-                        <label>Ano até</label>
-                        <select id="selectAnoAteServidorRelatorio"></select>
-                    </div>
-                    <div class="form-group">
                         <label>Mês de</label>
                         <select id="selectMesDeServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteServidorRelatorio"></select>
                     </div>
                     <div class="form-group">
                         <label>Mês até</label>
@@ -670,7 +699,7 @@
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 220px;">
                         <label>Atividades (opcional — vazio = todas)</label>
-                        <div class="multi-select-box" id="multiSelectAtividadesRelatorio"></div>
+                        <div class="pill-select-box" id="multiSelectAtividadesRelatorio"></div>
                     </div>
                 </div>
 
@@ -1253,209 +1282,100 @@ async function atualizarGraficoTop10Config() {
 
 
 // ============================================================
-// GRÁFICO TOP 10 ATIVIDADES (2022-2026)
+// GRÁFICO TOP 10 SERVIÇOS MENOS REALIZADOS - CONFIGURÁVEL (setor + período)
 // ============================================================
-async function criarGraficoTop10() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
-    var ctx = document.getElementById('graficoTop10').getContext('2d');
-    
-    var todasAtividades = {};
+function renderizarSelectsAnoTop10MenosConfig() {
     var anos = getAnosDisponiveis();
-    var totaisAnoAtual = await obterTotaisAnoAtual();
-    var manualAnoAtualTop10 = await obterDadosAno(ANO_ATUAL);
-    
-    for (var a = 0; a < anos.length; a++) {
-        var ano = anos[a];
-        
-        if (ano === ANO_ATUAL) {
-            for (var ativ in totaisAnoAtual.porAtividadeSeate) {
-                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
-                todasAtividades[ativ] += totaisAnoAtual.porAtividadeSeate[ativ];
-            }
-            for (var ativ in totaisAnoAtual.porAtividadeNahora) {
-                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
-                todasAtividades[ativ] += totaisAnoAtual.porAtividadeNahora[ativ];
-            }
-            if (manualAnoAtualTop10) {
-                for (var ativM in (manualAnoAtualTop10.SEATE || {})) {
-                    if (!todasAtividades[ativM]) todasAtividades[ativM] = 0;
-                    for (var mM in manualAnoAtualTop10.SEATE[ativM]) { todasAtividades[ativM] += manualAnoAtualTop10.SEATE[ativM][mM] || 0; }
-                }
-                for (var ativM2 in (manualAnoAtualTop10.NAHORA || {})) {
-                    if (!todasAtividades[ativM2]) todasAtividades[ativM2] = 0;
-                    for (var mM2 in manualAnoAtualTop10.NAHORA[ativM2]) { todasAtividades[ativM2] += manualAnoAtualTop10.NAHORA[ativM2][mM2] || 0; }
-                }
-            }
-            continue;
+    var selectDe = document.getElementById("selectAnoDeTop10MenosConfig");
+    var selectAte = document.getElementById("selectAnoAteTop10MenosConfig");
+    if (!selectDe || !selectAte) return;
+    var html = '';
+    for (var i = 0; i < anos.length; i++) { html += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selectDe.innerHTML = html;
+    selectAte.innerHTML = html;
+    selectDe.value = anos[0];
+    selectAte.value = ANO_ATUAL;
+}
+
+async function atualizarGraficoTop10MenosConfig() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+
+    var setor = document.getElementById("selectSetorTop10MenosConfig").value;
+    var anoDe = parseInt(document.getElementById("selectAnoDeTop10MenosConfig").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteTop10MenosConfig").value);
+    if (anoDe > anoAte) { var tmp = anoDe; anoDe = anoAte; anoAte = tmp; }
+
+    var ctx = document.getElementById('graficoTop10MenosConfig').getContext('2d');
+    var todasAtividades = {};
+    atividades.forEach(function(nome) { todasAtividades[nome] = 0; }); // inclui as com zero (nunca realizadas)
+
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var anoStr = String(ano);
+        var seateTotais = {}, nahoraTotais = {};
+
+        if (anoStr === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
         }
-        
-        var dadosAno = await obterDadosAno(ano);
-        if (!dadosAno) continue;
-        
-        if (dadosAno["SEATE"]) {
-            for (var ativ in dadosAno["SEATE"]) {
-                var valor = dadosAno["SEATE"][ativ];
-                if (Array.isArray(valor)) {
-                    valor = valor.reduce(function(s, v) { return s + v; }, 0);
-                } else if (valor && typeof valor === 'object') {
-                    valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
-                }
-                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
-                todasAtividades[ativ] += valor;
+        var manualAno = await obterDadosAno(anoStr);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
+                seateTotais[ativM] = (seateTotais[ativM] || 0) + t;
+            }
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
+                nahoraTotais[ativM2] = (nahoraTotais[ativM2] || 0) + t2;
             }
         }
-        
-        if (dadosAno["NAHORA"]) {
-            for (var ativ in dadosAno["NAHORA"]) {
-                var valor = dadosAno["NAHORA"][ativ];
-                if (Array.isArray(valor)) {
-                    valor = valor.reduce(function(s, v) { return s + v; }, 0);
-                } else if (valor && typeof valor === 'object') {
-                    valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
-                }
-                if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
-                todasAtividades[ativ] += valor;
-            }
+
+        if (setor === "ambos" || setor === "SEATE") {
+            for (var ativ in seateTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + seateTotais[ativ]; }
+        }
+        if (setor === "ambos" || setor === "NAHORA") {
+            for (var ativ in nahoraTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + nahoraTotais[ativ]; }
         }
     }
-    
+
     var items = [];
-    for (var ativ in todasAtividades) {
-        items.push({ nome: ativ, total: todasAtividades[ativ] });
+    for (var ativ in todasAtividades) { items.push({ nome: ativ, total: todasAtividades[ativ] }); }
+    items.sort(function(a, b) { return a.total - b.total; }); // ascendente: menos realizadas primeiro
+    var menos10 = items.slice(0, 10);
+
+    var labels = menos10.map(function(item) { return item.nome; });
+    var valores = menos10.map(function(item) { return item.total; });
+    var coresMenos10 = gerarCoresDegrade({ r: 34, g: 139, b: 87 }, { r: 8, g: 61, b: 119 }, valores.length || 1);
+
+    var periodoTexto = (anoDe === anoAte) ? String(anoDe) : (anoDe + ' a ' + anoAte + ', acumulado');
+    var setorTexto = (setor === "ambos") ? "SEATE + NAHORA" : setor;
+    document.querySelector('#graficoTop10MenosConfigCard h4').textContent = 'Top 10 Serviços Menos Realizados — ' + periodoTexto + ' (' + setorTexto + ')';
+
+    if (window.chartTop10MenosConfig) { window.chartTop10MenosConfig.destroy(); }
+
+    if (menos10.length === 0) {
+        window.chartTop10MenosConfig = null;
+        return;
     }
-    items.sort(function(a, b) { return b.total - a.total; });
-    var top10 = items.slice(0, 10);
-    
-    var labels = top10.map(function(item) { return item.nome; });
-    var valores = top10.map(function(item) { return item.total; });
-    
-    var coresTop10 = gerarCoresDegrade(
-        { r: 220, g: 38, b: 38 },
-        { r: 123, g: 31, b: 162 },
-        valores.length
-    );
-    
-    if (window.chartTop10) { window.chartTop10.destroy(); }
-    
-    window.chartTop10 = new Chart(ctx, {
+
+    window.chartTop10MenosConfig = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Total (2022-' + ANO_ATUAL + ')',
-                data: valores,
-                backgroundColor: coresTop10,
-                borderColor: coresTop10.map(function(c) { return c; }),
-                borderWidth: 1
-            }]
-        },
+        data: { labels: labels, datasets: [{ label: 'Total no período', data: valores, backgroundColor: coresMenos10, borderColor: coresMenos10, borderWidth: 1 }] },
         plugins: [valorTopoPlugin],
         options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: true,
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Total: ' + formatarMilhar(context.parsed.x);
-                        }
-                    }
-                }
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
             },
             scales: {
-                y: {
-                    ticks: { font: { size: 8 } }
-                },
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) { return formatarMilhar(value); },
-                        font: { size: 9 }
-                    }
-                }
+                y: { ticks: { font: { size: 9 } } },
+                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
         }
     });
 }
 
-// ============================================================
-// GRÁFICO TOP 10 SERVIÇOS 2026
-// ============================================================
-async function criarGraficoTop10ServicosAnoAtual() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
-    var ctx = document.getElementById('graficoTop10ServicosAnoAtual').getContext('2d');
-    
-    var totaisAnoAtual = await obterTotaisAnoAtual();
-    var totaisAtividades = {};
-    for (var ativ in totaisAnoAtual.porAtividadeSeate) {
-        totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ];
-    }
-    for (var ativ in totaisAnoAtual.porAtividadeNahora) {
-        totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ];
-    }
-    
-    var items = [];
-    for (var ativ in totaisAtividades) {
-        items.push({ nome: ativ, total: totaisAtividades[ativ] });
-    }
-    items.sort(function(a, b) { return b.total - a.total; });
-    var top10 = items.slice(0, 10);
-    
-    var labels = top10.map(function(item) { return item.nome; });
-    var valores = top10.map(function(item) { return item.total; });
-    
-    var coresTop10 = gerarCoresDegrade(
-        { r: 255, g: 179, b: 71 },
-        { r: 220, g: 38, b: 38 },
-        valores.length
-    );
-    
-    if (window.chartTop10ServicosAnoAtual) { window.chartTop10ServicosAnoAtual.destroy(); }
-    
-    window.chartTop10ServicosAnoAtual = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Total ' + ANO_ATUAL,
-                data: valores,
-                backgroundColor: coresTop10,
-                borderColor: coresTop10.map(function(c) { return c; }),
-                borderWidth: 1
-            }]
-        },
-        plugins: [valorTopoPlugin],
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Total: ' + formatarMilhar(context.parsed.x);
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    ticks: { font: { size: 8 } }
-                },
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) { return formatarMilhar(value); },
-                        font: { size: 9 }
-                    }
-                }
-            }
-        }
-    });
-}
 
 // ============================================================
 // GRÁFICO MENSAL DO ANO ATUAL
@@ -1550,13 +1470,17 @@ function renderizarSelectsPeriodoResultado() {
     selMesAte.value = 11;
 }
 
+function togglePill(el) {
+    el.classList.toggle('selecionado');
+}
+
 function carregarAtividadesSelect() {
     var container = document.getElementById("multiSelectAtividadeResultado");
     if (!container) return;
     var html = '';
     for (var i = 0; i < atividades.length; i++) {
         var nome = atividades[i];
-        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-atividade-resultado"> ' + escapeHtml(nome) + '</label>';
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
     }
     if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
     container.innerHTML = html;
@@ -1573,7 +1497,7 @@ async function filtrarResultados() {
     if (anoDe === anoAte && mesDe > mesAte) { var tM = mesDe; mesDe = mesAte; mesAte = tM; }
 
     var atividadesSelecionadas = Array.prototype.map.call(
-        document.querySelectorAll('.chk-atividade-resultado:checked'), function(c) { return c.value; }
+        document.querySelectorAll('#multiSelectAtividadeResultado .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
     );
     var listaAtividades = atividadesSelecionadas.length > 0 ? atividadesSelecionadas : atividades.slice();
 
@@ -1950,7 +1874,7 @@ function limparFiltrosResultados() {
     document.getElementById("selectMesDeResultado").value = 0;
     document.getElementById("selectMesAteResultado").value = 11;
     document.getElementById("selectSetorResultado").value = "ambos";
-    document.querySelectorAll('.chk-atividade-resultado').forEach(function(c) { c.checked = false; });
+    document.querySelectorAll('#multiSelectAtividadeResultado .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
     document.getElementById("tituloResultadoAtividade").textContent = "";
     document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding: 40px; color: #888;">Selecione o período (e, se quiser, uma ou mais atividades) e clique em Filtrar para exibir os resultados.</div>';
     document.getElementById("resumoAnaliticoAtividade").innerHTML = '';
@@ -1963,13 +1887,44 @@ function limparFiltrosResultados() {
 // ============================================================
 var MESES_NOMES_RELATORIO = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
+// Mensagem dinâmica: busca no banco a data do registro mais antigo já
+// lançado por qualquer servidor (independente de ser início, meio ou
+// fim de ano) e monta o aviso a partir dela — nada fica fixo no código.
+async function atualizarAvisoInicioRegistros() {
+    var span = document.getElementById("textoAvisoInicioRegistros");
+    if (!span) return;
+    if (!supabaseDisponivel) {
+        span.textContent = "Não foi possível verificar a partir de quando existem registros (sem conexão com o servidor).";
+        return;
+    }
+    var dataMin = null;
+    try {
+        dataMin = await dbCarregarDataMaisAntigaRegistro();
+    } catch(e) {
+        console.warn('Erro ao verificar data mais antiga de registro:', e.message);
+    }
+    if (dataMin === null) {
+        span.textContent = "Não foi possível verificar a partir de quando existem registros. Tente recarregar a página.";
+        return;
+    }
+    if (dataMin === '') {
+        span.textContent = "Ainda não há nenhum registro lançado por servidores no sistema.";
+        return;
+    }
+    var partes = dataMin.split('-'); // formato YYYY-MM-DD
+    var ano = partes[0];
+    var mesIndex = parseInt(partes[1], 10) - 1;
+    var mesNome = MESES_NOMES_RELATORIO[mesIndex] || partes[1];
+    span.innerHTML = 'os dados por servidor existem a partir de <strong>' + mesNome + '/' + ano + '</strong> — quando o registro diário de atividades começou a ser usado. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais não têm vínculo com nenhum servidor específico).';
+}
+
 function renderizarMultiSelectServidoresRelatorio() {
     var container = document.getElementById("multiSelectServidoresRelatorio");
     if (!container) return;
     var html = '';
     for (var i = 0; i < servidores.length; i++) {
         var nome = servidores[i];
-        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-servidor-relatorio"> ' + escapeHtml(nome) + '</label>';
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
     }
     if (servidores.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhum servidor cadastrado</span>';
     container.innerHTML = html;
@@ -1981,7 +1936,7 @@ function renderizarMultiSelectAtividadesRelatorio() {
     var html = '';
     for (var i = 0; i < atividades.length; i++) {
         var nome = atividades[i];
-        html += '<label><input type="checkbox" value="' + escapeHtml(nome) + '" class="chk-atividade-relatorio"> ' + escapeHtml(nome) + '</label>';
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
     }
     if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
     container.innerHTML = html;
@@ -2009,8 +1964,8 @@ function renderizarSelectsPeriodoServidorRelatorio() {
 }
 
 function limparFiltrosRelatorioServidor() {
-    document.querySelectorAll('.chk-servidor-relatorio').forEach(function(c) { c.checked = false; });
-    document.querySelectorAll('.chk-atividade-relatorio').forEach(function(c) { c.checked = false; });
+    document.querySelectorAll('#multiSelectServidoresRelatorio .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
+    document.querySelectorAll('#multiSelectAtividadesRelatorio .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
     document.getElementById("selectAnoDeServidorRelatorio").value = ANO_ATUAL;
     document.getElementById("selectAnoAteServidorRelatorio").value = ANO_ATUAL;
     document.getElementById("selectMesDeServidorRelatorio").value = 0;
@@ -2021,7 +1976,7 @@ function limparFiltrosRelatorioServidor() {
 
 async function filtrarRelatorioServidor() {
     var servidoresSelecionados = Array.prototype.map.call(
-        document.querySelectorAll('.chk-servidor-relatorio:checked'), function(c) { return c.value; }
+        document.querySelectorAll('#multiSelectServidoresRelatorio .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
     );
     var container = document.getElementById("containerRelatorioServidor");
 
@@ -2035,7 +1990,7 @@ async function filtrarRelatorioServidor() {
     }
 
     var atividadesSelecionadas = Array.prototype.map.call(
-        document.querySelectorAll('.chk-atividade-relatorio:checked'), function(c) { return c.value; }
+        document.querySelectorAll('#multiSelectAtividadesRelatorio .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
     );
     var filtrarPorAtividade = atividadesSelecionadas.length > 0;
 
@@ -2569,8 +2524,8 @@ async function gerarRelatorioPDF() {
             `;
         }
         
-        var canvasTop10 = document.getElementById('graficoTop10');
-        var canvasTop10ServicosAnoAtual = document.getElementById('graficoTop10ServicosAnoAtual');
+        var canvasTop10 = document.getElementById('graficoTop10Config');
+        var canvasTop10ServicosAnoAtual = document.getElementById('graficoTop10MenosConfig');
         var canvasMensal = document.getElementById('graficoMensalAnoAtual');
         
         var imgTop10 = canvasTop10 ? canvasTop10.toDataURL('image/png', 0.95) : '';
@@ -2679,16 +2634,14 @@ async function gerarRelatorioPDF() {
 async function iniciarPagina() {
     var sessao = await exigirAutenticacao();
     if (!sessao) return;
-    document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
-    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Servicos Mais Executados em " + ANO_ATUAL;
     document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
     renderizarSelectsPeriodoResultado();
     await carregarDados();
     renderizarIndicadores();
     renderizarSelectsAnoTop10Config();
     atualizarGraficoTop10Config();
-    criarGraficoTop10();
-    criarGraficoTop10ServicosAnoAtual();
+    renderizarSelectsAnoTop10MenosConfig();
+    atualizarGraficoTop10MenosConfig();
     criarGraficoMensalAnoAtual();
     atualizarEstatisticas();
     atualizarDisplayMes();
@@ -2696,6 +2649,7 @@ async function iniciarPagina() {
     renderizarMultiSelectServidoresRelatorio();
     renderizarMultiSelectAtividadesRelatorio();
     renderizarSelectsPeriodoServidorRelatorio();
+    atualizarAvisoInicioRegistros();
     iniciarSincronizacaoTempoReal();
 }
 iniciarPagina();
