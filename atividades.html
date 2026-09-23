@@ -538,6 +538,16 @@ async function excluirAtividade(idx) {
     if(confirm(mensagem)) { 
         atividades.splice(idx,1); 
         if(atribuicoes[nome]) delete atribuicoes[nome]; 
+        if (supabaseDisponivel) {
+            try {
+                var excluiuDeVerdade = await dbExcluirAtividade(nome);
+                if (!excluiuDeVerdade) {
+                    feedback("Atenção: não foi possível excluir do banco de dados. A atividade pode voltar a aparecer.");
+                }
+            } catch(e) {
+                console.warn('Erro ao excluir atividade do banco:', e.message);
+            }
+        }
         salvarAtividades(); 
         salvarOrdemAtividades();
         salvarAtribuicoes(); 
