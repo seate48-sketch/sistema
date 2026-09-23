@@ -1321,6 +1321,7 @@ function criarGraficoEvolucao() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 28 } },
             plugins: {
                 legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } },
                 tooltip: {
@@ -1364,7 +1365,7 @@ function criarGraficoEvolucao() {
                     var meta = chart.getDatasetMeta(datasetIndex);
                     meta.data.forEach(function(bar, index) {
                         var data = dataset.data[index];
-                        if (data > 0) {
+                        if (data !== undefined && data !== null) {
                             ctx.fillStyle = '#0F2D52';
                             ctx.font = 'bold 11px Arial';
                             ctx.textAlign = 'center';
@@ -1375,6 +1376,27 @@ function criarGraficoEvolucao() {
                         }
                     });
                 });
+
+                // Total combinado (SEATE + NAHORA) de cada ano, centralizado
+                // entre as duas barras e acima dos dois números individuais
+                // — assim o gestor vê o separado e o conjunto ao mesmo tempo.
+                var metaSeate = chart.getDatasetMeta(0);
+                var metaNahora = chart.getDatasetMeta(1);
+                var seateData = chart.data.datasets[0].data;
+                var nahoraData = chart.data.datasets[1].data;
+                for (var i = 0; i < metaSeate.data.length; i++) {
+                    var barSeate = metaSeate.data[i];
+                    var barNahora = metaNahora.data[i];
+                    if (!barSeate || !barNahora) continue;
+                    var total = (seateData[i] || 0) + (nahoraData[i] || 0);
+                    var xCentro = (barSeate.x + barNahora.x) / 2;
+                    var yTopo = Math.min(barSeate.y, barNahora.y) - 18;
+                    ctx.fillStyle = '#8A5A00';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText('Total: ' + formatarMilhar(total), xCentro, yTopo);
+                }
             }
         }]
     });
