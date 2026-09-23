@@ -995,6 +995,26 @@ async function dbCarregarDadosAno(ano) {
 // Lista as atividades cadastradas em "Adicionar/Atividades" para um
 // setor específico — é a MESMA lista usada lá, filtrada, nunca uma
 // cópia separada.
+// Busca a data do registro mais antigo já lançado por qualquer
+// servidor — usado para avisar automaticamente, na tela Estatística,
+// a partir de quando existem dados reais por servidor (sem precisar
+// digitar esse mês/ano fixo no código).
+async function dbCarregarDataMaisAntigaRegistro() {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from(TABLES.REGISTROS)
+            .select('data')
+            .order('data', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+        if (error) { console.error('dbCarregarDataMaisAntigaRegistro:', error); return null; }
+        return data ? data.data : ''; // '' = tabela sem nenhum registro ainda (não é erro)
+    } catch(e) {
+        console.error('❌ Erro em dbCarregarDataMaisAntigaRegistro:', e.message);
+        return null;
+    }
+}
+
 async function dbCarregarAtividadesPorSetor(setor) {
     if (!supabaseDisponivel || !db) return null;
     try {
