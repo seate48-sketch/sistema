@@ -16,40 +16,40 @@
     </script>
     <title>SEATE - Dashboard</title>
     <link rel="stylesheet" href="style.css?v=9">
-
+    
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
     <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+    
     <!-- ======================================== -->
-    <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
+    <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
     <script src="config.js?v=9"></script>
-
+    
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
     <script src="supabase-client.js?v=9"></script>
-
+    
     <!-- ======================================== -->
-    <!-- 4. COMMON.JS (só funções utilitárias      -->
-    <!-- e de cálculo — nenhuma tela daqui usa     -->
-    <!-- login/edição, então nada disso é exposto) -->
+    <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
     <script src="common.js?v=9"></script>
-
+    
     <!-- ======================================== -->
-    <!-- 5. CHART.JS                             -->
+    <!-- 5. CHART.JS                            -->
     <!-- ======================================== -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
+    
+    <!-- ======================================== -->
+    <!-- 6. HTML2PDF.JS                         -->
+    <!-- ======================================== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
     <style>
-        /* Página sem abas: cabeçalho um pouco mais simples */
-        .header-info { gap: 10px; }
-
         .indicadores-grid { margin-bottom: 24px; }
-
+        
         .graficos-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -77,7 +77,8 @@
             max-height: 200px;
             width: 100% !important;
         }
-
+        .grafico-full { grid-column: 1 / -1; }
+        
         .modal-estatistica {
             display: none;
             position: fixed;
@@ -110,8 +111,14 @@
             border-radius: 24px 24px 0 0;
             flex-shrink: 0;
         }
-        .modal-estatistica-header h3 { margin: 0; }
-        .modal-estatistica-body { padding: 22px; overflow-y: auto; flex: 1; }
+        .modal-estatistica-header h3 {
+            margin: 0;
+        }
+        .modal-estatistica-body {
+            padding: 22px;
+            overflow-y: auto;
+            flex: 1;
+        }
         .modal-estatistica-footer {
             display: flex;
             justify-content: flex-end;
@@ -120,10 +127,21 @@
             border-top: 1px solid var(--cinza-borda);
             flex-shrink: 0;
         }
-        .modal-close { font-size: 28px; cursor: pointer; color: var(--branco); }
-
-        .tabela-estatistica-container { overflow-x: auto; margin-bottom: 20px; }
-        .tabela-estatistica { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--branco);
+        }
+        
+        .tabela-estatistica-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .tabela-estatistica {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
         .tabela-estatistica th {
             background: var(--cinza-suave);
             color: var(--azul-marinho);
@@ -139,27 +157,389 @@
             border-bottom: 1px solid var(--cinza-borda);
             vertical-align: middle;
         }
-        .tabela-estatistica tr:hover { background: var(--cinza-suave); }
-
-        .modal-grafico .modal-estatistica-content { max-width: 800px; width: 90%; }
-
+        .tabela-estatistica tr:hover {
+            background: var(--cinza-suave);
+        }
+        .tabela-estatistica .total-coluna {
+            background: var(--destaque);
+            color: var(--azul-marinho);
+            font-weight: 700;
+        }
+        
+        .btn-acessar-registros {
+            background: transparent;
+            border: 1px solid var(--azul-institucional);
+            border-radius: 20px;
+            padding: 4px 12px;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-left: 10px;
+        }
+        .btn-acessar-registros:hover {
+            background: var(--azul-institucional);
+            color: var(--branco);
+        }
+        
+        .modal-grafico .modal-estatistica-content {
+            max-width: 800px;
+            width: 90%;
+        }
+        
+        .btn-pdf {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 30px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .btn-pdf:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .relatorio-container {
+            display: none;
+            padding: 20px;
+            background: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+        .relatorio-container h1 {
+            color: var(--azul-marinho);
+            text-align: center;
+            border-bottom: 2px solid var(--destaque);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .relatorio-container h2 {
+            color: var(--azul-institucional);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--destaque);
+            padding-left: 10px;
+        }
+        .relatorio-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+        .relatorio-container th {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .relatorio-container td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--cinza-borda);
+            text-align: center;
+        }
+        .relatorio-container .total-row {
+            font-weight: 700;
+            background: var(--cinza-suave);
+        }
+        .relatorio-container .grafico-relatorio {
+            width: 100%;
+            max-width: 600px;
+            margin: 10px auto;
+            display: block;
+        }
+        .relatorio-container .footer-relatorio {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid var(--cinza-borda);
+            font-size: 0.7rem;
+            color: #888;
+        }
+        
+        /* ===== ESTILOS DA TABELA DE RESULTADOS POR ATIVIDADE ===== */
+        .filtros-resultados {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+        .filtros-resultados .form-group {
+            flex: 1;
+            min-width: 150px;
+            margin-bottom: 0;
+        }
+        .filtros-resultados .form-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--azul-marinho);
+            margin-bottom: 4px;
+            display: block;
+        }
+        .filtros-resultados select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            font-size: 0.85rem;
+            background: var(--branco);
+            cursor: pointer;
+        }
+        .filtros-resultados select:focus {
+            outline: none;
+            border-color: var(--destaque);
+        }
+        .dropdown-select {
+            position: relative;
+        }
+        .dropdown-trigger {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            background: var(--branco);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--azul-marinho);
+            gap: 8px;
+        }
+        .dropdown-trigger:hover { border-color: var(--azul-institucional); }
+        .dropdown-trigger span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .dropdown-arrow { font-size: 0.65rem; color: #888; transition: transform 0.2s; flex-shrink: 0; }
+        .dropdown-select.aberto .dropdown-arrow { transform: rotate(180deg); }
+        .dropdown-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 60;
+            background: var(--branco);
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            padding: 6px;
+        }
+        .dropdown-select.aberto .dropdown-panel { display: block; }
+        .pill-select-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .pill-item {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 14px;
+            min-height: 36px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: var(--branco);
+            color: var(--azul-marinho);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .pill-item:hover { background: var(--cinza-suave); border-color: var(--cinza-borda); }
+        .pill-item.selecionado {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border-color: var(--azul-institucional);
+            font-weight: 600;
+        }
+        .relatorio-servidor-bloco {
+            background: var(--cinza-suave);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            border: 1px solid var(--cinza-borda);
+        }
+        .relatorio-servidor-bloco h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 8px;
+        }
+        
+        /* ===== BOTÕES UNIFICADOS ===== */
+        .btn-acao {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-exportar {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-exportar:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-relatorio {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-relatorio:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-acao-limpar {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            border: none;
+            border-radius: 40px;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-acao-limpar:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .grupo-botoes {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .tabela-resultados-container {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+        .tabela-resultados {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .tabela-resultados th {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            padding: 10px 12px;
+            text-align: center;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .tabela-resultados td {
+            padding: 8px 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--cinza-borda);
+        }
+        .tabela-resultados tr:hover {
+            background: var(--cinza-suave);
+        }
+        .tabela-resultados .total-row {
+            font-weight: 700;
+            background: var(--destaque);
+            color: var(--azul-marinho);
+        }
+        .tabela-resultados .total-row td {
+            border-top: 2px solid var(--azul-marinho);
+        }
+        .tabela-resultados .sem-dados {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .resumo-atividade {
+            background: var(--cinza-suave);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            border-left: 4px solid var(--destaque);
+        }
+        .resumo-atividade h4 {
+            color: var(--azul-marinho);
+            margin-bottom: 8px;
+        }
+        .resumo-atividade p {
+            font-size: 0.9rem;
+            color: #444;
+            line-height: 1.6;
+            margin: 4px 0;
+        }
+        .resumo-atividade strong {
+            color: var(--azul-institucional);
+        }
+        
         @keyframes slideDown {
             from { transform: translateY(-40px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-
+        
         @média (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .graficos-grid { grid-template-columns: 1fr; }
+            .filtros-resultados .form-group { min-width: 120px; }
         }
         @média (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
+            .filtros-resultados { flex-direction: column; }
+            .filtros-resultados .form-group { width: 100%; }
+            .grupo-botoes .btn-acao,
+            .grupo-botoes .btn-acao-exportar,
+            .grupo-botoes .btn-acao-relatorio,
+            .grupo-botoes .btn-acao-limpar { width: 100%; text-align: center; }
         }
         @média (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
+            .tabela-resultados { font-size: 0.7rem; }
+            .tabela-resultados th, .tabela-resultados td { padding: 4px 6px; }
+            .pill-select-box { max-height: 160px; }
+            .relatorio-servidor-bloco { padding: 10px 12px; }
         }
     </style>
 </head>
@@ -180,38 +560,206 @@
         </div>
     </header>
 
-    <!-- Sem barra de abas: esta página fica isolada do restante do sistema -->
+    <!-- Sem barra de abas: esta pagina fica isolada do restante do sistema -->
     <main class="main-content">
-        <div class="tab-content active">
+        <div class="tab-content active" id="tab-estatistica">
+            <!-- ===== BOTÃO PDF ===== -->
+            <div style="text-align:right; margin-bottom:16px;">
+                <button class="btn-pdf" onclick="gerarRelatorioPDF()">Gerar Relatorio PDF</button>
+            </div>
+            
             <!-- ===== INDICADORES GERAIS ===== -->
             <div class="card">
                 <h3>Indicadores Gerais</h3>
                 <div class="indicadores-grid" id="indicadoresGrid"></div>
             </div>
-
+            
             <!-- ===== ANÁLISE DE ATIVIDADES ===== -->
             <div class="card">
                 <h3>Analise de Atividades</h3>
                 <div class="graficos-grid">
-                    <div class="grafico-card" id="graficoAnualCard">
-                        <h4>Evolucao Anual - TOTAL GERAL</h4>
-                        <canvas id="graficoAnual"></canvas>
+                    <div class="grafico-card grafico-full" id="graficoTop10ConfigCard">
+                        <h4>Top 10 Atividades Mais Realizadas</h4>
+                        <div class="filtros-resultados" style="margin-bottom:12px;">
+                            <div class="form-group">
+                                <label>Setor</label>
+                                <select id="selectSetorTop10Config">
+                                    <option value="ambos">Ambos (SEATE + NAHORA)</option>
+                                    <option value="SEATE">SEATE</option>
+                                    <option value="NAHORA">NAHORA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano de</label>
+                                <select id="selectAnoDeTop10Config"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano até</label>
+                                <select id="selectAnoAteTop10Config"></select>
+                            </div>
+                            <button class="btn-acao" onclick="atualizarGraficoTop10Config()" style="align-self:flex-end;">Atualizar Gráfico</button>
+                        </div>
+                        <canvas id="graficoTop10Config" style="max-height:300px;"></canvas>
                     </div>
 
-                    <div class="grafico-card" id="graficoTop10Card">
-                        <h4 id="tituloTop10Geral">Top 10 Atividades Mais Realizadas</h4>
-                        <canvas id="graficoTop10"></canvas>
+                    <div class="grafico-card grafico-full" id="graficoTop10MenosConfigCard">
+                        <h4>Top 10 Serviços Menos Realizados</h4>
+                        <div class="filtros-resultados" style="margin-bottom:12px;">
+                            <div class="form-group">
+                                <label>Setor</label>
+                                <select id="selectSetorTop10MenosConfig">
+                                    <option value="ambos">Ambos (SEATE + NAHORA)</option>
+                                    <option value="SEATE">SEATE</option>
+                                    <option value="NAHORA">NAHORA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano de</label>
+                                <select id="selectAnoDeTop10MenosConfig"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Ano até</label>
+                                <select id="selectAnoAteTop10MenosConfig"></select>
+                            </div>
+                            <button class="btn-acao" onclick="atualizarGraficoTop10MenosConfig()" style="align-self:flex-end;">Atualizar Gráfico</button>
+                        </div>
+                        <canvas id="graficoTop10MenosConfig" style="max-height:300px;"></canvas>
                     </div>
 
-                    <div class="grafico-card" id="graficoTop10ServicosAnoAtualCard">
-                        <h4 id="tituloTop10ServicosAnoAtual">Top 10 Serviços Mais Executados</h4>
-                        <canvas id="graficoTop10ServicosAnoAtual"></canvas>
+                    <div class="grafico-card grafico-full" id="graficoMensalAnoAtualCard">
+                        <h4 id="tituloMensalAnoAtual">Atividades Mensais - 2026 (SEATE + NAHORA)</h4>
+                        <canvas id="graficoMensalAnoAtual" style="max-height:300px;"></canvas>
                     </div>
+                </div>
+            </div>
+            
+            <!-- ============================================================ -->
+            <!-- ===== RESULTADOS POR ATIVIDADE ===== -->
+            <!-- ============================================================ -->
+            <div class="card" id="cardResultadosAtividade">
+                <h3>Resultados por Atividade</h3>
+                
+                <!-- Filtros -->
+                <div class="filtros-resultados">
+                    <div class="form-group">
+                        <label>Ano de</label>
+                        <select id="selectAnoDeResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês de</label>
+                        <select id="selectMesDeResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês até</label>
+                        <select id="selectMesAteResultado"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Setor</label>
+                        <select id="selectSetorResultado">
+                            <option value="ambos">Ambos</option>
+                            <option value="SEATE">SEATE</option>
+                            <option value="NAHORA">NAHORA</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Atividade(s) (vazio = todas)</label>
+                        <div class="dropdown-select" id="dropdownAtividadeResultado" data-label-padrao="Selecione a atividade">
+                            <div class="dropdown-trigger" onclick="toggleDropdownSelect('dropdownAtividadeResultado')">
+                                <span id="dropdownAtividadeResultadoLabel">Selecione a atividade</span>
+                                <span class="dropdown-arrow">▾</span>
+                            </div>
+                            <div class="dropdown-panel">
+                                <div class="pill-select-box" id="multiSelectAtividadeResultado"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botões -->
+                <div class="grupo-botoes">
+                    <button class="btn-acao" onclick="filtrarResultados()">Filtrar</button>
+                    <button class="btn-acao-exportar" onclick="exportarCSV()">Exportar CSV</button>
+                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatorio Analítico</button>
+                    <button class="btn-acao-limpar" onclick="limparFiltrosResultados()">Limpar Filtros</button>
+                </div>
+                
+                <!-- Título do Resultado -->
+                <div id="tituloResultadoAtividade" style="font-size: 1.1rem; font-weight: 700; color: var(--azul-marinho); margin-bottom: 12px;"></div>
+                
+                <!-- Tabela de Resultados -->
+                <div class="tabela-resultados-container" id="containerTabelaResultados">
+                    <div style="text-align:center; padding: 40px; color: #888;">
+                        Selecione o período (e, se quiser, uma ou mais atividades) e clique em Filtrar para exibir os resultados.
+                    </div>
+                </div>
+                
+                <!-- Resumo Analítico -->
+                <div id="resumoAnaliticoAtividade"></div>
+            </div>
+            <!-- ===== FIM RESULTADOS POR ATIVIDADE ===== -->
+            <!-- ============================================================ -->
+            
+            <!-- ===== RELATÓRIO POR SERVIDOR ===== -->
+            <div class="card" id="cardRelatorioServidor">
+                <h3>Relatório por Servidor</h3>
+                <div style="background:#FFF3CD; border:1px solid var(--destaque); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#664d03;">
+                    ⚠️ <strong>Atenção:</strong> <span id="textoAvisoInicioRegistros">Verificando a partir de quando existem registros de servidores...</span>
+                </div>
 
-                    <div class="grafico-card" id="graficoMensalAnoAtualCard">
-                        <h4 id="tituloMensalAnoAtual">Atividades Mensais</h4>
-                        <canvas id="graficoMensalAnoAtual"></canvas>
+                <div class="filtros-resultados">
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Servidor(es)</label>
+                        <div class="dropdown-select" id="dropdownServidoresRelatorio" data-label-padrao="Selecione o servidor">
+                            <div class="dropdown-trigger" onclick="toggleDropdownSelect('dropdownServidoresRelatorio')">
+                                <span id="dropdownServidoresRelatorioLabel">Selecione o servidor</span>
+                                <span class="dropdown-arrow">▾</span>
+                            </div>
+                            <div class="dropdown-panel">
+                                <div class="pill-select-box" id="multiSelectServidoresRelatorio"></div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="form-group">
+                        <label>Ano de</label>
+                        <select id="selectAnoDeServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês de</label>
+                        <select id="selectMesDeServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês até</label>
+                        <select id="selectMesAteServidorRelatorio"></select>
+                    </div>
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Atividades (opcional — vazio = todas)</label>
+                        <div class="dropdown-select" id="dropdownAtividadesRelatorio" data-label-padrao="Selecione a atividade">
+                            <div class="dropdown-trigger" onclick="toggleDropdownSelect('dropdownAtividadesRelatorio')">
+                                <span id="dropdownAtividadesRelatorioLabel">Selecione a atividade</span>
+                                <span class="dropdown-arrow">▾</span>
+                            </div>
+                            <div class="dropdown-panel">
+                                <div class="pill-select-box" id="multiSelectAtividadesRelatorio"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grupo-botoes">
+                    <button class="btn-acao" onclick="filtrarRelatorioServidor()">Filtrar</button>
+                    <button class="btn-acao-limpar" onclick="limparFiltrosRelatorioServidor()">Limpar Filtros</button>
+                </div>
+
+                <div id="containerRelatorioServidor" style="margin-top:16px;">
+                    <div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>
                 </div>
             </div>
         </div>
@@ -219,23 +767,24 @@
     <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
 </div>
 
-<!-- ===== MODAL DETALHE DE UM ANO (abre ao clicar num indicador/barra) ===== -->
+<!-- ===== MODAL ESTATÍSTICA COM BOTÃO ANALISAR ===== -->
 <div id="modalEstatistica" class="modal-estatistica">
     <div class="modal-estatistica-content">
         <div class="modal-estatistica-header">
-            <h3><span id="modalEstatisticaTitulo">Dados Estatisticos</span></h3>
+            <h3><span id="modalEstatisticaTitulo">Dados Estatisticos - 2022</span></h3>
             <span class="modal-close" onclick="fecharModalEstatistica()">&times;</span>
         </div>
         <div class="modal-estatistica-body">
             <div id="listaAtividadesEstatistica"></div>
         </div>
         <div class="modal-estatistica-footer">
+            <button class="btn btn-primary" onclick="fecharModalEstatistica(); abrirModalAnaliseAtividade(anoEstatisticaSelecionado);" style="background:var(--destaque); color:var(--azul-marinho);">Analisar Atividades</button>
             <button class="btn btn-neutral" onclick="fecharModalEstatistica()">Fechar</button>
         </div>
     </div>
 </div>
 
-<!-- ===== MODAL GRÁFICO EVOLUÇÃO ANUAL (ampliado, abre ao clicar no card TOTAL GERAL) ===== -->
+<!-- ===== MODAL GRÁFICO EVOLUÇÃO ANUAL ===== -->
 <div id="modalGraficoEvolucao" class="modal-estatistica modal-grafico">
     <div class="modal-estatistica-content">
         <div class="modal-estatistica-header">
@@ -256,8 +805,14 @@
     </div>
 </div>
 
+<!-- Container para o relatório PDF -->
+<div id="conteudoRelatorio" class="relatorio-container">
+    <!-- O conteúdo será preenchido dinamicamente -->
+</div>
+
 <script>
 
+// ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
 async function calcularDadosMensaisAnoAtual() {
     var totais = await obterTotaisAnoAtual();
     return totais.porMes;
@@ -282,22 +837,29 @@ const valorTopoPlugin = {
     afterDraw: function(chart) {
         var ctx = chart.ctx;
         var isHorizontal = chart.config.options.indexAxis === 'y';
+        
         chart.data.datasets.forEach(function(dataset, datasetIndex) {
             var meta = chart.getDatasetMeta(datasetIndex);
             meta.data.forEach(function(bar, index) {
                 var data = dataset.data[index];
-                if (data > 0) {
+                if (data !== undefined && data !== null) {
+                    ctx.fillStyle = '#0F2D52';
                     ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    
                     if (isHorizontal) {
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
+                        var x = bar.x + 6;
+                        var y = bar.y;
                         ctx.fillStyle = '#0F2D52';
-                        ctx.fillText(formatarMilhar(data), bar.x + 6, bar.y);
+                        ctx.fillText(formatarMilhar(data), x, y);
                     } else {
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
+                        var x = bar.x;
+                        var y = bar.y - 6;
                         ctx.fillStyle = '#0F2D52';
-                        ctx.fillText(formatarMilhar(data), bar.x, bar.y - 6);
+                        ctx.fillText(formatarMilhar(data), x, y);
                     }
                 }
             });
@@ -311,23 +873,35 @@ async function renderizarIndicadores() {
     var anos = getAnosDisponiveis();
     var cores = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
     var html = '';
+    
     var totalSeateGeral = 0;
     var totalNahoraGeral = 0;
-
+    
     for (var i = 0; i < anos.length; i++) {
-        var totaisAno = await obterSeateNahoraPorAno(anos[i]);
-        totalSeateGeral += totaisAno.seateTotal;
-        totalNahoraGeral += totaisAno.nahoraTotal;
+        var ano = anos[i];
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        seateTotal = totaisAno.seateTotal;
+        nahoraTotal = totaisAno.nahoraTotal;
+        
+        totalSeateGeral += seateTotal;
+        totalNahoraGeral += nahoraTotal;
     }
-
+    
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
         var cor = cores[i % cores.length];
+        var seateTotal = 0;
+        var nahoraTotal = 0;
+        
         var totaisAno2 = await obterSeateNahoraPorAno(ano);
-        var seateTotal = totaisAno2.seateTotal;
-        var nahoraTotal = totaisAno2.nahoraTotal;
+        seateTotal = totaisAno2.seateTotal;
+        nahoraTotal = totaisAno2.nahoraTotal;
+        
         var totalGeral = seateTotal + nahoraTotal;
-
+        
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
         html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
@@ -335,7 +909,7 @@ async function renderizarIndicadores() {
         html += '<div class="indicador-status">Clique para ver detalhes</div>';
         html += '</div>';
     }
-
+    
     var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
@@ -343,22 +917,29 @@ async function renderizarIndicadores() {
     html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + '</div>';
     html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
     html += '</div>';
-
+    
     container.innerHTML = html;
 }
 
-// ==================== MODAL DETALHE DE UM ANO ====================
-var anoEstatisticaSelecionado = null;
-
+// ==================== ABRIR MODAL INDICADOR ====================
 async function abrirModalIndicador(ano, setor) {
     try {
         var isAnoAtual = (ano === ANO_ATUAL);
-        var título = (setor === "SEATE") ? (ano + " - SEATE") : (setor === "NAHORA") ? (ano + " - NAHORA") : (ano + " - SEATE + NAHORA");
+        var título = ano;
+        if (setor === "SEATE") {
+            título = ano + " - SEATE";
+        } else if (setor === "NAHORA") {
+            título = ano + " - NAHORA";
+        } else {
+            título = ano + " - SEATE + NAHORA";
+        }
         document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + título;
-
+        
         var container = document.getElementById("listaAtividadesEstatistica");
         var html = '';
-
+        
+        var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        
         if (isAnoAtual) {
             var totaisAnoAtual = await obterTotaisAnoAtual();
             var seateTotais = Object.assign({}, totaisAnoAtual.porAtividadeSeate);
@@ -381,46 +962,73 @@ async function abrirModalIndicador(ano, setor) {
                     nahoraTotais[ativManual2] = (nahoraTotais[ativManual2] || 0) + totalManual2;
                 }
             }
+            
             var seateTotal = 0;
             var nahoraTotal = 0;
+            
             var mostrarSeate = (setor === null || setor === "SEATE");
             var mostrarNahora = (setor === null || setor === "NAHORA");
-
+            
             if (mostrarSeate) {
-                html += '<div class="titulo-secao">SEATE</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                html += '<div class="titulo-secao">SEATE</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
                 var seateItems = [];
-                for (var ativ in seateTotais) { seateItems.push({ nome: ativ, total: seateTotais[ativ] }); seateTotal += seateTotais[ativ]; }
+                for (var ativ in seateTotais) {
+                    seateItems.push({ nome: ativ, total: seateTotais[ativ] });
+                    seateTotal += seateTotais[ativ];
+                }
                 seateItems.sort(function(a, b) { return b.total - a.total; });
+                
                 if (seateItems.length === 0) {
                     html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para SEATE em ' + ano + '</td></tr>';
                 } else {
                     for (var i = 0; i < seateItems.length; i++) {
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(seateItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(seateItems[i].total) + '</td></tr>';
+                        var item = seateItems[i];
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(item.total) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr>';
+                html += '</tbody></table></div>';
             }
-
+            
             if (mostrarNahora) {
-                html += '<div class="titulo-secao">NAHORA</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                html += '<div class="titulo-secao">NAHORA</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
                 var nahoraItems = [];
-                for (var ativ in nahoraTotais) { nahoraItems.push({ nome: ativ, total: nahoraTotais[ativ] }); nahoraTotal += nahoraTotais[ativ]; }
+                for (var ativ in nahoraTotais) {
+                    nahoraItems.push({ nome: ativ, total: nahoraTotais[ativ] });
+                    nahoraTotal += nahoraTotais[ativ];
+                }
                 nahoraItems.sort(function(a, b) { return b.total - a.total; });
+                
                 if (nahoraItems.length === 0) {
                     html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para NAHORA em ' + ano + '</td></tr>';
                 } else {
                     for (var i = 0; i < nahoraItems.length; i++) {
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(nahoraItems[i].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(nahoraItems[i].total) + '</td></tr>';
+                        var item = nahoraItems[i];
+                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(item.total) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr>';
+                html += '</tbody></table></div>';
             }
-
+            
             if (setor === null) {
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal)) + '</div>';
+                var totalGeralAnoAtual = seateTotal + nahoraTotal;
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralAnoAtual);
+                html += '</div>';
+                html += '<div style="margin-top:8px; text-align:right; font-size:0.75rem; color:#888;">Dados herdados automaticamente dos registros dos servidores.</div>';
             }
+            
             container.innerHTML = html;
-
+            
         } else {
             var dadosPre = await obterDadosAno(ano);
             if (!dadosPre) {
@@ -430,45 +1038,68 @@ async function abrirModalIndicador(ano, setor) {
             }
             var seateTotal = 0;
             var nahoraTotal = 0;
+            
             var mostrarSeate = (setor === null || setor === "SEATE");
             var mostrarNahora = (setor === null || setor === "NAHORA");
-
+            
             if (mostrarSeate) {
-                html += '<div class="titulo-secao">SEATE</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                html += '<div class="titulo-secao">SEATE</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
                 if (dadosPre && dadosPre["SEATE"]) {
-                    for (var ativ in dadosPre["SEATE"]) {
-                        var valor = dadosPre["SEATE"][ativ];
-                        if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
-                        else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                    var seateData = dadosPre["SEATE"];
+                    for (var ativ in seateData) {
+                        var valor = seateData[ativ];
+                        if (Array.isArray(valor)) {
+                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        } else if (valor && typeof valor === 'object') {
+                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        }
                         seateTotal += valor;
                         html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr>';
+                html += '</tbody></table></div>';
             }
-
+            
             if (mostrarNahora) {
-                html += '<div class="titulo-secao">NAHORA</div><div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                html += '<div class="titulo-secao">NAHORA</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                
                 if (dadosPre && dadosPre["NAHORA"]) {
-                    for (var ativ in dadosPre["NAHORA"]) {
-                        var valor = dadosPre["NAHORA"][ativ];
-                        if (Array.isArray(valor)) valor = valor.reduce(function(a, b) { return a + b; }, 0);
-                        else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                    var nahoraData = dadosPre["NAHORA"];
+                    for (var ativ in nahoraData) {
+                        var valor = nahoraData[ativ];
+                        if (Array.isArray(valor)) {
+                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
+                        } else if (valor && typeof valor === 'object') {
+                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
+                        }
                         nahoraTotal += valor;
                         html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
                     }
                 }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr></tbody></table></div>';
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr>';
+                html += '</tbody></table></div>';
             }
-
+            
             if (setor === null) {
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal)) + '</div>';
+                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal));
+                html += '</div>';
             }
+            
             container.innerHTML = html;
         }
-
+        
         document.getElementById("modalEstatistica").style.display = "block";
         anoEstatisticaSelecionado = ano;
+        
     } catch(e) {
         console.warn('Erro ao abrir modal indicador:', e.message);
         feedback("Erro ao abrir modal!");
@@ -479,42 +1110,96 @@ function fecharModalEstatistica() {
     document.getElementById("modalEstatistica").style.display = "none";
 }
 
-// ==================== GRÁFICO EVOLUÇÃO ANUAL (MODAL AMPLIADO) ====================
+// ==================== FUNÇÃO AUXILIAR ====================
+function getLotacaoServidorPorNome(nome) {
+    var idx = servidores.indexOf(nome);
+    if (idx !== -1) {
+        return lotacoes[idx] || "SEATE";
+    }
+    return "SEATE";
+}
+
+// ============================================================
+// GRÁFICO DE EVOLUÇÃO ANUAL
+// ============================================================
 function criarGraficoEvolucao() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
     var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
     var anos = getAnosDisponiveis();
     var valoresTotais = [];
-
+    
     async function montar() {
-        for (var i = 0; i < anos.length; i++) {
-            var totaisAno = await obterSeateNahoraPorAno(anos[i]);
-            valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
-        }
-        var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
-        if (window.chartEvolucao) { window.chartEvolucao.destroy(); window.chartEvolucao = null; }
-        window.chartEvolucao = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: anos, datasets: [{ label: 'TOTAL GERAL (SEATE + NAHORA)', data: valoresTotais, backgroundColor: cores, borderColor: cores, borderWidth: 2, borderRadius: 6 }] },
-            plugins: [valorTopoPlugin],
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
-                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
+    for (var i = 0; i < anos.length; i++) {
+        var ano = anos[i];
+        var totaisAno = await obterSeateNahoraPorAno(ano);
+        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+    }
+    
+    var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
+    
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
+    }
+    
+    window.chartEvolucao = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: anos,
+            datasets: [{
+                label: 'TOTAL GERAL (SEATE + NAHORA)',
+                data: valoresTotais,
+                backgroundColor: cores,
+                borderColor: cores.map(c => c),
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        plugins: [valorTopoPlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: { 
+                        boxWidth: 14, 
+                        padding: 12, 
+                        font: { size: 11, weight: 'bold' },
+                        color: '#0F2D52'
+                    }
                 },
-                scales: {
-                    y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 10 } } },
-                    x: { ticks: { font: { size: 11, weight: 'bold' } } }
-                },
-                onClick: function(event, elements) {
-                    if (elements.length > 0) {
-                        var anosAtuais = getAnosDisponiveis();
-                        abrirModalIndicador(anosAtuais[elements[0].index], null);
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + formatarMilhar(context.parsed.y);
+                        }
                     }
                 }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return formatarMilhar(value); },
+                        font: { size: 10 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 11, weight: 'bold' } }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    var index = elements[0].index;
+                    var anos = getAnosDisponiveis();
+                    var ano = anos[index];
+                    abrirModalIndicador(ano, null);
+                }
             }
-        });
+        }
+    });
     }
     montar();
 }
@@ -522,7 +1207,9 @@ function criarGraficoEvolucao() {
 function abrirModalGraficoEvolucao() {
     try {
         document.getElementById("modalGraficoEvolucao").style.display = "block";
-        setTimeout(function() { criarGraficoEvolucao(); }, 300);
+        setTimeout(function() {
+            criarGraficoEvolucao();
+        }, 300);
     } catch(e) {
         console.warn('Erro ao abrir gráfico evolucao:', e.message);
         feedback("Erro ao abrir gráfico!");
@@ -531,105 +1218,199 @@ function abrirModalGraficoEvolucao() {
 
 function fecharModalGraficoEvolucao() {
     document.getElementById("modalGraficoEvolucao").style.display = "none";
-    if (window.chartEvolucao) { window.chartEvolucao.destroy(); window.chartEvolucao = null; }
-}
-
-// ==================== GRÁFICO ANUAL (CARD PEQUENO) ====================
-function criarGraficoAnual() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
-    var ctx = document.getElementById('graficoAnual').getContext('2d');
-    var anos = getAnosDisponiveis();
-    var valoresTotais = [];
-
-    async function montar() {
-        for (var i = 0; i < anos.length; i++) {
-            var totaisAno = await obterSeateNahoraPorAno(anos[i]);
-            valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
-        }
-        var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
-        if (window.chartAnual) { window.chartAnual.destroy(); }
-        window.chartAnual = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: anos, datasets: [{ label: 'TOTAL GERAL (SEATE + NAHORA)', data: valoresTotais, backgroundColor: cores, borderColor: cores, borderWidth: 2, borderRadius: 6 }] },
-            plugins: [valorTopoPlugin],
-            options: {
-                responsive: true, maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: true, position: 'top', labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: 'bold' }, color: '#0F2D52' } },
-                    tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
-                },
-                scales: {
-                    y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } },
-                    x: { ticks: { font: { size: 10 } } }
-                },
-                onClick: function(event, elements) {
-                    if (elements.length > 0) {
-                        var anosAtuais = getAnosDisponiveis();
-                        abrirModalIndicador(anosAtuais[elements[0].index], null);
-                    }
-                }
-            }
-        });
+    if (window.chartEvolucao) {
+        window.chartEvolucao.destroy();
+        window.chartEvolucao = null;
     }
-    montar();
 }
 
-// ==================== GRÁFICO TOP 10 ATIVIDADES (TODOS OS ANOS) ====================
-async function criarGraficoTop10() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
-    var ctx = document.getElementById('graficoTop10').getContext('2d');
-    var todasAtividades = {};
-    var anos = getAnosDisponiveis();
-    var totaisAnoAtual = await obterTotaisAnoAtual();
 
-    for (var a = 0; a < anos.length; a++) {
-        var ano = anos[a];
-        if (ano === ANO_ATUAL) {
-            for (var ativ in totaisAnoAtual.porAtividadeSeate) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
-            for (var ativ in totaisAnoAtual.porAtividadeNahora) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
-            var manualAnoAtualTop10 = await obterDadosAno(ANO_ATUAL);
-            if (manualAnoAtualTop10) {
-                for (var ativM in (manualAnoAtualTop10.SEATE || {})) {
-                    for (var mM in manualAnoAtualTop10.SEATE[ativM]) { todasAtividades[ativM] = (todasAtividades[ativM] || 0) + (manualAnoAtualTop10.SEATE[ativM][mM] || 0); }
-                }
-                for (var ativM2 in (manualAnoAtualTop10.NAHORA || {})) {
-                    for (var mM2 in manualAnoAtualTop10.NAHORA[ativM2]) { todasAtividades[ativM2] = (todasAtividades[ativM2] || 0) + (manualAnoAtualTop10.NAHORA[ativM2][mM2] || 0); }
-                }
-            }
-            continue;
+// ============================================================
+// GRÁFICO TOP 10 ATIVIDADES - CONFIGURÁVEL (setor + período)
+// ============================================================
+function renderizarSelectsAnoTop10Config() {
+    var anos = getAnosDisponiveis();
+    var selectDe = document.getElementById("selectAnoDeTop10Config");
+    var selectAte = document.getElementById("selectAnoAteTop10Config");
+    if (!selectDe || !selectAte) return;
+    var html = '';
+    for (var i = 0; i < anos.length; i++) { html += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selectDe.innerHTML = html;
+    selectAte.innerHTML = html;
+    // Padrão: só o ano corrente (não acumulado)
+    selectDe.value = ANO_ATUAL;
+    selectAte.value = ANO_ATUAL;
+}
+
+async function atualizarGraficoTop10Config() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+
+    var setor = document.getElementById("selectSetorTop10Config").value;
+    var anoDe = parseInt(document.getElementById("selectAnoDeTop10Config").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteTop10Config").value);
+    if (anoDe > anoAte) { var tmp = anoDe; anoDe = anoAte; anoAte = tmp; }
+
+    var ctx = document.getElementById('graficoTop10Config').getContext('2d');
+    var todasAtividades = {};
+
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var anoStr = String(ano);
+        var seateTotais = {}, nahoraTotais = {};
+
+        if (anoStr === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
         }
-        var dadosAno = await obterDadosAno(ano);
-        if (!dadosAno) continue;
-        if (dadosAno["SEATE"]) {
-            for (var ativ in dadosAno["SEATE"]) {
-                var valor = dadosAno["SEATE"][ativ];
-                if (Array.isArray(valor)) valor = valor.reduce(function(s, v) { return s + v; }, 0);
-                else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
-                todasAtividades[ativ] = (todasAtividades[ativ] || 0) + valor;
+        var manualAno = await obterDadosAno(anoStr);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
+                seateTotais[ativM] = (seateTotais[ativM] || 0) + t;
+            }
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
+                nahoraTotais[ativM2] = (nahoraTotais[ativM2] || 0) + t2;
             }
         }
-        if (dadosAno["NAHORA"]) {
-            for (var ativ in dadosAno["NAHORA"]) {
-                var valor = dadosAno["NAHORA"][ativ];
-                if (Array.isArray(valor)) valor = valor.reduce(function(s, v) { return s + v; }, 0);
-                else if (valor && typeof valor === 'object') valor = Object.values(valor).reduce(function(s, v) { return s + v; }, 0);
-                todasAtividades[ativ] = (todasAtividades[ativ] || 0) + valor;
+
+        if (setor === "ambos" || setor === "SEATE") {
+            for (var ativ in seateTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + seateTotais[ativ]; }
+        }
+        if (setor === "ambos" || setor === "NAHORA") {
+            for (var ativ in nahoraTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + nahoraTotais[ativ]; }
+        }
+    }
+
+    var items = [];
+    for (var ativ in todasAtividades) { if (todasAtividades[ativ] > 0) items.push({ nome: ativ, total: todasAtividades[ativ] }); }
+    items.sort(function(a, b) { return b.total - a.total; });
+    var top10 = items.slice(0, 10);
+
+    var labels = top10.map(function(item) { return item.nome; });
+    var valores = top10.map(function(item) { return item.total; });
+    var coresTop10 = gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, valores.length || 1);
+
+    var periodoTexto = (anoDe === anoAte) ? String(anoDe) : (anoDe + ' a ' + anoAte + ', acumulado');
+    var setorTexto = (setor === "ambos") ? "SEATE + NAHORA" : setor;
+    document.querySelector('#graficoTop10ConfigCard h4').textContent = 'Top 10 Atividades Mais Realizadas — ' + periodoTexto + ' (' + setorTexto + ')';
+
+    if (window.chartTop10Config) { window.chartTop10Config.destroy(); }
+
+    if (top10.length === 0) {
+        window.chartTop10Config = null;
+        ctx.canvas.parentElement.querySelectorAll('.sem-dados-top10-config').forEach(function(el) { el.remove(); });
+        var aviso = document.createElement('div');
+        aviso.className = 'sem-dados-top10-config';
+        aviso.style.cssText = 'text-align:center; padding:30px; color:#888;';
+        aviso.textContent = 'Nenhum dado encontrado para esse setor/período.';
+        ctx.canvas.style.display = 'none';
+        ctx.canvas.parentElement.appendChild(aviso);
+        return;
+    }
+    ctx.canvas.style.display = '';
+    var avisoExistente = ctx.canvas.parentElement.querySelector('.sem-dados-top10-config');
+    if (avisoExistente) avisoExistente.remove();
+
+    window.chartTop10Config = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Total no período', data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
+        plugins: [valorTopoPlugin],
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
+            },
+            scales: {
+                y: { ticks: { font: { size: 9 } } },
+                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
+        }
+    });
+}
+
+
+// ============================================================
+// GRÁFICO TOP 10 SERVIÇOS MENOS REALIZADOS - CONFIGURÁVEL (setor + período)
+// ============================================================
+function renderizarSelectsAnoTop10MenosConfig() {
+    var anos = getAnosDisponiveis();
+    var selectDe = document.getElementById("selectAnoDeTop10MenosConfig");
+    var selectAte = document.getElementById("selectAnoAteTop10MenosConfig");
+    if (!selectDe || !selectAte) return;
+    var html = '';
+    for (var i = 0; i < anos.length; i++) { html += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selectDe.innerHTML = html;
+    selectAte.innerHTML = html;
+    selectDe.value = anos[0];
+    selectAte.value = ANO_ATUAL;
+}
+
+async function atualizarGraficoTop10MenosConfig() {
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
+
+    var setor = document.getElementById("selectSetorTop10MenosConfig").value;
+    var anoDe = parseInt(document.getElementById("selectAnoDeTop10MenosConfig").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteTop10MenosConfig").value);
+    if (anoDe > anoAte) { var tmp = anoDe; anoDe = anoAte; anoAte = tmp; }
+
+    var ctx = document.getElementById('graficoTop10MenosConfig').getContext('2d');
+    var todasAtividades = {};
+    atividades.forEach(function(nome) { todasAtividades[nome] = 0; }); // inclui as com zero (nunca realizadas)
+
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var anoStr = String(ano);
+        var seateTotais = {}, nahoraTotais = {};
+
+        if (anoStr === ANO_ATUAL) {
+            var totaisAnoAtual = await obterTotaisAnoAtual();
+            for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
+            for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+        }
+        var manualAno = await obterDadosAno(anoStr);
+        if (manualAno) {
+            for (var ativM in (manualAno.SEATE || {})) {
+                var t = 0; for (var m in manualAno.SEATE[ativM]) t += manualAno.SEATE[ativM][m] || 0;
+                seateTotais[ativM] = (seateTotais[ativM] || 0) + t;
+            }
+            for (var ativM2 in (manualAno.NAHORA || {})) {
+                var t2 = 0; for (var m2 in manualAno.NAHORA[ativM2]) t2 += manualAno.NAHORA[ativM2][m2] || 0;
+                nahoraTotais[ativM2] = (nahoraTotais[ativM2] || 0) + t2;
+            }
+        }
+
+        if (setor === "ambos" || setor === "SEATE") {
+            for (var ativ in seateTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + seateTotais[ativ]; }
+        }
+        if (setor === "ambos" || setor === "NAHORA") {
+            for (var ativ in nahoraTotais) { todasAtividades[ativ] = (todasAtividades[ativ] || 0) + nahoraTotais[ativ]; }
         }
     }
 
     var items = [];
     for (var ativ in todasAtividades) { items.push({ nome: ativ, total: todasAtividades[ativ] }); }
-    items.sort(function(a, b) { return b.total - a.total; });
-    var top10 = items.slice(0, 10);
-    var labels = top10.map(function(item) { return item.nome; });
-    var valores = top10.map(function(item) { return item.total; });
-    var coresTop10 = gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, valores.length);
+    items.sort(function(a, b) { return a.total - b.total; }); // ascendente: menos realizadas primeiro
+    var menos10 = items.slice(0, 10);
 
-    if (window.chartTop10) { window.chartTop10.destroy(); }
-    window.chartTop10 = new Chart(ctx, {
+    var labels = menos10.map(function(item) { return item.nome; });
+    var valores = menos10.map(function(item) { return item.total; });
+    var coresMenos10 = gerarCoresDegrade({ r: 34, g: 139, b: 87 }, { r: 8, g: 61, b: 119 }, valores.length || 1);
+
+    var periodoTexto = (anoDe === anoAte) ? String(anoDe) : (anoDe + ' a ' + anoAte + ', acumulado');
+    var setorTexto = (setor === "ambos") ? "SEATE + NAHORA" : setor;
+    document.querySelector('#graficoTop10MenosConfigCard h4').textContent = 'Top 10 Serviços Menos Realizados — ' + periodoTexto + ' (' + setorTexto + ')';
+
+    if (window.chartTop10MenosConfig) { window.chartTop10MenosConfig.destroy(); }
+
+    if (menos10.length === 0) {
+        window.chartTop10MenosConfig = null;
+        return;
+    }
+
+    window.chartTop10MenosConfig = new Chart(ctx, {
         type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'Total (2022-' + ANO_ATUAL + ')', data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
+        data: { labels: labels, datasets: [{ label: 'Total no período', data: valores, backgroundColor: coresMenos10, borderColor: coresMenos10, borderWidth: 1 }] },
         plugins: [valorTopoPlugin],
         options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: true,
@@ -638,106 +1419,1273 @@ async function criarGraficoTop10() {
                 tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
             },
             scales: {
-                y: { ticks: { font: { size: 8 } } },
+                y: { ticks: { font: { size: 9 } } },
                 x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
             }
         }
     });
 }
 
-// ==================== GRÁFICO TOP 10 SERVIÇOS DO ANO ATUAL ====================
-async function criarGraficoTop10ServicosAnoAtual() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
-    var ctx = document.getElementById('graficoTop10ServicosAnoAtual').getContext('2d');
-    var totaisAnoAtual = await obterTotaisAnoAtual();
-    var totaisAtividades = {};
-    for (var ativ in totaisAnoAtual.porAtividadeSeate) { totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
-    for (var ativ in totaisAnoAtual.porAtividadeNahora) { totaisAtividades[ativ] = (totaisAtividades[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
 
-    var items = [];
-    for (var ativ in totaisAtividades) { items.push({ nome: ativ, total: totaisAtividades[ativ] }); }
-    items.sort(function(a, b) { return b.total - a.total; });
-    var top10 = items.slice(0, 10);
-    var labels = top10.map(function(item) { return item.nome; });
-    var valores = top10.map(function(item) { return item.total; });
-    var coresTop10 = gerarCoresDegrade({ r: 255, g: 179, b: 71 }, { r: 220, g: 38, b: 38 }, valores.length);
-
-    if (window.chartTop10ServicosAnoAtual) { window.chartTop10ServicosAnoAtual.destroy(); }
-    window.chartTop10ServicosAnoAtual = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'Total ' + ANO_ATUAL, data: valores, backgroundColor: coresTop10, borderColor: coresTop10, borderWidth: 1 }] },
-        plugins: [valorTopoPlugin],
-        options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.x); } } }
-            },
-            scales: {
-                y: { ticks: { font: { size: 8 } } },
-                x: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } }
-            }
-        }
-    });
-}
-
-// ==================== GRÁFICO MENSAL DO ANO ATUAL ====================
+// ============================================================
+// GRÁFICO MENSAL DO ANO ATUAL
+// ============================================================
 async function criarGraficoMensalAnoAtual() {
-    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexao."); return; }
+    if (typeof Chart === 'undefined') { feedback("Não foi possível carregar os gráficos. Verifique sua conexão."); return; }
     var ctx = document.getElementById('graficoMensalAnoAtual').getContext('2d');
     var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     var mesesCompletos = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    
     var dadosMensais = await calcularDadosMensaisAnoAtual();
     var valores = [];
-    for (var i = 0; i < mesesCompletos.length; i++) { valores.push(dadosMensais[mesesCompletos[i]] || 0); }
+    
+    for (var i = 0; i < mesesCompletos.length; i++) {
+        valores.push(dadosMensais[mesesCompletos[i]] || 0);
+    }
+    
     var coresMensal = ['#B3D4F0','#8BB8E0','#639CD0','#3B80C0','#1A5EA8','#0F2D52','#1A5EA8','#3B80C0','#639CD0','#8BB8E0','#B3D4F0','#D0E8F5'];
-
+    
     if (window.chartMensalAnoAtual) { window.chartMensalAnoAtual.destroy(); }
+    
     window.chartMensalAnoAtual = new Chart(ctx, {
         type: 'bar',
-        data: { labels: meses, datasets: [{ label: 'Atividades ' + ANO_ATUAL + ' (SEATE + NAHORA)', data: valores, backgroundColor: coresMensal, borderColor: coresMensal, borderWidth: 1 }] },
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Atividades ' + ANO_ATUAL + ' (SEATE + NAHORA)',
+                data: valores,
+                backgroundColor: coresMensal,
+                borderColor: coresMensal,
+                borderWidth: 1
+            }]
+        },
         plugins: [valorTopoPlugin],
         options: {
-            responsive: true, maintainAspectRatio: true,
+            responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: function(context) { return 'Total: ' + formatarMilhar(context.parsed.y); } } }
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: ' + formatarMilhar(context.parsed.y);
+                        }
+                    }
+                }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { callback: function(value) { return formatarMilhar(value); }, font: { size: 9 } } },
-                x: { ticks: { font: { size: 9 } } }
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return formatarMilhar(value); },
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 9 } }
+                }
             }
         }
     });
 }
 
-// ==================== INICIALIZAÇÃO (sem login, sem carregarDados()) ====================
-async function iniciarPaginaDashboard() {
-    document.getElementById("tituloTop10Geral").textContent = "Top 10 Atividades Mais Realizadas (2022-" + ANO_ATUAL + ")";
-    document.getElementById("tituloTop10ServicosAnoAtual").textContent = "Top 10 Serviços Mais Executados em " + ANO_ATUAL;
-    document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
-    await renderizarIndicadores();
-    criarGraficoAnual();
-    criarGraficoTop10();
-    criarGraficoTop10ServicosAnoAtual();
-    criarGraficoMensalAnoAtual();
+// ============================================================
+// FUNÇÕES: RESULTADOS POR ATIVIDADE
+// ============================================================
+
+// Variáveis para armazenar os dados filtrados atuais
+var dadosFiltradosAtuais = {};
+
+// ==================== CARREGAR ATIVIDADES NO SELECT ====================
+// ==================== CARREGAR ANOS NO SELECT DE RESULTADOS ====================
+function renderizarSelectsPeriodoResultado() {
+    var anos = getAnosDisponiveis();
+    var selAnoDe = document.getElementById("selectAnoDeResultado");
+    var selAnoAte = document.getElementById("selectAnoAteResultado");
+    if (!selAnoDe || !selAnoAte) return;
+    var htmlAnos = '';
+    for (var i = 0; i < anos.length; i++) { htmlAnos += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selAnoDe.innerHTML = htmlAnos;
+    selAnoAte.innerHTML = htmlAnos;
+    selAnoDe.value = ANO_ATUAL;
+    selAnoAte.value = ANO_ATUAL;
+
+    var selMesDe = document.getElementById("selectMesDeResultado");
+    var selMesAte = document.getElementById("selectMesAteResultado");
+    var htmlMeses = '';
+    for (var m = 0; m < MESES_NOMES_RELATORIO.length; m++) { htmlMeses += '<option value="' + m + '">' + MESES_NOMES_RELATORIO[m] + '</option>'; }
+    selMesDe.innerHTML = htmlMeses;
+    selMesAte.innerHTML = htmlMeses;
+    selMesDe.value = 0;
+    selMesAte.value = 11;
 }
-iniciarPaginaDashboard();
 
-// Atualiza os números do ano atual periodicamente (a cada 5 minutos),
-// sem precisar recarregar a página.
-setInterval(function() {
-    invalidarCacheDados2024();
-    _totaisAnoAtualPromise = null;
-    iniciarPaginaDashboard();
-}, 5 * 60 * 1000);
+function togglePill(el) {
+    el.classList.toggle('selecionado');
+    var dropdown = el.closest('.dropdown-select');
+    if (dropdown) { atualizarLabelDropdown(dropdown); }
+}
 
-window.onclick = function(event) {
-    var modalEst = document.getElementById("modalEstatistica");
-    var modalEvo = document.getElementById("modalGraficoEvolucao");
-    if (event.target === modalEst) { fecharModalEstatistica(); }
-    if (event.target === modalEvo) { fecharModalGraficoEvolucao(); }
-};
+// Abre/fecha o menu "sanfona" (o painel só aparece ao clicar no campo)
+function toggleDropdownSelect(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var jaAberto = el.classList.contains('aberto');
+    document.querySelectorAll('.dropdown-select.aberto').forEach(function(d) { d.classList.remove('aberto'); });
+    if (!jaAberto) { el.classList.add('aberto'); }
+}
+
+// Fecha qualquer menu aberto ao clicar fora dele
+document.addEventListener('click', function(e) {
+    document.querySelectorAll('.dropdown-select.aberto').forEach(function(d) {
+        if (!d.contains(e.target)) { d.classList.remove('aberto'); }
+    });
+});
+
+// Atualiza o texto do campo fechado (ex.: "2 selecionados") conforme a
+// marcação de itens dentro do painel
+function atualizarLabelDropdown(dropdownEl) {
+    var labelEl = dropdownEl.querySelector('.dropdown-trigger span:first-child');
+    if (!labelEl) return;
+    var selecionados = dropdownEl.querySelectorAll('.pill-item.selecionado').length;
+    var textoPadrao = dropdownEl.getAttribute('data-label-padrao') || 'Selecione...';
+    if (selecionados === 0) { labelEl.textContent = textoPadrao; }
+    else if (selecionados === 1) {
+        var nomeUnico = dropdownEl.querySelector('.pill-item.selecionado').getAttribute('data-value');
+        labelEl.textContent = nomeUnico;
+    } else {
+        labelEl.textContent = selecionados + ' selecionados';
+    }
+}
+
+function carregarAtividadesSelect() {
+    var container = document.getElementById("multiSelectAtividadeResultado");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < atividades.length; i++) {
+        var nome = atividades[i];
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
+    }
+    if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+    container.innerHTML = html;
+}
+
+// ==================== FILTRAR RESULTADOS (múltiplas atividades, período flexível) ====================
+async function filtrarResultados() {
+    var anoDe = parseInt(document.getElementById("selectAnoDeResultado").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteResultado").value);
+    var mesDe = parseInt(document.getElementById("selectMesDeResultado").value);
+    var mesAte = parseInt(document.getElementById("selectMesAteResultado").value);
+    var setor = document.getElementById("selectSetorResultado").value;
+    if (anoDe > anoAte) { var tA = anoDe; anoDe = anoAte; anoAte = tA; }
+    if (anoDe === anoAte && mesDe > mesAte) { var tM = mesDe; mesDe = mesAte; mesAte = tM; }
+
+    var atividadesSelecionadas = Array.prototype.map.call(
+        document.querySelectorAll('#multiSelectAtividadeResultado .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
+    );
+    var listaAtividades = atividadesSelecionadas.length > 0 ? atividadesSelecionadas : atividades.slice();
+
+    if (listaAtividades.length === 0) {
+        feedback("Nenhuma atividade cadastrada para consultar!");
+        return;
+    }
+
+    var periodoTexto = (anoDe === anoAte)
+        ? anoDe + ' (' + MESES_NOMES_RELATORIO[mesDe] + (mesDe === mesAte ? '' : ' a ' + MESES_NOMES_RELATORIO[mesAte]) + ')'
+        : (anoDe + '-' + MESES_NOMES_RELATORIO[mesDe] + ' até ' + anoAte + '-' + MESES_NOMES_RELATORIO[mesAte]);
+    document.getElementById("tituloResultadoAtividade").textContent = "RESULTADOS: " + listaAtividades.length + " atividade(s) — " + periodoTexto;
+
+    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Carregando...</div>';
+
+    var resultado = await buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, mesAte, setor);
+    dadosFiltradosAtuais = resultado;
+
+    renderizarTabelaResultadosMulti(resultado, setor);
+    renderizarResumoAnaliticoMulti(resultado, setor, periodoTexto);
+}
+
+// Monta o intervalo (ano, mesIndex) a percorrer entre anoDe/mesDe e anoAte/mesAte
+function montarIntervaloAnoMes(anoDe, anoAte, mesDe, mesAte) {
+    var pontos = [];
+    for (var ano = anoDe; ano <= anoAte; ano++) {
+        var inicio = (ano === anoDe) ? mesDe : 0;
+        var fim = (ano === anoAte) ? mesAte : 11;
+        for (var m = inicio; m <= fim; m++) { pontos.push({ ano: ano, mes: m }); }
+    }
+    return pontos;
+}
+
+// ==================== BUSCAR DADOS DE VÁRIAS ATIVIDADES NUM PERÍODO ====================
+async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, mesAte, setor) {
+    var pontos = montarIntervaloAnoMes(anoDe, anoAte, mesDe, mesAte);
+    var porAno = {}; // cache: ano -> {isAnoAtual, totaisAnoAtual, dadosAno}
+
+    async function obterFonteAno(ano) {
+        if (porAno[ano]) return porAno[ano];
+        var anoStr = String(ano);
+        var isAnoAtual = (anoStr === ANO_ATUAL);
+        var fonte = {
+            isAnoAtual: isAnoAtual,
+            totaisAnoAtual: isAnoAtual ? await obterTotaisAnoAtual() : null,
+            dadosAno: await obterDadosAno(anoStr)
+        };
+        porAno[ano] = fonte;
+        return fonte;
+    }
+
+    var porAtividade = [];
+    var totalGeralGeral = 0, totalSeateGeralGeral = 0, totalNahoraGeralGeral = 0;
+
+    for (var a = 0; a < listaAtividades.length; a++) {
+        var atividade = listaAtividades[a];
+        var linhas = [];
+        var totalSeateAtiv = 0, totalNahoraAtiv = 0;
+
+        for (var p = 0; p < pontos.length; p++) {
+            var ano = pontos[p].ano;
+            var mesIndex = pontos[p].mes;
+            var mesNome = MESES_NOMES_RELATORIO[mesIndex];
+            var fonte = await obterFonteAno(ano);
+            var valorSeate = 0, valorNahora = 0;
+
+            if (fonte.isAnoAtual) {
+                var porMesSeate = fonte.totaisAnoAtual.porAtividadeMesSeate[atividade] || {};
+                var porMesNahora = fonte.totaisAnoAtual.porAtividadeMesNahora[atividade] || {};
+                valorSeate += porMesSeate[mesNome] || 0;
+                valorNahora += porMesNahora[mesNome] || 0;
+            }
+            if (fonte.dadosAno) {
+                var seateData = fonte.dadosAno["SEATE"] || {};
+                var nahoraData = fonte.dadosAno["NAHORA"] || {};
+                valorSeate += (seateData[atividade] && seateData[atividade][mesNome]) || 0;
+                valorNahora += (nahoraData[atividade] && nahoraData[atividade][mesNome]) || 0;
+            }
+
+            if (setor === "SEATE") valorNahora = 0;
+            else if (setor === "NAHORA") valorSeate = 0;
+
+            var total = valorSeate + valorNahora;
+            if (total > 0) {
+                linhas.push({ ano: ano, mesNome: mesNome, seate: valorSeate, nahora: valorNahora, total: total });
+            }
+            totalSeateAtiv += valorSeate;
+            totalNahoraAtiv += valorNahora;
+        }
+
+        var totalAtiv = totalSeateAtiv + totalNahoraAtiv;
+        if (totalAtiv > 0) {
+            porAtividade.push({ nome: atividade, linhas: linhas, totalSeate: totalSeateAtiv, totalNahora: totalNahoraAtiv, total: totalAtiv });
+        }
+        totalGeralGeral += totalAtiv;
+        totalSeateGeralGeral += totalSeateAtiv;
+        totalNahoraGeralGeral += totalNahoraAtiv;
+    }
+
+    porAtividade.sort(function(a, b) { return b.total - a.total; });
+
+    return {
+        porAtividade: porAtividade,
+        totalGeral: totalGeralGeral,
+        totalSeate: totalSeateGeralGeral,
+        totalNahora: totalNahoraGeralGeral
+    };
+}
+
+// ==================== RENDERIZAR TABELA DE RESULTADOS (múltiplas atividades) ====================
+function renderizarTabelaResultadosMulti(resultado, setor) {
+    var container = document.getElementById("containerTabelaResultados");
+
+    if (resultado.porAtividade.length === 0 || resultado.totalGeral === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhum dado encontrado para os filtros selecionados.</div>';
+        return;
+    }
+
+    var html = '';
+    for (var a = 0; a < resultado.porAtividade.length; a++) {
+        var bloco = resultado.porAtividade[a];
+        html += '<div class="relatorio-servidor-bloco">';
+        html += '<h4>' + escapeHtml(bloco.nome) + '</h4>';
+        html += '<table class="tabela-resultados"><thead><tr><th>Ano/Mes</th>';
+        if (setor === "ambos" || setor === "SEATE") html += '<th>SEATE</th>';
+        if (setor === "ambos" || setor === "NAHORA") html += '<th>NAHORA</th>';
+        html += '<th>TOTAL</th></tr></thead><tbody>';
+        for (var i = 0; i < bloco.linhas.length; i++) {
+            var item = bloco.linhas[i];
+            html += '<tr><td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
+            if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(item.seate) + '</td>';
+            if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(item.nahora) + '</td>';
+            html += '<td>' + formatarMilhar(item.total) + '</td></tr>';
+        }
+        html += '<tr class="total-row"><td><strong>SUBTOTAL</strong></td>';
+        if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(bloco.totalSeate) + '</td>';
+        if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(bloco.totalNahora) + '</td>';
+        html += '<td>' + formatarMilhar(bloco.total) + '</td></tr>';
+        html += '</tbody></table></div>';
+    }
+
+    html += '<div style="margin-top:8px; padding:14px; background:var(--destaque); border-radius:14px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
+    html += 'TOTAL GERAL DO PERÍODO: ' + formatarMilhar(resultado.totalGeral);
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// ==================== RESUMO ANALÍTICO (múltiplas atividades) ====================
+function renderizarResumoAnaliticoMulti(resultado, setor, periodoTexto) {
+    var container = document.getElementById("resumoAnaliticoAtividade");
+
+    if (resultado.porAtividade.length === 0 || resultado.totalGeral === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    var total = resultado.totalGeral;
+    var percentSeate = total > 0 ? Math.round((resultado.totalSeate / total) * 100) : 0;
+    var percentNahora = total > 0 ? Math.round((resultado.totalNahora / total) * 100) : 0;
+    var maisRealizada = resultado.porAtividade[0];
+    var menosRealizada = resultado.porAtividade[resultado.porAtividade.length - 1];
+
+    var html = '<div class="resumo-atividade">';
+    html += '<h4>Resumo Analítico — ' + escapeHtml(periodoTexto) + '</h4>';
+    html += '<p><strong>Atividades no resultado:</strong> ' + resultado.porAtividade.length + '</p>';
+    html += '<p><strong>Total geral:</strong> ' + formatarMilhar(total) + '</p>';
+    html += '<p><strong>Distribuicao:</strong> SEATE ' + percentSeate + '% | NAHORA ' + percentNahora + '%</p>';
+    html += '<p><strong>Atividade com mais volume:</strong> ' + escapeHtml(maisRealizada.nome) + ' (' + formatarMilhar(maisRealizada.total) + ')</p>';
+    if (resultado.porAtividade.length > 1) {
+        html += '<p><strong>Atividade com menos volume (no resultado):</strong> ' + escapeHtml(menosRealizada.nome) + ' (' + formatarMilhar(menosRealizada.total) + ')</p>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+
+async function buscarDadosAtividade(atividade, ano, mes, setor) {
+    var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    var resultados = [];
+    var totalSeate = 0;
+    var totalNahora = 0;
+    var totalGeral = 0;
+    var isAnoAtual = (ano === parseInt(ANO_ATUAL));
+    var totaisAnoAtual = isAnoAtual ? await obterTotaisAnoAtual() : null;
+    
+    var mesesExibir = [];
+    if (mes === "todos") {
+        for (var i = 0; i < 12; i++) {
+            mesesExibir.push(i);
+        }
+    } else {
+        mesesExibir.push(parseInt(mes));
+    }
+    
+    for (var m = 0; m < mesesExibir.length; m++) {
+        var mesIndex = mesesExibir[m];
+        var mesNome = meses[mesIndex];
+        var valorSeate = 0;
+        var valorNahora = 0;
+        
+        if (isAnoAtual) {
+            var porMesSeate = totaisAnoAtual.porAtividadeMesSeate[atividade] || {};
+            var porMesNahora = totaisAnoAtual.porAtividadeMesNahora[atividade] || {};
+            valorSeate = porMesSeate[mesNome] || 0;
+            valorNahora = porMesNahora[mesNome] || 0;
+        } else {
+            var dadosAno = await obterDadosAno(ano);
+            if (dadosAno) {
+                var seateData = dadosAno["SEATE"] || {};
+                var nahoraData = dadosAno["NAHORA"] || {};
+                valorSeate = (seateData[atividade] && seateData[atividade][mesNome]) || 0;
+                valorNahora = (nahoraData[atividade] && nahoraData[atividade][mesNome]) || 0;
+            }
+        }
+        
+        if (setor === "SEATE") {
+            valorNahora = 0;
+        } else if (setor === "NAHORA") {
+            valorSeate = 0;
+        }
+        
+        var total = valorSeate + valorNahora;
+        
+        resultados.push({
+            ano: ano,
+            mes: mesIndex,
+            mesNome: mesNome,
+            seate: valorSeate,
+            nahora: valorNahora,
+            total: total,
+            key: ano + "-" + String(mesIndex + 1).padStart(2, "0")
+        });
+        
+        totalSeate += valorSeate;
+        totalNahora += valorNahora;
+        totalGeral += total;
+    }
+    
+    resultados.sort(function(a, b) { return a.mes - b.mes; });
+    
+    return {
+        dados: resultados,
+        totalSeate: totalSeate,
+        totalNahora: totalNahora,
+        totalGeral: totalGeral
+    };
+}
+
+// ==================== RENDERIZAR TABELA DE RESULTADOS ====================
+function renderizarTabelaResultados(dadosAtividade, atividade, setor) {
+    var container = document.getElementById("containerTabelaResultados");
+    var dados = dadosAtividade.dados;
+    
+    if (dados.length === 0 || dadosAtividade.totalGeral === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhum dado encontrado para os filtros selecionados.</div>';
+        return;
+    }
+    
+    var acumulado = 0;
+    var html = '<table class="tabela-resultados">';
+    html += '<thead><tr>';
+    html += '<th>Ano/Mes</th>';
+    
+    if (setor === "ambos" || setor === "SEATE") {
+        html += '<th>SEATE</th>';
+    }
+    if (setor === "ambos" || setor === "NAHORA") {
+        html += '<th>NAHORA</th>';
+    }
+    html += '<th>TOTAL</th>';
+    html += '<th>ACUMULADO</th>';
+    html += '</tr></thead><tbody>';
+    
+    for (var i = 0; i < dados.length; i++) {
+        var item = dados[i];
+        acumulado += item.total;
+        
+        // Pular meses com zero se não for 2026 (dados anuais)
+        if (dadosAtividade.totalGeral > 0) {
+            html += '<tr>';
+            html += '<td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
+            
+            if (setor === "ambos" || setor === "SEATE") {
+                html += '<td>' + formatarMilhar(item.seate) + '</td>';
+            }
+            if (setor === "ambos" || setor === "NAHORA") {
+                html += '<td>' + formatarMilhar(item.nahora) + '</td>';
+            }
+            html += '<td>' + formatarMilhar(item.total) + '</td>';
+            html += '<td>' + formatarMilhar(acumulado) + '</td>';
+            html += '</tr>';
+        }
+    }
+    
+    // Linha de total
+    html += '<tr class="total-row">';
+    html += '<td><strong>TOTAL</strong></td>';
+    
+    if (setor === "ambos" || setor === "SEATE") {
+        html += '<td>' + formatarMilhar(dadosAtividade.totalSeate) + '</td>';
+    }
+    if (setor === "ambos" || setor === "NAHORA") {
+        html += '<td>' + formatarMilhar(dadosAtividade.totalNahora) + '</td>';
+    }
+    html += '<td>' + formatarMilhar(dadosAtividade.totalGeral) + '</td>';
+    html += '<td>' + formatarMilhar(acumulado) + '</td>';
+    html += '</tr>';
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// ==================== RENDERIZAR RESUMO ANALÍTICO ====================
+function renderizarResumoAnalitico(dadosAtividade, atividade, setor) {
+    var container = document.getElementById("resumoAnaliticoAtividade");
+    var dados = dadosAtividade.dados;
+    
+    if (dados.length === 0 || dadosAtividade.totalGeral === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    var total = dadosAtividade.totalGeral;
+    var totalSeate = dadosAtividade.totalSeate;
+    var totalNahora = dadosAtividade.totalNahora;
+    var média = dados.length > 0 ? Math.round(total / dados.length) : 0;
+    
+    var maior = dados.reduce(function(a, b) { return a.total > b.total ? a : b; });
+    var menor = dados.reduce(function(a, b) { return a.total < b.total ? a : b; });
+    
+    var primeiro = dados[0];
+    var último = dados[dados.length - 1];
+    var variacao = primeiro.total > 0 ? Math.round(((último.total - primeiro.total) / primeiro.total) * 100) : 0;
+    
+    var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
+    var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
+    
+    var tendencia = '';
+    if (variacao > 10) tendencia = 'Crescimento significativo';
+    else if (variacao > 0) tendencia = 'Crescimento moderado';
+    else if (variacao < -10) tendencia = 'Declinio significativo';
+    else if (variacao < 0) tendencia = 'Declinio moderado';
+    else tendencia = 'Estavel';
+    
+    var html = '<div class="resumo-atividade">';
+    html += '<h4>Resumo Analítico: ' + escapeHtml(atividade) + '</h4>';
+    html += '<p><strong>Total de registros:</strong> ' + formatarMilhar(total) + '</p>';
+    html += '<p><strong>Média mensal:</strong> ' + formatarMilhar(média) + '</p>';
+    html += '<p><strong>Maior mes:</strong> ' + maior.ano + '-' + maior.mesNome + ' com ' + formatarMilhar(maior.total) + ' registros</p>';
+    html += '<p><strong>Menor mes:</strong> ' + menor.ano + '-' + menor.mesNome + ' com ' + formatarMilhar(menor.total) + ' registros</p>';
+    html += '<p><strong>Variacao:</strong> ' + (variacao > 0 ? '+' : '') + variacao + '% (' + tendencia + ')</p>';
+    html += '<p><strong>Distribuicao:</strong> SEATE ' + percentSeate + '% | NAHORA ' + percentNahora + '%</p>';
+    html += '<p><strong>Destaque:</strong> ';
+    
+    if (totalSeate > totalNahora) {
+        html += 'O setor SEATE responde por ' + percentSeate + '% das atividades, sendo o principal responsavel.';
+    } else if (totalNahora > totalSeate) {
+        html += 'O setor NAHORA responde por ' + percentNahora + '% das atividades, sendo o principal responsavel.';
+    } else {
+        html += 'Os setores SEATE e NAHORA tem participacao equilibrada.';
+    }
+    html += '</p>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// ==================== LIMPAR FILTROS ====================
+function limparFiltrosResultados() {
+    document.getElementById("selectAnoDeResultado").value = ANO_ATUAL;
+    document.getElementById("selectAnoAteResultado").value = ANO_ATUAL;
+    document.getElementById("selectMesDeResultado").value = 0;
+    document.getElementById("selectMesAteResultado").value = 11;
+    document.getElementById("selectSetorResultado").value = "ambos";
+    document.querySelectorAll('#multiSelectAtividadeResultado .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
+    atualizarLabelDropdown(document.getElementById("dropdownAtividadeResultado"));
+    document.getElementById("tituloResultadoAtividade").textContent = "";
+    document.getElementById("containerTabelaResultados").innerHTML = '<div style="text-align:center; padding: 40px; color: #888;">Selecione o período (e, se quiser, uma ou mais atividades) e clique em Filtrar para exibir os resultados.</div>';
+    document.getElementById("resumoAnaliticoAtividade").innerHTML = '';
+    dadosFiltradosAtuais = {};
+    feedback("Filtros limpos!");
+}
+
+// ============================================================
+// RELATÓRIO POR SERVIDOR (filtrável) — servidor(es) + período + atividades
+// ============================================================
+var MESES_NOMES_RELATORIO = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+// Mensagem dinâmica: busca no banco a data do registro mais antigo já
+// lançado por qualquer servidor (independente de ser início, meio ou
+// fim de ano) e monta o aviso a partir dela — nada fica fixo no código.
+async function atualizarAvisoInicioRegistros() {
+    var span = document.getElementById("textoAvisoInicioRegistros");
+    if (!span) return;
+    if (!supabaseDisponivel) {
+        span.textContent = "Não foi possível verificar a partir de quando existem registros (sem conexão com o servidor).";
+        return;
+    }
+    var dataMin = null;
+    try {
+        dataMin = await dbCarregarDataMaisAntigaRegistro();
+    } catch(e) {
+        console.warn('Erro ao verificar data mais antiga de registro:', e.message);
+    }
+    if (dataMin === null) {
+        span.textContent = "Não foi possível verificar a partir de quando existem registros. Tente recarregar a página.";
+        return;
+    }
+    if (dataMin === '') {
+        span.textContent = "Ainda não há nenhum registro lançado por servidores no sistema.";
+        return;
+    }
+    var partes = dataMin.split('-'); // formato YYYY-MM-DD
+    var ano = partes[0];
+    var mesIndex = parseInt(partes[1], 10) - 1;
+    var mesNome = MESES_NOMES_RELATORIO[mesIndex] || partes[1];
+    span.innerHTML = 'os dados por servidor existem a partir de <strong>' + mesNome + '/' + ano + '</strong> — quando o registro diário de atividades começou a ser usado. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais não têm vínculo com nenhum servidor específico).';
+}
+
+function renderizarMultiSelectServidoresRelatorio() {
+    var container = document.getElementById("multiSelectServidoresRelatorio");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < servidores.length; i++) {
+        var nome = servidores[i];
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
+    }
+    if (servidores.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhum servidor cadastrado</span>';
+    container.innerHTML = html;
+}
+
+function renderizarMultiSelectAtividadesRelatorio() {
+    var container = document.getElementById("multiSelectAtividadesRelatorio");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < atividades.length; i++) {
+        var nome = atividades[i];
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + '</span>';
+    }
+    if (atividades.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+    container.innerHTML = html;
+}
+
+function renderizarSelectsPeriodoServidorRelatorio() {
+    var anos = getAnosDisponiveis();
+    var selAnoDe = document.getElementById("selectAnoDeServidorRelatorio");
+    var selAnoAte = document.getElementById("selectAnoAteServidorRelatorio");
+    var htmlAnos = '';
+    for (var i = 0; i < anos.length; i++) { htmlAnos += '<option value="' + anos[i] + '">' + anos[i] + '</option>'; }
+    selAnoDe.innerHTML = htmlAnos;
+    selAnoAte.innerHTML = htmlAnos;
+    selAnoDe.value = ANO_ATUAL;
+    selAnoAte.value = ANO_ATUAL;
+
+    var selMesDe = document.getElementById("selectMesDeServidorRelatorio");
+    var selMesAte = document.getElementById("selectMesAteServidorRelatorio");
+    var htmlMeses = '';
+    for (var m = 0; m < MESES_NOMES_RELATORIO.length; m++) { htmlMeses += '<option value="' + m + '">' + MESES_NOMES_RELATORIO[m] + '</option>'; }
+    selMesDe.innerHTML = htmlMeses;
+    selMesAte.innerHTML = htmlMeses;
+    selMesDe.value = 0;
+    selMesAte.value = 11;
+}
+
+function limparFiltrosRelatorioServidor() {
+    document.querySelectorAll('#multiSelectServidoresRelatorio .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
+    document.querySelectorAll('#multiSelectAtividadesRelatorio .pill-item.selecionado').forEach(function(c) { c.classList.remove('selecionado'); });
+    atualizarLabelDropdown(document.getElementById("dropdownServidoresRelatorio"));
+    atualizarLabelDropdown(document.getElementById("dropdownAtividadesRelatorio"));
+    document.getElementById("selectAnoDeServidorRelatorio").value = ANO_ATUAL;
+    document.getElementById("selectAnoAteServidorRelatorio").value = ANO_ATUAL;
+    document.getElementById("selectMesDeServidorRelatorio").value = 0;
+    document.getElementById("selectMesAteServidorRelatorio").value = 11;
+    document.getElementById("containerRelatorioServidor").innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>';
+    feedback("Filtros limpos!");
+}
+
+async function filtrarRelatorioServidor() {
+    var servidoresSelecionados = Array.prototype.map.call(
+        document.querySelectorAll('#multiSelectServidoresRelatorio .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
+    );
+    var container = document.getElementById("containerRelatorioServidor");
+
+    if (servidoresSelecionados.length === 0) {
+        feedback("Selecione ao menos um servidor!");
+        return;
+    }
+    if (!supabaseDisponivel) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Sem conexão com o servidor. Tente novamente.</div>';
+        return;
+    }
+
+    var atividadesSelecionadas = Array.prototype.map.call(
+        document.querySelectorAll('#multiSelectAtividadesRelatorio .pill-item.selecionado'), function(c) { return c.getAttribute('data-value'); }
+    );
+    var filtrarPorAtividade = atividadesSelecionadas.length > 0;
+
+    var anoDe = parseInt(document.getElementById("selectAnoDeServidorRelatorio").value);
+    var anoAte = parseInt(document.getElementById("selectAnoAteServidorRelatorio").value);
+    var mesDe = parseInt(document.getElementById("selectMesDeServidorRelatorio").value);
+    var mesAte = parseInt(document.getElementById("selectMesAteServidorRelatorio").value);
+    if (anoDe > anoAte) { var tA = anoDe; anoDe = anoAte; anoAte = tA; }
+    if (anoDe === anoAte && mesDe > mesAte) { var tM = mesDe; mesDe = mesAte; mesAte = tM; }
+
+    var dataInicio = anoDe + '-' + String(mesDe + 1).padStart(2, '0') + '-01';
+    var ultimoDia = new Date(anoAte, mesAte + 1, 0).getDate();
+    var dataFim = anoAte + '-' + String(mesAte + 1).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
+
+    container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Carregando...</div>';
+
+    var registrosBrutos = null;
+    try {
+        registrosBrutos = await dbCarregarRegistrosServidoresPeriodo(servidoresSelecionados, dataInicio, dataFim);
+    } catch(e) {
+        console.warn('Erro ao buscar registros por servidor:', e.message);
+    }
+    if (registrosBrutos === null) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Não foi possível carregar os dados. Verifique sua conexão e tente novamente.</div>';
+        return;
+    }
+
+    // Agrupa por servidor (sem somar entre eles) e, dentro de cada um, por atividade
+    var porServidor = {};
+    servidoresSelecionados.forEach(function(nome) { porServidor[nome] = {}; });
+
+    registrosBrutos.forEach(function(reg) {
+        if (!porServidor[reg.servidor]) porServidor[reg.servidor] = {};
+        for (var ativ in reg.atividades) {
+            if (filtrarPorAtividade && atividadesSelecionadas.indexOf(ativ) === -1) continue;
+            var valor = reg.atividades[ativ] || 0;
+            porServidor[reg.servidor][ativ] = (porServidor[reg.servidor][ativ] || 0) + valor;
+        }
+    });
+
+    var html = '';
+    for (var i = 0; i < servidoresSelecionados.length; i++) {
+        var nomeServ = servidoresSelecionados[i];
+        var atividadesServ = porServidor[nomeServ] || {};
+        var itens = Object.entries(atividadesServ).sort(function(a, b) { return b[1] - a[1]; });
+        var totalServ = itens.reduce(function(s, item) { return s + item[1]; }, 0);
+
+        html += '<div class="relatorio-servidor-bloco">';
+        html += '<h4>' + escapeHtml(nomeServ) + '</h4>';
+        if (itens.length === 0) {
+            html += '<div style="color:#888; font-size:0.85rem;">Nenhum registro encontrado para esse período (e, se aplicável, para as atividades selecionadas).</div>';
+        } else {
+            html += '<table class="tabela-resultados"><thead><tr><th>Atividade</th><th>Total</th></tr></thead><tbody>';
+            for (var j = 0; j < itens.length; j++) {
+                html += '<tr><td>' + escapeHtml(itens[j][0]) + '</td><td>' + formatarMilhar(itens[j][1]) + '</td></tr>';
+            }
+            html += '<tr class="total-row"><td><strong>TOTAL</strong></td><td>' + formatarMilhar(totalServ) + '</td></tr>';
+            html += '</tbody></table>';
+        }
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+// ==================== EXPORTAR CSV ====================
+function exportarCSV() {
+    var resultado = dadosFiltradosAtuais;
+    var setor = document.getElementById("selectSetorResultado").value;
+
+    if (!resultado || !resultado.porAtividade || resultado.porAtividade.length === 0 || !resultado.totalGeral) {
+        feedback("Não ha dados para exportar. Aplique os filtros primeiro.");
+        return;
+    }
+
+    var csv = "Atividade;Ano/Mes";
+    if (setor === "ambos" || setor === "SEATE") csv += ";SEATE";
+    if (setor === "ambos" || setor === "NAHORA") csv += ";NAHORA";
+    csv += ";TOTAL\n";
+
+    for (var a = 0; a < resultado.porAtividade.length; a++) {
+        var bloco = resultado.porAtividade[a];
+        for (var i = 0; i < bloco.linhas.length; i++) {
+            var item = bloco.linhas[i];
+            csv += bloco.nome + ";" + item.ano + "-" + item.mesNome;
+            if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
+            if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
+            csv += ";" + item.total + "\n";
+        }
+        csv += bloco.nome + ";SUBTOTAL";
+        if (setor === "ambos" || setor === "SEATE") csv += ";" + bloco.totalSeate;
+        if (setor === "ambos" || setor === "NAHORA") csv += ";" + bloco.totalNahora;
+        csv += ";" + bloco.total + "\n";
+    }
+
+    csv += "TOTAL GERAL;;";
+    if (setor === "ambos" || setor === "SEATE") csv += ";" + resultado.totalSeate;
+    if (setor === "ambos" || setor === "NAHORA") csv += ";" + resultado.totalNahora;
+    csv += ";" + resultado.totalGeral + "\n";
+
+    var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "resultados_atividades_" + new Date().toISOString().slice(0,10) + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    feedback("CSV exportado com sucesso!");
+}
+
+// ============================================================
+// FUNÇÃO: GERAR RELATÓRIO ANALÍTICO (TODAS AS ATIVIDADES)
+// ============================================================
+async function gerarRelatorioAnalitico() {
+    try {
+        if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
+        feedback("Gerando relatorio analítico...");
+        
+        // O relatório PDF usa o "Ano de" e o intervalo de mês como
+        // referência (ano único; se o intervalo de mês cobrir o ano
+        // inteiro, considera "todos os meses" — mantém o relatório PDF
+        // simples, focado num ano por vez).
+        var ano = parseInt(document.getElementById("selectAnoDeResultado").value);
+        var mesDeRel = parseInt(document.getElementById("selectMesDeResultado").value);
+        var mesAteRel = parseInt(document.getElementById("selectMesAteResultado").value);
+        var mes = (mesDeRel === 0 && mesAteRel === 11) ? "todos" : String(mesDeRel);
+        var setor = document.getElementById("selectSetorResultado").value;
+        
+        var todasAtividades = atividades.slice();
+        if (todasAtividades.length === 0) {
+            feedback("Nenhuma atividade cadastrada!");
+            return;
+        }
+        
+        var html = `
+            <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto;">
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Analítico por Atividade</h1>
+                <p style="text-align: center; color: #666; margin-bottom: 5px;">Ano: ${ano} | Setor: ${setor === 'ambos' ? 'Ambos' : setor}</p>
+                <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                <div style="border-bottom: 2px solid #D1D5DB; margin-bottom: 20px;"></div>
+        `;
+        
+        var totalGeralGeral = 0;
+        var atividadesComDados = 0;
+        var atividadeMaior = { nome: '', total: 0 };
+        var totalSeateGeralRel = 0;
+        var totalNahoraGeralRel = 0;
+        
+        for (var a = 0; a < todasAtividades.length; a++) {
+            var atividade = todasAtividades[a];
+            var dadosAtividade = await buscarDadosAtividade(atividade, ano, mes, setor);
+            var dados = dadosAtividade.dados;
+            
+            if (dadosAtividade.totalGeral === 0) continue;
+            
+            atividadesComDados++;
+            totalGeralGeral += dadosAtividade.totalGeral;
+            totalSeateGeralRel += dadosAtividade.totalSeate;
+            totalNahoraGeralRel += dadosAtividade.totalNahora;
+            
+            if (dadosAtividade.totalGeral > atividadeMaior.total) {
+                atividadeMaior.nome = atividade;
+                atividadeMaior.total = dadosAtividade.totalGeral;
+            }
+            
+            var total = dadosAtividade.totalGeral;
+            var totalSeate = dadosAtividade.totalSeate;
+            var totalNahora = dadosAtividade.totalNahora;
+            var média = dados.length > 0 ? Math.round(total / dados.length) : 0;
+            
+            var maior = dados.length > 0 ? dados.reduce(function(a, b) { return a.total > b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
+            var menor = dados.length > 0 ? dados.reduce(function(a, b) { return a.total < b.total ? a : b; }) : { total: 0, ano: '', mesNome: '' };
+            
+            var primeiro = dados.length > 0 ? dados[0] : { total: 0 };
+            var último = dados.length > 0 ? dados[dados.length - 1] : { total: 0 };
+            var variacao = primeiro.total > 0 ? Math.round(((último.total - primeiro.total) / primeiro.total) * 100) : 0;
+            
+            var percentSeate = total > 0 ? Math.round((totalSeate / total) * 100) : 0;
+            var percentNahora = total > 0 ? Math.round((totalNahora / total) * 100) : 0;
+            
+            var tendencia = '';
+            if (variacao > 10) tendencia = 'Crescimento significativo';
+            else if (variacao > 0) tendencia = 'Crescimento moderado';
+            else if (variacao < -10) tendencia = 'Declinio significativo';
+            else if (variacao < 0) tendencia = 'Declinio moderado';
+            else tendencia = 'Estavel';
+            
+            html += `
+                <div style="background: #F9FAFB; border-radius: 12px; padding: 16px 20px; margin-bottom: 25px; border: 1px solid #D1D5DB;">
+                    <h3 style="color: #0F2D52; margin-bottom: 12px; border-left: 4px solid #FFB347; padding-left: 12px;">${atividade}</h3>
+            `;
+            
+            if (dados.length > 0 && dadosAtividade.totalGeral > 0) {
+                var acumulado = 0;
+                html += `<div style="overflow-x: auto; margin-bottom: 12px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">Ano/Mes</th>
+                                ${setor === 'ambos' || setor === 'SEATE' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">SEATE</th>' : ''}
+                                ${setor === 'ambos' || setor === 'NAHORA' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">NAHORA</th>' : ''}
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">TOTAL</th>
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">ACUMULADO</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (var i = 0; i < dados.length; i++) {
+                    var item = dados[i];
+                    if (item.total === 0 && item.ano !== parseInt(ANO_ATUAL)) continue;
+                    acumulado += item.total;
+                    html += `<tr>
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;"><strong>${item.ano}-${item.mesNome}</strong></td>
+                        ${setor === 'ambos' || setor === 'SEATE' ? '<td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + formatarMilhar(item.seate) + '</td>' : ''}
+                        ${setor === 'ambos' || setor === 'NAHORA' ? '<td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + formatarMilhar(item.nahora) + '</td>' : ''}
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB;">${formatarMilhar(item.total)}</td>
+                        <td style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 600;">${formatarMilhar(acumulado)}</td>
+                    </tr>`;
+                }
+                
+                html += `
+                        <tr style="font-weight: 700; background: #FFB347;">
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">TOTAL</td>
+                            ${setor === 'ambos' || setor === 'SEATE' ? '<td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + formatarMilhar(totalSeate) + '</td>' : ''}
+                            ${setor === 'ambos' || setor === 'NAHORA' ? '<td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">' + formatarMilhar(totalNahora) + '</td>' : ''}
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${formatarMilhar(total)}</td>
+                            <td style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${formatarMilhar(acumulado)}</td>
+                        </tr>
+                    </tbody></table>
+                </div>`;
+            }
+            
+            html += `
+                    <div style="background: white; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0F2D52;">
+                        <strong style="color: #0F2D52;">Analise:</strong><br>
+                        • <strong>Total de registros:</strong> ${formatarMilhar(total)}<br>
+                        • <strong>Média mensal:</strong> ${formatarMilhar(média)}<br>
+                        • <strong>Maior mes:</strong> ${maior.ano}-${maior.mesNome} com ${formatarMilhar(maior.total)} registros<br>
+                        • <strong>Menor mes:</strong> ${menor.ano}-${menor.mesNome} com ${formatarMilhar(menor.total)} registros<br>
+                        • <strong>Variacao:</strong> ${variacao > 0 ? '+' : ''}${variacao}% (${tendencia})<br>
+                        • <strong>Distribuicao:</strong> SEATE ${percentSeate}% | NAHORA ${percentNahora}%<br>
+                        • <strong>Destaque:</strong> ${totalSeate > totalNahora ? 'O setor SEATE responde por ' + percentSeate + '% das atividades.' : totalNahora > totalSeate ? 'O setor NAHORA responde por ' + percentNahora + '% das atividades.' : 'Os setores tem participacao equilibrada.'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (atividadesComDados > 0) {
+            var percentSeateGeral = totalGeralGeral > 0 ? Math.round((totalSeateGeralRel / totalGeralGeral) * 100) : 0;
+            html += `
+                <div style="background: #0F2D52; color: white; border-radius: 12px; padding: 20px 24px; margin-top: 20px;">
+                    <h3 style="color: #FFB347; margin-bottom: 12px;">RESUMO GERAL DO RELATORIO</h3>
+                    <p>• Total de atividades analisadas: <strong style="color: #FFB347;">${atividadesComDados}</strong></p>
+                    <p>• Total geral de registros: <strong style="color: #FFB347;">${formatarMilhar(totalGeralGeral)}</strong></p>
+                    <p>• Atividade com maior volume: <strong style="color: #FFB347;">"${atividadeMaior.nome}"</strong> com ${formatarMilhar(atividadeMaior.total)} registros</p>
+                    <p>• Distribuicao geral: SEATE <strong style="color: #FFB347;">${percentSeateGeral}%</strong> | NAHORA <strong style="color: #FFB347;">${100 - percentSeateGeral}%</strong></p>
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="text-align:center; padding: 30px; color: #888;">
+                    Nenhuma atividade com dados no período selecionado.
+                </div>
+            `;
+        }
+        
+        html += `
+                <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #D1D5DB; text-align: center; font-size: 0.7rem; color: #888;">
+                    SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF
+                </div>
+            </div>
+        `;
+        
+        var container = document.getElementById("conteudoRelatorio");
+        container.innerHTML = html;
+        container.style.display = "block";
+        
+        var opt = {
+            margin: 10,
+            filename: 'Relatorio_Analitico_SEATE_' + new Date().toISOString().slice(0,10) + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                width: 1100
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(container).save().then(function() {
+            container.style.display = "none";
+            feedback("Relatorio analítico gerado com sucesso!");
+        }).catch(function(erroPdf) {
+            container.style.display = "none";
+            console.warn('Erro ao gerar PDF do relatorio analítico:', erroPdf.message);
+            feedback("Erro ao gerar o PDF. Tente novamente.");
+        });
+        
+    } catch(e) {
+        console.warn('Erro ao gerar relatorio analítico:', e.message);
+        feedback("Erro ao gerar relatorio analítico!");
+    }
+}
+
+// ============================================================
+// GERAR RELATÓRIO PDF (EXISTENTE)
+// ============================================================
+async function gerarRelatorioPDF() {
+    try {
+        if (typeof html2pdf === 'undefined') { feedback("Não foi possível carregar o gerador de PDF. Verifique sua conexão."); return; }
+        feedback("Gerando relatorio...");
+        
+        var dadosMensaisAnoAtual = await calcularDadosMensaisAnoAtual();
+        var totaisAnoAtual = await obterTotaisAnoAtual();
+        var meses = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        
+        var totalSeateGeral = 0;
+        var totalNahoraGeral = 0;
+        var anos = getAnosDisponiveis();
+        var dadosAnuais = [];
+        
+        for (var i = 0; i < anos.length; i++) {
+            var ano = anos[i];
+            var totaisAno = await obterSeateNahoraPorAno(ano);
+            var seateTotal = totaisAno.seateTotal;
+            var nahoraTotal = totaisAno.nahoraTotal;
+            totalSeateGeral += seateTotal;
+            totalNahoraGeral += nahoraTotal;
+            dadosAnuais.push({ ano: ano, seate: seateTotal, nahora: nahoraTotal, total: seateTotal + nahoraTotal });
+        }
+        
+        var maiorAno = dadosAnuais.reduce(function(a, b) { return a.total > b.total ? a : b; });
+        var menorAno = dadosAnuais.reduce(function(a, b) { return a.total < b.total ? a : b; });
+        var ultimoAno = dadosAnuais[dadosAnuais.length - 1];
+        var primeiroAno = dadosAnuais[0];
+        var variacaoTotal = primeiroAno.total > 0 ? Math.round(((ultimoAno.total - primeiroAno.total) / primeiroAno.total) * 100) : 0;
+        
+        var analiseEvolucao = `
+            <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #0F2D52;">
+                <strong>Analise da Evolucao Anual:</strong><br>
+                • O ano de <strong>${maiorAno.ano}</strong> registrou o maior volume de atividades com <strong>${formatarMilhar(maiorAno.total)}</strong> registros.<br>
+                • O ano de <strong>${menorAno.ano}</strong> registrou o menor volume com <strong>${formatarMilhar(menorAno.total)}</strong> registros.<br>
+                • Comparando ${primeiroAno.ano} com ${ultimoAno.ano}, houve uma variacao de <strong>${variacaoTotal > 0 ? '+' : ''}${variacaoTotal}%</strong> no total de atividades.<br>
+                • Em média, o SEATE realizou <strong>${formatarMilhar(Math.round(totalSeateGeral / dadosAnuais.length))}</strong> atividades por ano, enquanto o NAHORA realizou <strong>${formatarMilhar(Math.round(totalNahoraGeral / dadosAnuais.length))}</strong>.
+            </div>
+        `;
+        
+        var todasAtividades = {};
+        for (var a = 0; a < anos.length; a++) {
+            var ano = anos[a];
+            if (ano === ANO_ATUAL) continue;
+            var dadosAno = await obterDadosAno(ano);
+            if (!dadosAno) continue;
+            if (dadosAno["SEATE"]) {
+                for (var ativ in dadosAno["SEATE"]) {
+                    var valor = 0;
+                    for (var m in dadosAno["SEATE"][ativ]) { valor += dadosAno["SEATE"][ativ][m] || 0; }
+                    if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                    todasAtividades[ativ] += valor;
+                }
+            }
+            if (dadosAno["NAHORA"]) {
+                for (var ativ in dadosAno["NAHORA"]) {
+                    var valor = 0;
+                    for (var m in dadosAno["NAHORA"][ativ]) { valor += dadosAno["NAHORA"][ativ][m] || 0; }
+                    if (!todasAtividades[ativ]) todasAtividades[ativ] = 0;
+                    todasAtividades[ativ] += valor;
+                }
+            }
+        }
+        var items = [];
+        for (var ativ in todasAtividades) {
+            items.push({ nome: ativ, total: todasAtividades[ativ] });
+        }
+        items.sort(function(a, b) { return b.total - a.total; });
+        var top5 = items.slice(0, 5);
+        var top1 = top5.length > 0 ? top5[0] : null;
+        var totalGeralAtividades = items.reduce(function(s, item) { return s + item.total; }, 0);
+        
+        var analiseTop10 = '';
+        if (top1) {
+            var percentTop1 = totalGeralAtividades > 0 ? Math.round((top1.total / totalGeralAtividades) * 100) : 0;
+            analiseTop10 = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #DC2626;">
+                    <strong>Analise do Top 10 Atividades (2022-${ANO_ATUAL}):</strong><br>
+                    • A atividade mais realizada foi <strong>"${top1.nome}"</strong> com <strong>${formatarMilhar(top1.total)}</strong> registros, representando <strong>${percentTop1}%</strong> do total.<br>
+                    • As 5 atividades mais realizadas acumulam <strong>${formatarMilhar(top5.reduce(function(s, item) { return s + item.total; }, 0))}</strong> registros.
+                </div>
+            `;
+        } else {
+            analiseTop10 = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #DC2626;">
+                    <strong>Analise do Top 10 Atividades:</strong><br>
+                    • Nenhum dado disponível para analise.
+                </div>
+            `;
+        }
+        
+        var totaisAtividadesAnoAtual = {};
+        var totalAnoAtual = 0;
+        for (var ativ in totaisAnoAtual.porAtividadeSeate) {
+            totaisAtividadesAnoAtual[ativ] = (totaisAtividadesAnoAtual[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ];
+            totalAnoAtual += totaisAnoAtual.porAtividadeSeate[ativ];
+        }
+        for (var ativ in totaisAnoAtual.porAtividadeNahora) {
+            totaisAtividadesAnoAtual[ativ] = (totaisAtividadesAnoAtual[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ];
+            totalAnoAtual += totaisAnoAtual.porAtividadeNahora[ativ];
+        }
+        var itemsAnoAtual = [];
+        for (var ativ in totaisAtividadesAnoAtual) {
+            itemsAnoAtual.push({ nome: ativ, total: totaisAtividadesAnoAtual[ativ] });
+        }
+        itemsAnoAtual.sort(function(a, b) { return b.total - a.total; });
+        var top5AnoAtual = itemsAnoAtual.slice(0, 5);
+        var top1AnoAtual = top5AnoAtual.length > 0 ? top5AnoAtual[0] : null;
+        
+        var analiseTopAnoAtual = '';
+        if (top1AnoAtual && totalAnoAtual > 0) {
+            var percentTop1AnoAtual = Math.round((top1AnoAtual.total / totalAnoAtual) * 100);
+            analiseTopAnoAtual = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
+                    <strong>Analise do Top 10 Serviços ${ANO_ATUAL}:</strong><br>
+                    • O serviço mais executado em ${ANO_ATUAL} foi <strong>"${top1AnoAtual.nome}"</strong> com <strong>${formatarMilhar(top1AnoAtual.total)}</strong> registros, representando <strong>${percentTop1AnoAtual}%</strong> do total.<br>
+                    • Os 5 serviços mais executados totalizam <strong>${formatarMilhar(top5AnoAtual.reduce(function(s, item) { return s + item.total; }, 0))}</strong> registros.<br>
+                    • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${formatarMilhar(totalAnoAtual)}</strong>.
+                </div>
+            `;
+        } else {
+            analiseTopAnoAtual = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FFB347;">
+                    <strong>Analise do Top 10 Serviços ${ANO_ATUAL}:</strong><br>
+                    • Nenhum dado disponível para analise.
+                </div>
+            `;
+        }
+        
+        var totalMensal = 0;
+        var mesMaisAlto = '';
+        var valorMaisAlto = 0;
+        var mesMaisBaixo = '';
+        var valorMaisBaixo = Infinity;
+        
+        for (var i = 0; i < meses.length; i++) {
+            var valor = dadosMensaisAnoAtual[meses[i]] || 0;
+            totalMensal += valor;
+            if (valor > valorMaisAlto) {
+                valorMaisAlto = valor;
+                mesMaisAlto = meses[i];
+            }
+            if (valor < valorMaisBaixo && valor > 0) {
+                valorMaisBaixo = valor;
+                mesMaisBaixo = meses[i];
+            }
+        }
+        var mediaMensal = meses.length > 0 ? Math.round(totalMensal / meses.length) : 0;
+        
+        var analiseMensal = '';
+        if (totalMensal > 0) {
+            analiseMensal = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1F4E79;">
+                    <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
+                    • O mes com maior volume de atividades foi <strong>${mesMaisAlto}</strong> com <strong>${formatarMilhar(valorMaisAlto)}</strong> registros.<br>
+                    • O mes com menor volume foi <strong>${mesMaisBaixo}</strong> com <strong>${formatarMilhar(valorMaisBaixo)}</strong> registros.<br>
+                    • A média mensal de atividades em ${ANO_ATUAL} foi de <strong>${formatarMilhar(mediaMensal)}</strong> registros.<br>
+                    • O total de atividades registradas em ${ANO_ATUAL} foi de <strong>${formatarMilhar(totalMensal)}</strong>.
+                </div>
+            `;
+        } else {
+            analiseMensal = `
+                <div style="background: #F3F4F6; padding: 12px 16px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1F4E79;">
+                    <strong>Analise das Atividades Mensais ${ANO_ATUAL}:</strong><br>
+                    • Nenhum dado disponível para analise.
+                </div>
+            `;
+        }
+        
+        var canvasTop10 = document.getElementById('graficoTop10Config');
+        var canvasTop10ServicosAnoAtual = document.getElementById('graficoTop10MenosConfig');
+        var canvasMensal = document.getElementById('graficoMensalAnoAtual');
+        
+        var imgTop10 = canvasTop10 ? canvasTop10.toDataURL('image/png', 0.95) : '';
+        var imgTop10ServicosAnoAtual = canvasTop10ServicosAnoAtual ? canvasTop10ServicosAnoAtual.toDataURL('image/png', 0.95) : '';
+        var imgMensal = canvasMensal ? canvasMensal.toDataURL('image/png', 0.95) : '';
+        
+        var html = `
+            <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto;">
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Estatistico</h1>
+                <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Resumo Geral</h2>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9rem;">
+                    <thead>
+                        <tr><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Ano</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">SEATE</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">NAHORA</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">TOTAL</th></tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (var i = 0; i < dadosAnuais.length; i++) {
+            var d = dadosAnuais[i];
+            html += `<tr><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;"><strong>${d.ano}</strong></td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${formatarMilhar(d.seate)}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${formatarMilhar(d.nahora)}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 700;">${formatarMilhar(d.total)}</td></tr>`;
+        }
+        
+        html += `
+                    <tr style="font-weight: 700; background: #F3F4F6;">
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">TOTAL GERAL</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${formatarMilhar(totalSeateGeral)}</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${formatarMilhar(totalNahoraGeral)}</td>
+                        <td style="padding: 10px; text-align: center; border-bottom: 1px solid #D1D5DB; background: #FFB347; color: #0F2D52;">${formatarMilhar((totalSeateGeral + totalNahoraGeral))}</td>
+                    </tr>
+                </tbody></table>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Top 5 Atividades Mais Realizadas (2022-${ANO_ATUAL})</h2>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9rem;">
+                    <thead>
+                        <tr><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Posicao</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: left;">Atividade</th><th style="background: #1F4E79; color: white; padding: 10px; text-align: center;">Total</th></tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (var i = 0; i < top5.length; i++) {
+            var item = top5[i];
+            html += `<tr><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB;">${i+1}</td><td style="padding: 8px 10px; text-align: left; border-bottom: 1px solid #D1D5DB;">${escapeHtml(item.nome)}</td><td style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #D1D5DB; font-weight: 600;">${formatarMilhar(item.total)}</td></tr>`;
+        }
+        
+        html += `
+                    </tbody></table>
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #DC2626; padding-left: 12px;">Analise: Top 10 Atividades (2022-${ANO_ATUAL})</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgTop10}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseTop10}
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Analise: Top 10 Serviços ${ANO_ATUAL}</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgTop10ServicosAnoAtual}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseTopAnoAtual}
+                
+                <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #1F4E79; padding-left: 12px;">Analise: Atividades Mensais ${ANO_ATUAL}</h2>
+                <div style="text-align: center; margin: 10px 0;">
+                    <img src="${imgMensal}" style="max-width: 100%; max-height: 350px; border: 1px solid #D1D5DB; border-radius: 8px; object-fit: contain;">
+                </div>
+                ${analiseMensal}
+                
+                <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #D1D5DB; text-align: center; font-size: 0.7rem; color: #888;">
+                    SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF
+                </div>
+            </div>
+        `;
+        
+        var container = document.getElementById("conteudoRelatorio");
+        container.innerHTML = html;
+        container.style.display = "block";
+        
+        var opt = {
+            margin: 10,
+            filename: 'Relatorio_SEATE_' + new Date().toISOString().slice(0,10) + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true,
+                logging: false,
+                width: 1000
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(container).save().then(function() {
+            container.style.display = "none";
+            feedback("Relatorio gerado com sucesso!");
+        }).catch(function(erroPdf) {
+            container.style.display = "none";
+            console.warn('Erro ao gerar PDF do relatorio:', erroPdf.message);
+            feedback("Erro ao gerar o PDF. Tente novamente.");
+        });
+        
+    } catch(e) {
+        console.warn('Erro ao gerar relatorio:', e.message);
+        feedback("Erro ao gerar relatorio: " + e.message);
+    }
+}
+
+// ==================== INICIALIZAÇÃO ====================
+async function iniciarPagina() {
+    document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
+    renderizarSelectsPeriodoResultado();
+    await carregarDados();
+    renderizarIndicadores();
+    renderizarSelectsAnoTop10Config();
+    atualizarGraficoTop10Config();
+    renderizarSelectsAnoTop10MenosConfig();
+    atualizarGraficoTop10MenosConfig();
+    criarGraficoMensalAnoAtual();
+    atualizarDisplayMes();
+    carregarAtividadesSelect();
+    renderizarMultiSelectServidoresRelatorio();
+    renderizarMultiSelectAtividadesRelatorio();
+    renderizarSelectsPeriodoServidorRelatorio();
+    atualizarAvisoInicioRegistros();
+    iniciarSincronizacaoTempoReal();
+}
+iniciarPagina();
 </script>
 </body>
 </html>
