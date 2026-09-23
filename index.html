@@ -984,6 +984,51 @@ async function abrirModalIndicador(ano, setor) {
         }
 
         // ============================================================
+        // ANO CORRENTE: os meses que já têm registro real dos servidores
+        // entram aqui também, mas travados para edição — corrigir esses
+        // números passa a ser feito direto no registro do servidor, e o
+        // modal reflete automaticamente. Os demais meses (antes do
+        // sistema entrar em uso) continuam editáveis normalmente.
+        // ============================================================
+        var mesesHerdados = {};
+        if (ano === ANO_ATUAL) {
+            var dataMaisAntigaModal = null;
+            try { dataMaisAntigaModal = await dbCarregarDataMaisAntigaRegistro(); }
+            catch(e) { console.warn('Erro ao verificar início dos registros:', e.message); }
+
+            var mesCorteIndex = -1; // -1 = nenhum mês herdado ainda
+            if (dataMaisAntigaModal) {
+                var partesDataModal = dataMaisAntigaModal.split('-');
+                var anoInicioRegistrosModal = partesDataModal[0];
+                if (anoInicioRegistrosModal === ANO_ATUAL) {
+                    mesCorteIndex = parseInt(partesDataModal[1], 10) - 1;
+                } else if (parseInt(anoInicioRegistrosModal, 10) < parseInt(ANO_ATUAL, 10)) {
+                    mesCorteIndex = 0;
+                }
+            }
+            if (mesCorteIndex >= 0) {
+                for (var mIdx = mesCorteIndex; mIdx < meses.length; mIdx++) { mesesHerdados[meses[mIdx]] = true; }
+            }
+
+            var totaisAnoAtualModal = await obterTotaisAnoAtual();
+            function mesclarComRegistrosAoVivo(dadosSetorManual, porAtividadeMes) {
+                var resultado = {};
+                for (var ativM in dadosSetorManual) { resultado[ativM] = Object.assign({}, dadosSetorManual[ativM]); }
+                for (var ativM2 in porAtividadeMes) {
+                    if (!resultado[ativM2]) resultado[ativM2] = {};
+                    for (var mesHerdadoNome in mesesHerdados) {
+                        resultado[ativM2][mesHerdadoNome] = (porAtividadeMes[ativM2][mesHerdadoNome]) || 0;
+                    }
+                }
+                return resultado;
+            }
+            dadosAno = {
+                SEATE: mesclarComRegistrosAoVivo(dadosAno.SEATE || {}, totaisAnoAtualModal.porAtividadeMesSeate || {}),
+                NAHORA: mesclarComRegistrosAoVivo(dadosAno.NAHORA || {}, totaisAnoAtualModal.porAtividadeMesNahora || {})
+            };
+        }
+
+        // ============================================================
         // CORREÇÃO: incluir também atividades que têm dados salvos mas
         // não estão (mais) na lista cadastrada em "Adicionar/Atividades"
         // (por exemplo, uma atividade renomeada ou excluída depois que
@@ -1023,13 +1068,17 @@ async function abrirModalIndicador(ano, setor) {
                 for (var j = 0; j < meses.length; j++) {
                     var valorMes = (dadosSetor[ativ] && dadosSetor[ativ][meses[j]]) || 0;
                     totalLinha += valorMes;
-                    html += '<td><input type="number" class="input-mes-estatistica" data-setor="' + nomeSetor + '" data-atividade="' + escapeHtml(ativ) + '" data-mes="' + meses[j] + '" value="' + valorMes + '" min="0" style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem;"></td>';
+                    var ehMesHerdado = !!mesesHerdados[meses[j]];
+                    var classeHerdado = ehMesHerdado ? ' input-herdado' : '';
+                    var atribDisabled = ehMesHerdado ? 'disabled title="Vem do registro do servidor — para corrigir, edite lá."' : '';
+                    var estiloHerdado = ehMesHerdado ? 'background:#eef2f6; color:#5a6b7a; cursor:not-allowed;' : '';
+                    html += '<td><input type="number" class="input-mes-estatistica' + classeHerdado + '" data-setor="' + nomeSetor + '" data-atividade="' + escapeHtml(ativ) + '" data-mes="' + meses[j] + '" value="' + valorMes + '" min="0" ' + atribDisabled + ' style="width:55px; padding:4px 2px; text-align:center; border:1px solid var(--cinza-borda); border-radius:6px; font-size:0.75rem; ' + estiloHerdado + '"></td>';
                 }
                 html += '<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);" data-linha-total>' + formatarMilhar(totalLinha) + '</td></tr>';
                 totalGeralSetor += totalLinha;
             }
 
-            html += '<tr class="linha-total-setor" style="font-weight:700; background:var(--cinza-suave);">';
+            html += '<tr class="linha-total-setor" data-setor-total="' + nomeSetor + '" style="font-weight:700; background:var(--cinza-suave);">';
             html += '<td style="text-align:left; color:var(--azul-marinho);">TOTAL ' + nomeSetor + '</td>';
             var totaisMensais = {};
             meses.forEach(function(m) { totaisMensais[m] = 0; });
@@ -1041,21 +1090,43 @@ async function abrirModalIndicador(ano, setor) {
             }
             html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);" data-total-geral>' + formatarMilhar(totalGeralSetor) + '</td></tr>';
             html += '</tbody></table></div>';
-            return totalGeralSetor;
+            return { total: totalGeralSetor, porMes: totaisMensais };
         }
 
-        if (mostrarSeate) { totalGeralSeate = renderTabelaSetor('SEATE', atividadesSeateCompleta, dadosAno.SEATE || {}); }
-        if (mostrarNahora) { totalGeralNahora = renderTabelaSetor('NAHORA', atividadesNahoraCompleta, dadosAno.NAHORA || {}); }
+        var porMesSeate = {}, porMesNahora = {};
+        if (mostrarSeate) { var resSeate = renderTabelaSetor('SEATE', atividadesSeateCompleta, dadosAno.SEATE || {}); totalGeralSeate = resSeate.total; porMesSeate = resSeate.porMes; }
+        if (mostrarNahora) { var resNahora = renderTabelaSetor('NAHORA', atividadesNahoraCompleta, dadosAno.NAHORA || {}); totalGeralNahora = resNahora.total; porMesNahora = resNahora.porMes; }
+
+        // Linha combinada (SEATE + NAHORA) mês a mês, logo abaixo das duas
+        // tabelas — só faz sentido quando os dois setores estão visíveis
+        // juntos no modal (não quando filtrado só por um deles).
+        if (mostrarSeate && mostrarNahora) {
+            html += '<div class="tabela-estatistica-container" style="margin-top:8px;"><table class="tabela-estatistica"><thead><tr>';
+            html += '<th style="text-align:left; min-width:180px;">SEATE + NAHORA</th>';
+            html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
+            html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
+            html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th></tr></thead><tbody>';
+            html += '<tr class="linha-total-combinado" style="font-weight:700; background:#FFF3CD;">';
+            html += '<td style="text-align:left; color:var(--azul-marinho);">Total Mensal Combinado</td>';
+            var totalCombinadoGeral = 0;
+            for (var jc = 0; jc < meses.length; jc++) {
+                var somaMesCombinado = (porMesSeate[meses[jc]] || 0) + (porMesNahora[meses[jc]] || 0);
+                totalCombinadoGeral += somaMesCombinado;
+                html += '<td style="text-align:center;" data-total-mes-combinado="' + meses[jc] + '">' + formatarMilhar(somaMesCombinado) + '</td>';
+            }
+            html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);" data-total-geral-combinado>' + formatarMilhar(totalCombinadoGeral) + '</td></tr>';
+            html += '</tbody></table></div>';
+        }
 
         if (setor === null) {
-            var rotuloBanner = (ano === ANO_ATUAL) ? 'TOTAL ALIMENTADO MANUALMENTE ' + ano + ' (SEATE + NAHORA)' : 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA)';
+            var rotuloBanner = 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA)';
             html += '<div id="totalGeralBanner" data-rotulo="' + rotuloBanner + '" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
             html += rotuloBanner + ': ' + formatarMilhar(totalGeralSeate + totalGeralNahora);
             html += '</div>';
         }
 
         if (ano === ANO_ATUAL) {
-            html += '<div style="margin-top:8px; padding:10px; background:var(--cinza-suave); border-radius:10px; font-size:0.8rem; color:#555;">ℹ️ O ano corrente já tem os meses com registros dos servidores contados automaticamente. Use estes campos apenas para os meses que ainda não têm registro (ex.: antes do sistema entrar em uso) — o total aqui alimentado é <strong>somado</strong> ao que já veio dos registros no card "Indicadores Gerais" e nas demais telas, nunca substitui.</div>';
+            html += '<div style="margin-top:8px; padding:10px; background:var(--cinza-suave); border-radius:10px; font-size:0.8rem; color:#555;">ℹ️ Os meses em cinza (🔒) já têm registro real dos servidores e vêm herdados automaticamente — não dá pra editar aqui. Para corrigir algum desses números, edite direto no registro do servidor correspondente; o modal atualiza sozinho. Os demais meses (antes do sistema entrar em uso) continuam editáveis normalmente.</div>';
         }
 
         html += '<div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#888;">💡 Os totais são recalculados automaticamente ao digitar.</div>';
@@ -1069,7 +1140,7 @@ async function abrirModalIndicador(ano, setor) {
         if (travaAtual === null) { travaAtual = false; } // sem conexão: assume destravado, mas não altera o que já está salvo
         window['edicaoTravada' + ano] = travaAtual; // cache local só para a função alternarTravarEdicao() não precisar rebuscar
         var btn = document.getElementById("btnTravarEdicao");
-        var inputs = document.querySelectorAll('#listaAtividadesEstatistica input');
+        var inputs = document.querySelectorAll('#listaAtividadesEstatistica input.input-mes-estatistica:not(.input-herdado)');
 
         if (travaAtual) {
             btn.innerHTML = '🔓 Liberar Edição';
@@ -1145,6 +1216,32 @@ function recalcularTotalLinha(inputEl) {
         var rotulo = banner.getAttribute('data-rotulo') || ('TOTAL GERAL ' + anoEstatisticaSelecionado + ' (SEATE + NAHORA)');
         banner.innerText = rotulo + ': ' + formatarMilhar(totalGeralGeral);
     }
+
+    // Recalcula a linha "Total Mensal Combinado" (SEATE + NAHORA por mês)
+    var containerCombinado = document.getElementById("listaAtividadesEstatistica");
+    var linhaCombinada = containerCombinado ? containerCombinado.querySelector('.linha-total-combinado') : null;
+    if (linhaCombinada) {
+        var linhaSeate = containerCombinado.querySelector('.linha-total-setor[data-setor-total="SEATE"]');
+        var linhaNahora = containerCombinado.querySelector('.linha-total-setor[data-setor-total="NAHORA"]');
+        var totalGeralCombinadoRecalc = 0;
+        for (var jc = 0; jc < meses.length; jc++) {
+            var valSeate = 0, valNahora = 0;
+            if (linhaSeate) {
+                var celSeate = linhaSeate.querySelector('[data-total-mes="' + meses[jc] + '"]');
+                if (celSeate) valSeate = parseInt(celSeate.innerText.replace(/\D/g, '')) || 0;
+            }
+            if (linhaNahora) {
+                var celNahora = linhaNahora.querySelector('[data-total-mes="' + meses[jc] + '"]');
+                if (celNahora) valNahora = parseInt(celNahora.innerText.replace(/\D/g, '')) || 0;
+            }
+            var somaMesRecalc = valSeate + valNahora;
+            totalGeralCombinadoRecalc += somaMesRecalc;
+            var celulaCombinada = linhaCombinada.querySelector('[data-total-mes-combinado="' + meses[jc] + '"]');
+            if (celulaCombinada) celulaCombinada.innerText = formatarMilhar(somaMesRecalc);
+        }
+        var celulaGeralCombinada = linhaCombinada.querySelector('[data-total-geral-combinado]');
+        if (celulaGeralCombinada) celulaGeralCombinada.innerText = formatarMilhar(totalGeralCombinadoRecalc);
+    }
 }
 
 async function salvarDadosEstatisticaModal() {
@@ -1153,7 +1250,7 @@ async function salvarDadosEstatisticaModal() {
         if (!ano) { feedback("Selecione um ano primeiro!"); return; }
         if (!supabaseDisponivel) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
 
-        var inputs = document.querySelectorAll('.input-mes-estatistica');
+        var inputs = document.querySelectorAll('.input-mes-estatistica:not(.input-herdado)');
         var dadosSeate = {};
         var dadosNahora = {};
 
@@ -1210,7 +1307,7 @@ async function alternarTravarEdicao() {
     window[travaVar] = novoValor;
 
     var btn = document.getElementById("btnTravarEdicao");
-    var inputs = document.querySelectorAll('#listaAtividadesEstatistica input');
+    var inputs = document.querySelectorAll('#listaAtividadesEstatistica input.input-mes-estatistica:not(.input-herdado)');
 
     if (novoValor) {
         btn.innerHTML = '🔓 Liberar Edição';
