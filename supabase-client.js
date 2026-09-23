@@ -1044,6 +1044,36 @@ async function dbExcluirAtividade(nome) {
     }
 }
 
+// Busca o setor (SEATE/NAHORA) de cada atividade cadastrada — usado na
+// tela "Adicionar/Atividades" para mostrar e permitir trocar o setor
+// de cada uma.
+async function dbCarregarSetoresAtividades() {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from(TABLES.ATIVIDADES).select('nome, setor');
+        if (error) { console.error('dbCarregarSetoresAtividades:', error); return null; }
+        const mapa = {};
+        data.forEach(a => { mapa[a.nome] = a.setor || 'SEATE'; });
+        return mapa;
+    } catch(e) {
+        console.error('❌ Erro em dbCarregarSetoresAtividades:', e.message);
+        return null;
+    }
+}
+
+// Define/atualiza o setor de uma atividade específica (SEATE ou NAHORA).
+async function dbSalvarSetorAtividade(nome, setor) {
+    if (!supabaseDisponivel || !db) return false;
+    try {
+        const { error } = await db.from(TABLES.ATIVIDADES).update({ setor: setor }).eq('nome', nome);
+        if (error) { console.error('dbSalvarSetorAtividade:', error); return false; }
+        return true;
+    } catch(e) {
+        console.error('❌ Erro em dbSalvarSetorAtividade:', e.message);
+        return false;
+    }
+}
+
 // Verifica, antes de excluir uma atividade, se já existe algo salvo
 // com o nome dela — registros diários de servidores, dados
 // estatísticos alimentados manualmente, ou servidores atribuídos.
