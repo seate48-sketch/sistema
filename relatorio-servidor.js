@@ -25,7 +25,7 @@
     var HTML2PDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
 
     // Estado do relatório aberto no momento
-    var estado = { nome: '', lotacao: '', registros: null, modelo: null };
+    var estado = { nome: '', lotacao: '', registros: null, modelo: null, entrega: null, origem: 'periodo' };
 
     // ---------------- utilitários ----------------
     function esc(t) {
@@ -46,6 +46,12 @@
     function agora() {
         var d = new Date();
         return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' às ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    function dataHoraBR(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        if (isNaN(d)) return '';
+        return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
     }
     function lotacaoDe(nome) {
         try { if (typeof getLotacaoServidor === 'function') return getLotacaoServidor(nome) || ''; } catch (e) {}
@@ -79,6 +85,7 @@
         '.rel-resumo{display:flex;gap:24px;margin-top:10px;padding:6px 8px;border:1px solid #E5E7EB;background:#F9FAFB;font-size:10.5px;}',
         '.rel-resumo b{color:#0F2D52;}',
         '.rel-vazio{padding:18px;text-align:center;color:#6B7280;border:1px dashed #D1D5DB;}',
+        '.rel-entrega{margin-top:6px;font-size:9.5px;color:#4B5563;}',
         '.rel-rodape{margin-top:14px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:8.5px;color:#9CA3AF;display:flex;justify-content:space-between;}',
         // nunca quebrar estes blocos entre páginas
         '.rel-doc tr,.rel-doc tbody.rel-dia,.rel-bloco,.rel-cab,.rel-resumo{break-inside:avoid;page-break-inside:avoid;}',
@@ -105,7 +112,26 @@
         '.rel-campos select{width:100%;}',
         '.rel-modal-foot{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--cinza-borda);}',
         '.rel-previa{border:1px solid var(--cinza-borda);border-radius:10px;padding:22px 26px;max-height:62vh;overflow:auto;background:#fff;}',
-        '.rel-carregando{padding:14px;text-align:center;color:#6B7280;font-size:.85rem;}'
+        '.rel-carregando{padding:14px;text-align:center;color:#6B7280;font-size:.85rem;}',
+        '.botoes-status{display:flex;flex-direction:column;gap:8px;align-items:stretch;flex-shrink:0;}',
+        '.btn-relatorios-entregues{background:var(--branco);color:var(--azul-marinho);border:1px solid var(--azul-institucional);border-radius:30px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.75rem;height:36px;white-space:nowrap;transition:.2s;}',
+        '.btn-relatorios-entregues:hover{background:var(--azul-institucional);color:var(--branco);}',
+        '@media (max-width:768px){.card-header-com-botao .botoes-status{align-self:flex-start;}}',
+        '.ent-filtros{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}',
+        '.ent-filtros .form-group{min-width:140px;margin:0;}',
+        '.ent-resumo{font-size:.85rem;color:#374151;margin-bottom:10px;}',
+        '.ent-resumo b{color:var(--azul-marinho);}',
+        '.ent-tab{width:100%;border-collapse:collapse;font-size:.8rem;}',
+        '.ent-tab th{background:var(--cinza-suave);color:var(--azul-marinho);text-align:left;padding:8px;border-bottom:1px solid var(--cinza-borda);font-weight:600;}',
+        '.ent-tab td{padding:7px 8px;border-bottom:1px solid var(--cinza-claro);vertical-align:middle;}',
+        '.ent-tab tr:hover{background:transparent;}',
+        '.ent-ok{color:#047857;font-weight:600;}',
+        '.ent-pend{color:var(--perigo);font-weight:600;}',
+        '.ent-sub{display:block;font-size:.72rem;color:#6B7280;font-weight:400;}',
+        '.ent-acoes{display:flex;gap:6px;flex-wrap:wrap;}',
+        '.ent-acoes button{background:transparent;border:1px solid var(--azul-institucional);border-radius:20px;padding:3px 10px;font-size:.7rem;font-weight:600;cursor:pointer;color:#000;}',
+        '.ent-acoes button:hover{background:var(--azul-institucional);color:#fff;}',
+        '.ent-lista{max-height:60vh;overflow:auto;}'
     ].join('\n');
 
     function injetarEstilos() {
@@ -139,6 +165,17 @@
                     '<button class="btn btn-primary" id="relBtnGerar">Gerar relatório</button>' +
                 '</div>' +
             '</div></div>' +
+            '<div id="relModalEntregues" class="rel-modal"><div class="rel-modal-box rel-largo">' +
+                '<div class="rel-modal-head"><h3>Relatórios Entregues</h3><span class="rel-x" data-rel-fechar="relModalEntregues">&times;</span></div>' +
+                '<div class="rel-modal-body">' +
+                    '<div class="ent-filtros">' +
+                        '<div class="form-group"><label>Mês</label><select id="entMes"></select></div>' +
+                        '<div class="form-group"><label>Ano</label><select id="entAno"></select></div>' +
+                    '</div>' +
+                    '<div id="entResumo" class="ent-resumo"></div>' +
+                    '<div id="entLista" class="ent-lista"></div>' +
+                '</div>' +
+            '</div></div>' +
             '<div id="relModalPrevia" class="rel-modal"><div class="rel-modal-box rel-largo">' +
                 '<div class="rel-modal-head"><h3>Relatório do servidor</h3><span class="rel-x" data-rel-fechar="relModalPrevia">&times;</span></div>' +
                 '<div class="rel-modal-body"><div id="relPrevia" class="rel-previa"></div></div>' +
@@ -163,7 +200,18 @@
             });
         });
         document.getElementById('relBtnGerar').addEventListener('click', gerar);
-        document.getElementById('relBtnVoltar').addEventListener('click', function () { fechar('relModalPrevia'); abrir('relModalPeriodo'); });
+        document.getElementById('relBtnVoltar').addEventListener('click', function () {
+            fechar('relModalPrevia');
+            abrir(estado.origem === 'entregues' ? 'relModalEntregues' : 'relModalPeriodo');
+        });
+        var selEntMes = document.getElementById('entMes');
+        selEntMes.innerHTML = MESES.map(function (m, i) { return '<option value="' + (i + 1) + '">' + m + '</option>'; }).join('');
+        selEntMes.addEventListener('change', carregarEntregues);
+        document.getElementById('entAno').addEventListener('change', carregarEntregues);
+        document.getElementById('entLista').addEventListener('click', function (ev) {
+            var b = ev.target.closest('button[data-acao]');
+            if (b) acaoEntregue(b.getAttribute('data-acao'), +b.getAttribute('data-idx'));
+        });
         document.getElementById('relBtnCsv').addEventListener('click', exportarCSV);
         document.getElementById('relBtnImprimir').addEventListener('click', imprimir);
         document.getElementById('relBtnPdf').addEventListener('click', gerarPDF);
@@ -180,8 +228,9 @@
     async function abrirRelatorioServidor(nome) {
         injetarEstilos();
         criarModais();
-        estado = { nome: nome, lotacao: lotacaoDe(nome), registros: null, modelo: null };
+        estado = { nome: nome, lotacao: lotacaoDe(nome), registros: null, modelo: null, entrega: null, origem: 'periodo' };
         document.getElementById('relTituloPeriodo').textContent = 'Relatório — ' + nome;
+        document.getElementById('relBtnVoltar').textContent = 'Alterar período';
 
         var hoje = new Date();
         var selAno = document.getElementById('relAno');
@@ -288,7 +337,10 @@
                 '<div><span>Servidor / Colaborador</span>' + esc(estado.nome) + '</div>' +
                 '<div><span>Lotação</span>' + esc(estado.lotacao || '—') + '</div>' +
                 '<div><span>Período</span>' + esc(m.periodo) + '</div>' +
-            '</div></div>';
+            '</div>' +
+            (estado.entrega ? '<div class="rel-entrega">Relatório entregue pelo servidor em ' + dataHoraBR(estado.entrega.ultima) +
+                (estado.entrega.envios > 1 ? ' (' + estado.entrega.envios + 'º envio — substitui os anteriores)' : '') + '</div>' : '') +
+            '</div>';
     }
 
     function htmlRodape() {
@@ -402,6 +454,7 @@
         L.push(['Servidor/Colaborador', estado.nome]);
         L.push(['Lotação', estado.lotacao || '']);
         L.push(['Período', m.periodo]);
+        if (estado.entrega) L.push(['Entregue pelo servidor em', dataHoraBR(estado.entrega.ultima)]);
         L.push([]);
         if (m.tipo === 'mes') {
             L.push(['Data', 'Dia', 'Situação', 'Atividade', 'Quantidade', 'Total do dia']);
@@ -502,6 +555,119 @@
         }
     }
 
+    // ================= RELATÓRIOS ENTREGUES PELOS SERVIDORES =================
+    var entregues = []; // linhas exibidas no painel
+
+    function abrirRelatoriosEntregues() {
+        injetarEstilos();
+        criarModais();
+        var hoje = new Date();
+        var ref = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); // padrão: mês anterior (o cobrado)
+        var selAno = document.getElementById('entAno');
+        var anos = [];
+        for (var a = hoje.getFullYear(); a >= 2026; a--) anos.push(a);
+        selAno.innerHTML = anos.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('');
+        selAno.value = String(ref.getFullYear() >= 2026 ? ref.getFullYear() : hoje.getFullYear());
+        document.getElementById('entMes').value = String(ref.getMonth() + 1);
+        abrir('relModalEntregues');
+        carregarEntregues();
+    }
+
+    async function idServidor(nome) {
+        try { if (typeof obterServidorPorNome === 'function') { var s = await obterServidorPorNome(nome); return s ? String(s.id) : null; } } catch (e) {}
+        return null;
+    }
+
+    async function carregarEntregues() {
+        var ano = +document.getElementById('entAno').value;
+        var mes = +document.getElementById('entMes').value;
+        var lista = document.getElementById('entLista');
+        var resumo = document.getElementById('entResumo');
+        resumo.textContent = '';
+        lista.innerHTML = '<div class="rel-carregando">Carregando...</div>';
+        if (typeof db === 'undefined' || !db || typeof db.from !== 'function') {
+            lista.innerHTML = '<div class="rel-vazio">Sem conexão com o banco de dados.</div>';
+            return;
+        }
+        var r;
+        try {
+            r = await db.from('relatorios_entregues')
+                .select('servidor_id, servidor_nome, lotacao, ano, mes, dados, envios, primeira_entrega, ultima_entrega')
+                .eq('ano', ano).eq('mes', mes);
+        } catch (e) { r = { error: e }; }
+        if (+document.getElementById('entAno').value !== ano || +document.getElementById('entMes').value !== mes) return; // trocou o filtro no meio
+        if (r.error) {
+            console.error('Relatórios entregues:', r.error);
+            lista.innerHTML = '<div class="rel-vazio">Não foi possível carregar os relatórios entregues. ' +
+                'Confira se o script SQL "12_relatorios_entregues.sql" foi executado no Supabase e se você está logado.</div>';
+            return;
+        }
+        var porId = {}, porNome = {};
+        (r.data || []).forEach(function (e) { porId[String(e.servidor_id)] = e; porNome[e.servidor_nome] = e; });
+
+        var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
+        var usados = {};
+        entregues = [];
+        for (var i = 0; i < ativos.length; i++) {
+            var nome = ativos[i];
+            var id = await idServidor(nome);
+            var e = (id && porId[id]) || porNome[nome] || null;
+            if (e) usados[String(e.servidor_id)] = true;
+            entregues.push({ nome: nome, lotacao: lotacaoDe(nome) || (e && e.lotacao) || '', entrega: e });
+        }
+        (r.data || []).forEach(function (e) { // entregas de quem não está mais na lista (ex.: inativo)
+            if (!usados[String(e.servidor_id)]) entregues.push({ nome: e.servidor_nome, lotacao: e.lotacao || '', entrega: e, inativo: true });
+        });
+        entregues.sort(function (a, b) {
+            if (!!a.entrega !== !!b.entrega) return a.entrega ? 1 : -1; // pendentes primeiro
+            return ordenarPt(a.nome, b.nome);
+        });
+
+        var qtdOk = entregues.filter(function (x) { return x.entrega && !x.inativo; }).length;
+        resumo.innerHTML = MESES[mes - 1] + ' de ' + ano + ': <b>' + qtdOk + '</b> de <b>' + ativos.length + '</b> servidores entregaram o relatório.';
+
+        if (!entregues.length) { lista.innerHTML = '<div class="rel-vazio">Nenhum servidor cadastrado.</div>'; return; }
+        var h = '<table class="ent-tab"><thead><tr><th>Servidor / Colaborador</th><th>Lotação</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
+        entregues.forEach(function (x, idx) {
+            h += '<tr><td>' + esc(x.nome) + (x.inativo ? ' <span class="ent-sub">(inativo)</span>' : '') + '</td><td>' + esc(x.lotacao || '—') + '</td>';
+            if (x.entrega) {
+                h += '<td><span class="ent-ok">Entregue</span><span class="ent-sub">' + dataHoraBR(x.entrega.ultima_entrega) +
+                     (x.entrega.envios > 1 ? ' · ' + x.entrega.envios + ' envios' : '') + '</span></td>' +
+                     '<td><div class="ent-acoes">' +
+                        '<button data-acao="ver" data-idx="' + idx + '">Visualizar</button>' +
+                        '<button data-acao="pdf" data-idx="' + idx + '">PDF</button>' +
+                        '<button data-acao="csv" data-idx="' + idx + '">Excel</button>' +
+                        '<button data-acao="imprimir" data-idx="' + idx + '">Imprimir</button>' +
+                     '</div></td>';
+            } else {
+                h += '<td><span class="ent-pend">Pendente</span></td><td></td>';
+            }
+            h += '</tr>';
+        });
+        h += '</tbody></table>';
+        lista.innerHTML = h;
+    }
+
+    function acaoEntregue(acao, idx) {
+        var x = entregues[idx];
+        if (!x || !x.entrega) return;
+        var e = x.entrega;
+        estado = {
+            nome: x.nome, lotacao: e.lotacao || x.lotacao, registros: e.dados || {}, modelo: null,
+            entrega: { ultima: e.ultima_entrega, envios: e.envios || 1 }, origem: 'entregues'
+        };
+        estado.modelo = montarMensal(estado.registros, String(e.ano), e.mes - 1);
+        if (acao === 'ver') {
+            document.getElementById('relPrevia').innerHTML = htmlRelatorio(estado.modelo);
+            document.getElementById('relBtnVoltar').textContent = 'Voltar à lista';
+            fechar('relModalEntregues');
+            abrir('relModalPrevia');
+        } else if (acao === 'pdf') gerarPDF();
+        else if (acao === 'csv') exportarCSV();
+        else if (acao === 'imprimir') imprimir();
+    }
+
+    window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     window.abrirRelatorioServidor = abrirRelatorioServidor;
     // expostas para testes
     window._relatorioServidor = { montarMensal: montarMensal, montarAnual: montarAnual, htmlRelatorio: htmlRelatorio };

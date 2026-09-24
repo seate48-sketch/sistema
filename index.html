@@ -728,7 +728,10 @@
             <div class="card">
                 <div class="card-header-com-botao">
                     <h3>Status dos Servidores / Colaboradores</h3>
-                    <button id="btnSuspenderRegistros" class="btn-suspender" onclick="alternarSuspensaoRegistros()">Suspender Registros</button>
+                    <div class="botoes-status">
+                        <button id="btnSuspenderRegistros" class="btn-suspender" onclick="alternarSuspensaoRegistros()">Suspender Registros</button>
+                        <button id="btnRelatoriosEntregues" class="btn-relatorios-entregues" onclick="abrirRelatoriosEntregues()">Relatórios Entregues</button>
+                    </div>
                 </div>
                 <div id="listaFuncionariosPrincipal" class="lista-funcionarios-principal"></div>
             </div>
