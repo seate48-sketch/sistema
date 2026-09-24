@@ -745,8 +745,22 @@ tr:hover{background:var(--cinza-suave);}
 }
 .tabela-estatistica {
     width: 100%;
+    min-width: 960px;
     border-collapse: collapse;
     font-size: 0.8rem;
+    table-layout: fixed;
+}
+.tabela-estatistica th:first-child,
+.tabela-estatistica td:first-child {
+    width: 190px;
+}
+.tabela-estatistica th:not(:first-child):not(:last-child),
+.tabela-estatistica td:not(:first-child):not(:last-child) {
+    width: 58px;
+}
+.tabela-estatistica th:last-child,
+.tabela-estatistica td:last-child {
+    width: 66px;
 }
 .tabela-estatistica th {
     background: var(--cinza-suave);
