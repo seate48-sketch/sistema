@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=10">
-    <link rel="icon" href="icons/favicon-32.png?v=10">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=10">
+    <link rel="manifest" href="manifest.json?v=11">
+    <link rel="icon" href="icons/favicon-32.png?v=11">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=11">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=10').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=11').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Servidores e Colaboradores</title>
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=10"></script>
+    <script src="config.js?v=11"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=10"></script>
+    <script src="supabase-client.js?v=11"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=10"></script>
+    <script src="common.js?v=11"></script>
     
     <style>
         .tabela-container th:nth-child(3),
@@ -409,7 +409,7 @@ function adicionarServidor() {
 // ==================== EXCLUIR SERVIDOR ====================
 async function excluirServidor(index) { 
     var nome = servidores[index]; 
-    if(confirm(`Excluir "${nome}"?`)) { 
+    if(confirm(`Remover "${nome}" da lista de servidores ativos?\n\nO histórico de registros dele será mantido (continua contando nos totais de SEATE/NAHORA) — ele só deixa de aparecer nas listas de seleção do sistema.`)) { 
         servidores.splice(index,1); 
         lotacoes.splice(index,1); 
         delete bloqueios[nome]; 
@@ -417,7 +417,7 @@ async function excluirServidor(index) {
             atribuicoes[ativ] = atribuicoes[ativ].filter(s => s !== nome); 
             if(atribuicoes[ativ].length === 0) delete atribuicoes[ativ]; 
         } 
-        await excluirServidorDoBanco(nome);
+        await inativarServidorNoBanco(nome);
         salvarOrdemServidores();
         salvarServidores(); 
         salvarLotacoes(); 
@@ -431,7 +431,7 @@ async function excluirServidor(index) {
         if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
         var pos = listaVisualizacao.indexOf(nome); 
         if(pos !== -1) { listaVisualizacao.splice(pos,1); if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); } 
-        feedback("Excluído!"); 
+        feedback("Removido da lista — histórico preservado!"); 
     } 
 }
 
