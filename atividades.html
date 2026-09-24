@@ -232,6 +232,42 @@
             color: var(--branco);
         }
         /* ===== FIM CORREÇÃO ===== */
+        .lista-servidores-atribuir {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-height: 240px;
+            overflow-y: auto;
+            border: 2px solid var(--cinza-borda);
+            border-radius: 14px;
+            padding: 8px;
+            background: var(--branco);
+        }
+        .item-servidor-atribuir {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: var(--branco);
+            color: var(--azul-marinho);
+            font-size: 0.85rem;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .item-servidor-atribuir:hover { background: var(--cinza-suave); }
+        .item-servidor-atribuir.selecionado {
+            background: var(--azul-institucional);
+            color: var(--branco);
+            font-weight: 600;
+        }
+        .item-servidor-atribuir.bloqueado {
+            opacity: 0.55;
+            cursor: not-allowed;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -260,7 +296,6 @@
             <a href="atividades.html" class="tab-link active">Adicionar/Atividades</a>
             <a href="atribuicoes.html" class="tab-link">Atribuir/Atividades</a>
             <a href="estatistica.html" class="tab-link">Estatistica</a>
-            <a href="dashboard.html" class="tab-link">Dashboard</a>
         </div>
         
         <div class="tab-content active" id="tab-atividades">
@@ -313,6 +348,9 @@
 <!-- Modal para editar nome e setor de uma atividade cadastrada -->
 <div id="modalEditarNomeSetor" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEditarNomeSetor()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Nome da Atividade</label><input type="text" id="editarNomeAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"></div><div class="form-group" style="margin-top:12px;"><label>Setor</label><select id="editarSetorAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEditarNomeSetor()">Cancelar</button><button class="btn btn-primary" onclick="salvarEdicaoNomeSetor()">Salvar</button></div></div></div>
 
+<!-- Modal para atribuir uma atividade a vários servidores de uma vez -->
+<div id="modalAtribuirMultiplo" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Atribuir Atividade</h3><span class="modal-close" onclick="fecharModalAtribuirMultiplo()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Atividade</label><input type="text" id="atribuirMultiploAtividadeLabel" readonly style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;background:var(--cinza-claro);"></div><div class="form-group" style="margin-top:12px;"><label>Servidor(es) — clique para selecionar um ou vários</label><div class="lista-servidores-atribuir" id="listaServidoresAtribuirMultiplo"></div></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalAtribuirMultiplo()">Cancelar</button><button class="btn btn-primary" onclick="confirmarAtribuicaoMultipla()">Atribuir Selecionados</button></div></div></div>
+
 <script>
 // Lista canônica de atividades já vem de common.js (const atividadesPadrao), evitando
 // manter aqui uma segunda cópia que poderia divergir com o tempo.
@@ -356,32 +394,7 @@ function renderizarAtividades() {
         html += '<td class="acoes-cell">';
         html += '<button class="btn-editar" onclick="abrirModalEditarNomeSetor(' + idx + ')">Editar</button>';
         html += '<button class="btn-excluir-circular" onclick="excluirAtividade(' + idx + ')">Excluir</button>';
-        html += '<button class="btn-atribuir-rapido" onclick="mostrarSelectAtribuicao(' + idx + ')">Atribuir</button>';
-        html += '<span id="atrib-select-' + idx + '" class="atribuicao-rapida-container">';
-        
-        // ============================================================
-        // CORREÇÃO: Select com status do servidor e lotação
-        // ============================================================
-        html += '<select id="selectFunc-' + idx + '">';
-        html += '<option value="">Selecione</option>';
-        for(var j = 0; j < servidores.length; j++) {
-            var servNome = servidores[j];
-            var estaBloqueado = bloqueios[servNome] === true;
-            var lotacao = lotacoes[j] || "SEATE";
-            var label = escapeHtml(servNome) + " (" + escapeHtml(lotacao) + ")";
-            if(estaBloqueado) {
-                label += " 🔒";
-            }
-            html += '<option value="' + escapeHtml(servNome) + '"' + (estaBloqueado ? ' style="color:#999;font-style:italic;"' : '') + '>' + label + '</option>';
-        }
-        html += '</select>';
-        // ============================================================
-        // FIM DA CORREÇÃO
-        // ============================================================
-        
-        html += '<button class="btn-atribuir-ok" onclick="confirmarAtribuicaoRapida(' + idx + ', \'' + ativ.replace(/'/g, "\\'") + '\')">OK</button>';
-        html += '<button class="btn-cancelar-pequeno" onclick="cancelarAtribuicaoRapida(' + idx + ')">Cancelar</button>';
-        html += '</span>';
+        html += '<button class="btn-atribuir-rapido" onclick="abrirModalAtribuirMultiplo(' + idx + ')">Atribuir</button>';
         html += '</td>';
         html += '</tr>';
     }
@@ -474,7 +487,18 @@ async function adicionarAtividade() {
     if(!nova) { feedback("Digite o nome!"); return; } 
     if(atividades.indexOf(nova) !== -1) { feedback("Ja cadastrada!"); return; } 
     var setorEscolhido = document.getElementById("novoSetorAtividade").value;
-    atividades.push(nova); 
+
+    // Insere já na posição alfabética certa (em vez de sempre no final),
+    // considerando acentos corretamente (padrão pt-BR).
+    var posicaoInsercao = atividades.length;
+    for (var i = 0; i < atividades.length; i++) {
+        if (nova.localeCompare(atividades[i], 'pt-BR', { sensitivity: 'base' }) < 0) {
+            posicaoInsercao = i;
+            break;
+        }
+    }
+    atividades.splice(posicaoInsercao, 0, nova);
+
     await salvarAtividades(); 
     if (supabaseDisponivel) {
         try { await dbSalvarSetorAtividade(nova, setorEscolhido); }
@@ -591,68 +615,78 @@ async function excluirAtividade(idx) {
 
 function filtrarAtividades() { renderizarAtividades(); }
 
-function mostrarSelectAtribuicao(idx) { 
-    var divSelect = document.getElementById("atrib-select-" + idx);
-    if(divSelect) {
-        if(divSelect.style.display === "none" || divSelect.style.display === "") {
-            divSelect.style.display = "inline-flex";
-        } else {
-            divSelect.style.display = "none";
+// ============================================================
+// ATRIBUIR ATIVIDADE A VÁRIOS SERVIDORES DE UMA VEZ (modal)
+// ============================================================
+var idxAtribuindoMultiplo = null;
+
+function abrirModalAtribuirMultiplo(idx) {
+    idxAtribuindoMultiplo = idx;
+    var nomeAtividade = atividades[idx];
+    document.getElementById("atribuirMultiploAtividadeLabel").value = nomeAtividade;
+
+    var storedBloqueios = localStorage.getItem("seate_bloqueios");
+    var bloqueiosAtuais = storedBloqueios ? JSON.parse(storedBloqueios) : {};
+    var jaAtribuidos = atribuicoes[nomeAtividade] || [];
+
+    var container = document.getElementById("listaServidoresAtribuirMultiplo");
+    var html = '';
+    for (var i = 0; i < servidores.length; i++) {
+        var nome = servidores[i];
+        var lot = lotacoes[i] || "SEATE";
+        var bloqueado = bloqueiosAtuais[nome] === true;
+        var jaAtribuido = jaAtribuidos.indexOf(nome) !== -1;
+        var classes = 'item-servidor-atribuir';
+        if (bloqueado || jaAtribuido) classes += ' bloqueado';
+        var rotulo = escapeHtml(nome) + ' (' + escapeHtml(lot) + ')';
+        if (bloqueado) rotulo += ' 🔒';
+        if (jaAtribuido) rotulo += ' ✓ já atribuído';
+        var onclickAttr = (bloqueado || jaAtribuido) ? '' : ' onclick="toggleServidorAtribuirMultiplo(this)"';
+        html += '<span class="' + classes + '" data-value="' + escapeHtml(nome) + '"' + onclickAttr + '>' + rotulo + '</span>';
+    }
+    if (servidores.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhum servidor cadastrado</span>';
+    container.innerHTML = html;
+
+    document.getElementById("modalAtribuirMultiplo").style.display = "block";
+}
+
+function toggleServidorAtribuirMultiplo(el) {
+    el.classList.toggle('selecionado');
+}
+
+function fecharModalAtribuirMultiplo() {
+    document.getElementById("modalAtribuirMultiplo").style.display = "none";
+    idxAtribuindoMultiplo = null;
+}
+
+function confirmarAtribuicaoMultipla() {
+    if (idxAtribuindoMultiplo === null) return;
+    var nomeAtividade = atividades[idxAtribuindoMultiplo];
+    var selecionados = Array.prototype.map.call(
+        document.querySelectorAll('#listaServidoresAtribuirMultiplo .item-servidor-atribuir.selecionado'),
+        function(el) { return el.getAttribute('data-value'); }
+    );
+    if (selecionados.length === 0) { feedback("Selecione ao menos um servidor!"); return; }
+
+    var lista = atribuicoes[nomeAtividade] || [];
+    var adicionados = 0;
+    for (var i = 0; i < selecionados.length; i++) {
+        if (lista.indexOf(selecionados[i]) === -1) {
+            lista.push(selecionados[i]);
+            adicionados++;
         }
     }
-}
+    atribuicoes[nomeAtividade] = lista;
+    salvarAtribuicoes();
 
-function cancelarAtribuicaoRapida(idx) { 
-    var divSelect = document.getElementById("atrib-select-" + idx);
-    if(divSelect) divSelect.style.display = "none";
+    feedback("✅ Atividade atribuída a " + adicionados + " servidor(es)!");
+    fecharModalAtribuirMultiplo();
+    renderizarListaServidoresAtribuicoes();
+    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
+    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
+    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
 }
-
-// ============================================================
-// CORREÇÃO: Função confirmarAtribuicaoRapida com validações
-// ============================================================
-function confirmarAtribuicaoRapida(idx, nomeAtividade) { 
-    var serv = document.getElementById("selectFunc-" + idx).value; 
-    if(!serv) { feedback("⚠️ Selecione um servidor!"); return; } 
-    
-    // VALIDAÇÃO 1: Verificar se o servidor existe na lista
-    if(servidores.indexOf(serv) === -1) {
-        feedback("⚠️ Servidor não encontrado na lista de cadastrados!");
-        cancelarAtribuicaoRapida(idx);
-        return;
-    }
-    
-    // VALIDAÇÃO 2: Verificar se o servidor está bloqueado
-    var storedBloqueios = localStorage.getItem("seate_bloqueios");
-    var bloqueios = storedBloqueios ? JSON.parse(storedBloqueios) : {};
-    if(bloqueios[serv] === true) {
-        feedback("⚠️ Servidor \"" + serv + "\" está BLOQUEADO! Não é possível atribuir.");
-        cancelarAtribuicaoRapida(idx);
-        return;
-    }
-    
-    // VALIDAÇÃO 3: Verificar se já está atribuída
-    var lista = atribuicoes[nomeAtividade] || []; 
-    if(lista.indexOf(serv) !== -1) { 
-        feedback("⚠️ Atividade já atribuída a \"" + serv + "\"!"); 
-        cancelarAtribuicaoRapida(idx); 
-        return; 
-    } 
-    
-    // ATRIBUIÇÃO VÁLIDA
-    lista.push(serv); 
-    atribuicoes[nomeAtividade] = lista; 
-    salvarAtribuicoes(); 
-    feedback("✅ Atividade atribuída a \"" + serv + "\" com sucesso!"); 
-    cancelarAtribuicaoRapida(idx); 
-    renderizarListaServidoresAtribuicoes(); 
-    if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
-    if(typeof atualizarEstatisticas === 'function') atualizarEstatisticas(); 
-    if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
-    if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
-}
-// ============================================================
-// FIM DA CORREÇÃO
-// ============================================================
 
 async function carregarDadosCompletos() {
     await carregarDados();
