@@ -862,6 +862,7 @@
 </div>
 
 <script src="common.js?v=14"></script>
+<script src="relatorio-servidor.js?v=14"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -1580,7 +1581,7 @@ function atualizarListaFuncionariosPrincipal() {
         html += '<button type="button" class="btn-mover-serv" onclick="moverServidorPosicao(' + i + ', 1)"' + (i === filtrados.length - 1 ? ' disabled' : '') + '>▼</button>';
         html += '</span>';
         html += '</td>';
-        html += '<td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button></td></tr>';
+        html += '<td>' + escapeHtml(nome) + '</td><td><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="' + statusClass + '">' + statusText + '</td><td class="acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button><button class="btn-relatorio" onclick="abrirRelatorioServidor(\'' + nome.replace(/'/g, "\\'") + '\')">Relatório</button></td></tr>';
     }
     html += '</tbody></table>';
     container.innerHTML = html;
