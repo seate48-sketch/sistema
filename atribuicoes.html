@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=9">
-    <link rel="icon" href="icons/favicon-32.png?v=9">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
+    <link rel="manifest" href="manifest.json?v=10">
+    <link rel="icon" href="icons/favicon-32.png?v=10">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=10">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=9').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=10').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Atribuir Atividades</title>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,18 +25,51 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=9"></script>
+    <script src="config.js?v=10"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=9"></script>
+    <script src="supabase-client.js?v=10"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=9"></script>
+    <script src="common.js?v=10"></script>
     
+<style>
+    .pill-select-box {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 2px solid var(--cinza-borda);
+        border-radius: 14px;
+        padding: 8px;
+        background: var(--branco);
+    }
+    .pill-item {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 12px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: var(--branco);
+        color: var(--azul-marinho);
+        font-size: 0.85rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s, color 0.15s;
+    }
+    .pill-item:hover { background: var(--cinza-suave); }
+    .pill-item.selecionado {
+        background: var(--azul-institucional);
+        color: var(--branco);
+        font-weight: 600;
+    }
+</style>
 </head>
 <body>
 <div class="app-container">
@@ -74,8 +107,8 @@
                     <select id="selectAtividadeAtribuir" onchange="atualizarQuadroAtividadesServidor()"></select>
                 </div>
                 <div class="form-group">
-                    <label>Selecione o Servidor</label>
-                    <select id="selectServidorAtribuir" onchange="atualizarQuadroAtividadesServidor()"></select>
+                    <label>Selecione o(s) Servidor(es)</label>
+                    <div class="pill-select-box" id="listaServidoresAtribuirNova"></div>
                 </div>
                 <div id="quadroAtividadesExistentes" class="quadro-atividades">
                     <h4>Atividades já atribuídas</h4>
@@ -114,16 +147,44 @@
 <script>
 function filtrarListaServidores() { renderizarListaServidoresAtribuicoes(); }
 
+function togglePill(el) {
+    el.classList.toggle('selecionado');
+    if (typeof atualizarQuadroAtividadesServidor === 'function') atualizarQuadroAtividadesServidor();
+}
+
+function renderizarServidoresAtribuirNova() {
+    var container = document.getElementById("listaServidoresAtribuirNova");
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < servidores.length; i++) {
+        var nome = servidores[i];
+        var lot = lotacoes[i] || "SEATE";
+        html += '<span class="pill-item" data-value="' + escapeHtml(nome) + '" onclick="togglePill(this)">' + escapeHtml(nome) + ' (' + escapeHtml(lot) + ')</span>';
+    }
+    if (servidores.length === 0) html = '<span style="color:#888; font-size:0.8rem;">Nenhum servidor cadastrado</span>';
+    container.innerHTML = html;
+}
+
 function salvarAtribuicaoUnica() { 
     var ativ = document.getElementById("selectAtividadeAtribuir").value; 
-    var serv = document.getElementById("selectServidorAtribuir").value; 
-    if(!ativ || !serv) { feedback("Selecione atividade e servidor!"); return; } 
+    var selecionados = Array.prototype.map.call(
+        document.querySelectorAll('#listaServidoresAtribuirNova .pill-item.selecionado'),
+        function(el) { return el.getAttribute('data-value'); }
+    );
+    if(!ativ || selecionados.length === 0) { feedback("Selecione a atividade e ao menos um servidor!"); return; } 
+
     var lista = atribuicoes[ativ] || []; 
-    if(lista.indexOf(serv) !== -1) { feedback("Já atribuída!"); return; } 
-    lista.push(serv); 
+    var adicionados = 0;
+    for (var i = 0; i < selecionados.length; i++) {
+        if (lista.indexOf(selecionados[i]) === -1) {
+            lista.push(selecionados[i]);
+            adicionados++;
+        }
+    }
+    if (adicionados === 0) { feedback("Todos os servidores selecionados já têm essa atividade!"); return; }
     atribuicoes[ativ] = lista; 
     salvarAtribuicoes(); 
-    feedback("Atribuída!"); 
+    feedback("Atribuída a " + adicionados + " servidor(es)!"); 
     atualizarQuadroAtividadesServidor(); 
     renderizarListaServidoresAtribuicoes(); 
     if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes(); 
@@ -131,8 +192,8 @@ function salvarAtribuicaoUnica() {
     if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); 
     if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
     document.getElementById("selectAtividadeAtribuir").value = ""; 
-    document.getElementById("selectServidorAtribuir").value = ""; 
-    document.getElementById("listaAtividadesExistentes").innerHTML = '<span class="sem-atividades">Selecione um servidor</span>'; 
+    document.querySelectorAll('#listaServidoresAtribuirNova .pill-item.selecionado').forEach(function(el) { el.classList.remove('selecionado'); });
+    document.getElementById("listaAtividadesExistentes").innerHTML = '<span class="sem-atividades">Selecione um ou mais servidores</span>'; 
 }
 
 async function iniciarPagina() {
@@ -140,6 +201,7 @@ async function iniciarPagina() {
     if (!sessao) return;
     await carregarDados();
     atualizarSelects();
+    renderizarServidoresAtribuirNova();
     atualizarSelectVisualizacao();
     renderizarListaServidoresAtribuicoes();
     if(typeof renderizarAtribuicoes === 'function') renderizarAtribuicoes();
