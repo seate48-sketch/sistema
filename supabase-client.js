@@ -154,7 +154,7 @@ async function dbCarregarServidores() {
     }
     
     try {
-        const { data, error } = await db.from(TABLES.SERVIDORES).select('*').order('ordem');
+        const { data, error } = await db.from(TABLES.SERVIDORES).select('*').eq('ativo', true).order('ordem');
         if (error) { console.error('dbCarregarServidores:', error); return { servidores: [], lotacoes: [], bloqueios: {} }; }
 
         _cache.servidores = {};
@@ -346,18 +346,27 @@ async function dbCarregarAtribuicoes() {
     try {
         const { data, error } = await db
             .from(TABLES.ATRIBUICOES)
-            .select('servidores(nome), atividades(nome)');
+            .select('servidores(nome), atividades(nome), criado_em')
+            .order('criado_em', { ascending: true });
         if (error) { console.error('dbCarregarAtribuicoes:', error); return {}; }
 
         const result = {};
+        const porServidor = {};
         data.forEach(row => {
             const ativNome = row.atividades ? row.atividades.nome : null;
             const servNome = row.servidores ? row.servidores.nome : null;
             if (ativNome && servNome) {
                 if (!result[ativNome]) result[ativNome] = [];
                 result[ativNome].push(servNome);
+                // Como a busca já vem ordenada por data de criação, a
+                // atividade mais recente de cada servidor fica sempre
+                // por último nesta lista — usada para mostrar "Atividades
+                // de [servidor]" sempre com a mais nova no final.
+                if (!porServidor[servNome]) porServidor[servNome] = [];
+                porServidor[servNome].push(ativNome);
             }
         });
+        window._ordemAtribuicoesPorServidor = porServidor;
         return result;
     } catch(e) {
         console.error('❌ Erro em dbCarregarAtribuicoes:', e.message);
