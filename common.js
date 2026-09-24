@@ -1375,7 +1375,6 @@ function configurarNavegacao() {
             'servidores': 'servidores.html',
             'atividades': 'atividades.html',
             'atribuicoes': 'atribuicoes.html',
-            'visualizar': 'visualizar.html',
             'estatistica': 'estatistica.html'
         };
 
@@ -1392,7 +1391,6 @@ function configurarNavegacao() {
                         else if (texto.indexOf('Atribuir') !== -1) window.location.href = 'atribuicoes.html';
                         else if (texto.indexOf('Servidores') !== -1) window.location.href = 'servidores.html';
                         else if (texto.indexOf('Principal') !== -1) window.location.href = 'index.html';
-                        else if (texto.indexOf('Distribuição') !== -1) window.location.href = 'visualizar.html';
                         else if (texto.indexOf('Estatística') !== -1) window.location.href = 'estatistica.html';
                     }
                 } catch(err) {

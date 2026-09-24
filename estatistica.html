@@ -574,7 +574,7 @@
         <div class="tab-content active" id="tab-estatistica">
             <!-- ===== BOTÃO PDF ===== -->
             <div style="text-align:right; margin-bottom:16px;">
-                <button class="btn-pdf" onclick="gerarRelatorioPDF()">Gerar Relatorio PDF</button>
+                <button class="btn-pdf" onclick="gerarRelatorioPDF()">Gerar Relatório PDF</button>
             </div>
             
             <!-- ===== INDICADORES GERAIS ===== -->
@@ -692,7 +692,7 @@
                 <div class="grupo-botoes">
                     <button class="btn-acao" onclick="filtrarResultados()">Filtrar</button>
                     <button class="btn-acao-exportar" onclick="exportarCSV()">Exportar CSV</button>
-                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatorio Analítico</button>
+                    <button class="btn-acao-relatorio" onclick="gerarRelatorioAnalitico()">Gerar Relatório Analítico</button>
                     <button class="btn-acao-limpar" onclick="limparFiltrosResultados()">Limpar Filtros</button>
                 </div>
                 
@@ -780,7 +780,7 @@
 <div id="modalEstatistica" class="modal-estatistica">
     <div class="modal-estatistica-content">
         <div class="modal-estatistica-header">
-            <h3><span id="modalEstatisticaTitulo">Dados Estatisticos - 2022</span></h3>
+            <h3><span id="modalEstatisticaTitulo">Dados Estatísticos - 2022</span></h3>
             <span class="modal-close" onclick="fecharModalEstatistica()">&times;</span>
         </div>
         <div class="modal-estatistica-body">
@@ -962,7 +962,7 @@ async function abrirModalIndicador(ano, setor) {
         } else {
             título = ano + " - SEATE + NAHORA";
         }
-        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatisticos - " + título;
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatísticos - " + título;
         
         var container = document.getElementById("listaAtividadesEstatistica");
         var html = '';
@@ -1735,7 +1735,7 @@ function renderizarTabelaResultadosMulti(resultado, setor) {
         var bloco = resultado.porAtividade[a];
         html += '<div class="relatorio-servidor-bloco">';
         html += '<h4>' + escapeHtml(bloco.nome) + '</h4>';
-        html += '<table class="tabela-resultados"><thead><tr><th>Ano/Mes</th>';
+        html += '<table class="tabela-resultados"><thead><tr><th>Ano/Mês</th>';
         if (setor === "ambos" || setor === "SEATE") html += '<th>SEATE</th>';
         if (setor === "ambos" || setor === "NAHORA") html += '<th>NAHORA</th>';
         html += '<th>TOTAL</th></tr></thead><tbody>';
@@ -1875,7 +1875,7 @@ function renderizarTabelaResultados(dadosAtividade, atividade, setor) {
     var acumulado = 0;
     var html = '<table class="tabela-resultados">';
     html += '<thead><tr>';
-    html += '<th>Ano/Mes</th>';
+    html += '<th>Ano/Mês</th>';
     
     if (setor === "ambos" || setor === "SEATE") {
         html += '<th>SEATE</th>';
@@ -2247,7 +2247,7 @@ async function gerarRelatorioAnalitico() {
         
         var html = `
             <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1100px; margin: 0 auto;">
-                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Analítico por Atividade</h1>
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatório Analítico por Atividade</h1>
                 <p style="text-align: center; color: #666; margin-bottom: 5px;">Ano: ${ano} | Setor: ${setor === 'ambos' ? 'Ambos' : setor}</p>
                 <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
                 <div style="border-bottom: 2px solid #D1D5DB; margin-bottom: 20px;"></div>
@@ -2309,7 +2309,7 @@ async function gerarRelatorioAnalitico() {
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
                         <thead>
                             <tr>
-                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">Ano/Mes</th>
+                                <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">Ano/Mês</th>
                                 ${setor === 'ambos' || setor === 'SEATE' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">SEATE</th>' : ''}
                                 ${setor === 'ambos' || setor === 'NAHORA' ? '<th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">NAHORA</th>' : ''}
                                 <th style="background: #1F4E79; color: white; padding: 6px 10px; text-align: center;">TOTAL</th>
@@ -2405,7 +2405,7 @@ async function gerarRelatorioAnalitico() {
         
         html2pdf().set(opt).from(container).save().then(function() {
             container.style.display = "none";
-            feedback("Relatorio analítico gerado com sucesso!");
+            feedback("Relatório analítico gerado com sucesso!");
         }).catch(function(erroPdf) {
             container.style.display = "none";
             console.warn('Erro ao gerar PDF do relatorio analítico:', erroPdf.message);
@@ -2600,7 +2600,7 @@ async function gerarRelatorioPDF() {
         
         var html = `
             <div style="padding: 20px; background: white; font-family: 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto;">
-                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatorio Estatistico</h1>
+                <h1 style="color: #0F2D52; text-align: center; border-bottom: 3px solid #FFB347; padding-bottom: 15px; margin-bottom: 25px;">SEATE - Relatório Estatístico</h1>
                 <p style="text-align: center; color: #666; margin-bottom: 30px;">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
                 
                 <h2 style="color: #1F4E79; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #FFB347; padding-left: 12px;">Resumo Geral</h2>
@@ -2683,7 +2683,7 @@ async function gerarRelatorioPDF() {
         
         html2pdf().set(opt).from(container).save().then(function() {
             container.style.display = "none";
-            feedback("Relatorio gerado com sucesso!");
+            feedback("Relatório gerado com sucesso!");
         }).catch(function(erroPdf) {
             container.style.display = "none";
             console.warn('Erro ao gerar PDF do relatorio:', erroPdf.message);
