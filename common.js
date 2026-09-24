@@ -353,13 +353,13 @@ var anoEstatisticaSelecionado = null;
 // Por isso, excluir e renomear precisam de uma ação explícita e direta no banco,
 // chamada ANTES do sync geral (evita linha órfã ao renomear e linha nunca
 // excluída ao remover um servidor).
-async function excluirServidorDoBanco(nome) {
+async function inativarServidorNoBanco(nome) {
     if (!usarSupabase || !supabaseClient) return;
     try {
-        const { error } = await supabaseClient.from(getTables().SERVIDORES).delete().eq('nome', nome);
-        if (error) console.error('Erro ao excluir servidor "' + nome + '" no Supabase:', error.message);
+        const { error } = await supabaseClient.from(getTables().SERVIDORES).update({ ativo: false }).eq('nome', nome);
+        if (error) console.error('Erro ao inativar servidor "' + nome + '" no Supabase:', error.message);
     } catch (e) {
-        console.error('❌ Erro em excluirServidorDoBanco:', e.message);
+        console.error('❌ Erro em inativarServidorNoBanco:', e.message);
     }
 }
 
@@ -1136,13 +1136,34 @@ function renderizarListaServidoresAtribuicoes() {
     }
 }
 
+// Mantém a ordem "quem foi atribuído por último" em sincronia com as
+// telas, sem precisar recarregar a página inteira.
+function registrarOrdemAtribuicao(servidor, atividade) {
+    if (!window._ordemAtribuicoesPorServidor) window._ordemAtribuicoesPorServidor = {};
+    if (!window._ordemAtribuicoesPorServidor[servidor]) window._ordemAtribuicoesPorServidor[servidor] = [];
+    if (window._ordemAtribuicoesPorServidor[servidor].indexOf(atividade) === -1) {
+        window._ordemAtribuicoesPorServidor[servidor].push(atividade);
+    }
+}
+function removerOrdemAtribuicao(servidor, atividade) {
+    if (window._ordemAtribuicoesPorServidor && window._ordemAtribuicoesPorServidor[servidor]) {
+        var idx = window._ordemAtribuicoesPorServidor[servidor].indexOf(atividade);
+        if (idx !== -1) window._ordemAtribuicoesPorServidor[servidor].splice(idx, 1);
+    }
+}
+
 function selecionarServidorAtribuicoes(nome) { 
     try {
         servidorAtualmenteSelecionado = nome; 
         renderizarListaServidoresAtribuicoes(); 
-        var ativs = []; 
-        for(var a in atribuicoes) {
-            if(atribuicoes[a].indexOf(nome) !== -1) ativs.push(a); 
+        var ativs;
+        if (window._ordemAtribuicoesPorServidor && window._ordemAtribuicoesPorServidor[nome]) {
+            ativs = window._ordemAtribuicoesPorServidor[nome].slice();
+        } else {
+            ativs = [];
+            for(var a in atribuicoes) {
+                if(atribuicoes[a].indexOf(nome) !== -1) ativs.push(a); 
+            }
         }
         var tituloElement = document.getElementById("tituloServidorSelecionado");
         var listaElement = document.getElementById("listaAtividadesServidorSelecionado");
@@ -1168,6 +1189,7 @@ function excluirAtividadeDoServidor(serv, ativ) {
             var lista = atribuicoes[ativ] || []; 
             atribuicoes[ativ] = lista.filter(function(s) { return s !== serv; }); 
             if(atribuicoes[ativ].length === 0) delete atribuicoes[ativ]; 
+            removerOrdemAtribuicao(serv, ativ);
             salvarAtribuicoes(); 
             feedback("Removida!"); 
             renderizarListaServidoresAtribuicoes(); 
