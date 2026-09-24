@@ -11,14 +11,14 @@
 // service worker esquecer o cache antigo e buscar tudo de novo.
 // ============================================================
 
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 const CACHE_NAME = 'seate-cache-' + CACHE_VERSION;
 
 const APP_SHELL = [
-    './style.css?v=10',
-    './config.js?v=10',
-    './supabase-client.js?v=10',
-    './common.js?v=10',
+    './style.css?v=11',
+    './config.js?v=11',
+    './supabase-client.js?v=11',
+    './common.js?v=11',
     './icons/icon-192.png',
     './icons/icon-512.png',
     './icons/apple-touch-icon.png'
