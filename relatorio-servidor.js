@@ -131,6 +131,8 @@
         '.ent-acoes{display:flex;gap:6px;flex-wrap:wrap;}',
         '.ent-acoes button{background:transparent;border:1px solid var(--azul-institucional);border-radius:20px;padding:3px 10px;font-size:.7rem;font-weight:600;cursor:pointer;color:#000;}',
         '.ent-acoes button:hover{background:var(--azul-institucional);color:#fff;}',
+        '.ent-acoes button.ent-excluir{border-color:var(--perigo);color:var(--perigo);}',
+        '.ent-acoes button.ent-excluir:hover{background:var(--perigo);color:#fff;}',
         '.ent-lista{max-height:60vh;overflow:auto;}'
     ].join('\n');
 
@@ -562,13 +564,15 @@
         injetarEstilos();
         criarModais();
         var hoje = new Date();
-        var ref = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); // padrão: mês anterior (o cobrado)
+        // padrão: mês de referência definido pelo gestor na tela Principal
+        var mesRef = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
+        var anoRef = (typeof anoConfigurado !== 'undefined' && !isNaN(parseInt(anoConfigurado, 10))) ? parseInt(anoConfigurado, 10) : hoje.getFullYear();
         var selAno = document.getElementById('entAno');
         var anos = [];
-        for (var a = hoje.getFullYear(); a >= 2026; a--) anos.push(a);
+        for (var a = Math.max(hoje.getFullYear(), anoRef); a >= Math.min(2026, anoRef); a--) anos.push(a);
         selAno.innerHTML = anos.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('');
-        selAno.value = String(ref.getFullYear() >= 2026 ? ref.getFullYear() : hoje.getFullYear());
-        document.getElementById('entMes').value = String(ref.getMonth() + 1);
+        selAno.value = String(anoRef);
+        document.getElementById('entMes').value = String(mesRef + 1);
         abrir('relModalEntregues');
         carregarEntregues();
     }
@@ -618,10 +622,7 @@
         (r.data || []).forEach(function (e) { // entregas de quem não está mais na lista (ex.: inativo)
             if (!usados[String(e.servidor_id)]) entregues.push({ nome: e.servidor_nome, lotacao: e.lotacao || '', entrega: e, inativo: true });
         });
-        entregues.sort(function (a, b) {
-            if (!!a.entrega !== !!b.entrega) return a.entrega ? 1 : -1; // pendentes primeiro
-            return ordenarPt(a.nome, b.nome);
-        });
+        // ordem: a mesma da lista "Servidores e Colaboradores Cadastrados" (inativos no fim)
 
         var qtdOk = entregues.filter(function (x) { return x.entrega && !x.inativo; }).length;
         resumo.innerHTML = MESES[mes - 1] + ' de ' + ano + ': <b>' + qtdOk + '</b> de <b>' + ativos.length + '</b> servidores entregaram o relatório.';
@@ -638,6 +639,7 @@
                         '<button data-acao="pdf" data-idx="' + idx + '">PDF</button>' +
                         '<button data-acao="csv" data-idx="' + idx + '">Excel</button>' +
                         '<button data-acao="imprimir" data-idx="' + idx + '">Imprimir</button>' +
+                        '<button data-acao="excluir" data-idx="' + idx + '" class="ent-excluir">Excluir entrega</button>' +
                      '</div></td>';
             } else {
                 h += '<td><span class="ent-pend">Pendente</span></td><td></td>';
@@ -648,9 +650,28 @@
         lista.innerHTML = h;
     }
 
+    async function excluirEntrega(x) {
+        var e = x.entrega;
+        var periodo = MESES[e.mes - 1] + '/' + e.ano;
+        if (!confirm('Excluir a entrega do relatório de ' + periodo + ' de ' + x.nome + '?\n\n' +
+                     'O servidor voltará a ficar PENDENTE para este mês e precisará entregar novamente.')) return;
+        try {
+            var r = await db.from('relatorios_entregues').delete()
+                .eq('servidor_id', e.servidor_id).eq('ano', e.ano).eq('mes', e.mes).select('id');
+            if (r.error) throw r.error;
+            if (!r.data || !r.data.length) throw new Error('nenhuma linha excluída (sem permissão?)');
+            avisar('Entrega de ' + x.nome + ' (' + periodo + ') excluída. Servidor pendente novamente.');
+        } catch (err) {
+            console.error('Excluir entrega:', err);
+            avisar('Não foi possível excluir a entrega. Verifique se você está logado.');
+        }
+        carregarEntregues();
+    }
+
     function acaoEntregue(acao, idx) {
         var x = entregues[idx];
         if (!x || !x.entrega) return;
+        if (acao === 'excluir') { excluirEntrega(x); return; }
         var e = x.entrega;
         estado = {
             nome: x.nome, lotacao: e.lotacao || x.lotacao, registros: e.dados || {}, modelo: null,
