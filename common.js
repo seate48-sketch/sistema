@@ -585,6 +585,7 @@ async function carregarDados() {
                 const { data: servidoresData, error: servError } = await supabaseClient
                     .from(TABLES.SERVIDORES)
                     .select('*')
+                    .eq('ativo', true)
                     .order('ordem');
                 
                 if (!servError && servidoresData && servidoresData.length > 0) {
@@ -629,10 +630,12 @@ async function carregarDados() {
             try {
                 const { data: atribData, error: atribError } = await supabaseClient
                     .from(TABLES.ATRIBUICOES)
-                    .select('servidores(nome), atividades(nome)');
+                    .select('servidores(nome), atividades(nome), criado_em')
+                    .order('criado_em', { ascending: true });
                 
                 if (!atribError && atribData) {
                     atribuicoes = {};
+                    var _ordemPorServidorLocal = {};
                     for (const item of atribData) {
                         const nomeAtividade = item.atividades ? item.atividades.nome : null;
                         const nomeServidor = item.servidores ? item.servidores.nome : null;
@@ -641,7 +644,15 @@ async function carregarDados() {
                             atribuicoes[nomeAtividade] = [];
                         }
                         atribuicoes[nomeAtividade].push(nomeServidor);
+                        // A busca já vem ordenada por data de criação, então
+                        // a atividade mais recente de cada servidor fica
+                        // sempre por último aqui — usado para a lista
+                        // "Atividades de [servidor]" sempre mostrar a mais
+                        // nova no final, em vez de uma ordem sem critério.
+                        if (!_ordemPorServidorLocal[nomeServidor]) _ordemPorServidorLocal[nomeServidor] = [];
+                        _ordemPorServidorLocal[nomeServidor].push(nomeAtividade);
                     }
+                    window._ordemAtribuicoesPorServidor = _ordemPorServidorLocal;
                     logDebug('✅ Atribuições carregadas do Supabase');
                 }
             } catch (e) {
