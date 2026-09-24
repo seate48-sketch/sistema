@@ -1075,25 +1075,29 @@ function atualizarSelectVisualizacao() {
 // ==================== FUNÇÕES DE ATRIBUIÇÕES ====================
 function atualizarQuadroAtividadesServidor() { 
     try {
-        var serv = document.getElementById("selectServidorAtribuir").value; 
+        var ativ = document.getElementById("selectAtividadeAtribuir") ? document.getElementById("selectAtividadeAtribuir").value : "";
+        var selecionados = Array.prototype.map.call(
+            document.querySelectorAll('#listaServidoresAtribuirNova .pill-item.selecionado'),
+            function(el) { return el.getAttribute('data-value'); }
+        );
         var div = document.getElementById("listaAtividadesExistentes"); 
-        if(!serv) { 
-            if(div) div.innerHTML = '<span class="sem-atividades">Selecione um servidor</span>'; 
+        if (!div) return;
+        if (selecionados.length === 0) { 
+            div.innerHTML = '<span class="sem-atividades">Selecione um ou mais servidores</span>'; 
             return; 
         } 
-        var ativs = []; 
-        for(var a in atribuicoes) {
-            if(atribuicoes[a].indexOf(serv) !== -1) ativs.push(a); 
+        if (!ativ) {
+            div.innerHTML = '<span class="sem-atividades">Selecione a atividade</span>';
+            return;
         }
-        if(ativs.length === 0) { 
-            if(div) div.innerHTML = '<span class="sem-atividades">Nenhuma atividade</span>'; 
-        } else { 
-            var html = ""; 
-            for(var i=0; i<ativs.length; i++) {
-                html += `<span class="preview-badge">${escapeHtml(ativs[i])}</span>`;
-            }
-            if(div) div.innerHTML = html; 
-        } 
+        var listaAtual = atribuicoes[ativ] || [];
+        var html = "";
+        for (var i = 0; i < selecionados.length; i++) {
+            var nome = selecionados[i];
+            var jaTem = listaAtual.indexOf(nome) !== -1;
+            html += `<span class="preview-badge"${jaTem ? ' style="opacity:0.5;"' : ''}>${escapeHtml(nome)}${jaTem ? ' (já tem)' : ''}</span>`;
+        }
+        div.innerHTML = html;
     } catch(e) {
         console.warn('Erro ao atualizar quadro de atividades:', e.message);
     }
