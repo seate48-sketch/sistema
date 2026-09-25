@@ -932,10 +932,11 @@ function abrirModal(data) {
         activitiesDiv.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">Nenhuma atividade atribuida para este servidor</div>';
     }
     absence.value = registros[data] ? registros[data].ausencia || "" : "";
+    limparAvisoExclusao();
     modal.style.display = "block";
 }
 
-function fecharModal() { modal.style.display = "none"; dataSelecionada = ""; }
+function fecharModal() { modal.style.display = "none"; dataSelecionada = ""; limparAvisoExclusao(); }
 
 async function salvarRegistros() {
     if(!dataSelecionada) return;
@@ -976,30 +977,35 @@ async function salvarRegistros() {
     renderCalendario();
     fecharModal();
     if (sucesso) {
-        feedback("Registros salvos");
+        feedback(ficouVazio ? "Registro excluído" : "Registros salvos");
     } else {
         feedback("Aviso: não foi possível confirmar o salvamento no servidor. Verifique sua conexão e tente novamente.");
     }
 }
 
-async function excluirDia() {
+// "Excluir Registro" não apaga na hora: zera os lançamentos do dia e avisa.
+// A exclusão só acontece quando o servidor clica em "Salvar" (que grava o
+// dia vazio = exclui). "Cancelar" desiste sem mudar nada.
+function excluirDia() {
     if(!dataSelecionada) return;
-    if(confirm("Excluir registros do dia " + dataSelecionada + "?")) {
-        var dataAlvo = dataSelecionada;
-        var sucesso = true;
-        if (USUARIO_LOGADO && supabaseDisponivel) {
-            try { sucesso = await dbExcluirRegistroDia(USUARIO_LOGADO, dataAlvo); }
-            catch(e) { console.warn('Erro ao excluir registro no Supabase:', e.message); sucesso = false; }
-        }
-        delete registros[dataAlvo];
-        renderCalendario();
-        fecharModal();
-        if (sucesso) {
-            feedback("Excluído");
-        } else {
-            feedback("Aviso: não foi possível confirmar a exclusão no servidor.");
-        }
+    var inputs = document.querySelectorAll(".activity-input");
+    for(var i = 0; i < inputs.length; i++) { inputs[i].value = 0; }
+    absence.value = "";
+    var aviso = document.getElementById("avisoExclusaoDia");
+    if(!aviso) {
+        aviso = document.createElement("div");
+        aviso.id = "avisoExclusaoDia";
+        aviso.style.cssText = "margin-top:14px;padding:10px 14px;border:1px solid #F59E0B;background:#FFF7ED;color:#7C2D12;border-radius:12px;font-size:0.85rem;text-align:center;";
+        var acoes = document.querySelector("#activityModal .modal-actions");
+        acoes.parentNode.insertBefore(aviso, acoes);
     }
+    var p = dataSelecionada.split("-");
+    aviso.innerHTML = "Os lançamentos de <b>" + p[2] + "/" + p[1] + "/" + p[0] + "</b> foram zerados. Clique em <b>Salvar</b> para confirmar a exclusão ou em <b>Cancelar</b> para desistir.";
+    aviso.style.display = "block";
+}
+function limparAvisoExclusao() {
+    var aviso = document.getElementById("avisoExclusaoDia");
+    if(aviso) aviso.style.display = "none";
 }
 
 function feedback(msg) {
