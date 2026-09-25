@@ -32,6 +32,8 @@
     var avisosMostrados = {};   // 'AAAA-MM-DD|11' → true
     var timer = null;
     var enviando = false;
+    var preenchimento = null;   // { ano, mes, dias[], mesOrig, anoOrig } enquanto houver dias pendentes
+    var DIAS_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
     // ---------------- utilitários ----------------
     function cliente() { return (typeof db !== 'undefined' && db && typeof db.rpc === 'function') ? db : null; }
@@ -69,7 +71,13 @@
             '.entrega-secundario{background:var(--cinza-claro);color:#333;}',
             '.entrega-acoes button:disabled{opacity:0.6;cursor:wait;}',
             '#entregaBloqueio .entrega-caixa{border-color:var(--perigo);}',
-            '#entregaBloqueio h3{color:var(--perigo);}'
+            '#entregaBloqueio h3{color:var(--perigo);}',
+            '.calendar-day.entrega-pendente,.calendar-day.entrega-pendente:hover{background:#FFE3BF !important;box-shadow:inset 0 0 0 2px #F59E0B;}',
+            '.entrega-faixa{background:#FFF7ED;border:2px solid #F59E0B;border-radius:16px;padding:14px 18px;margin-bottom:14px;color:#7C2D12;}',
+            '.entrega-faixa h4{font-size:0.98rem;margin:0 0 6px;color:#9A3412;}',
+            '.entrega-faixa p{font-size:0.86rem;line-height:1.45;margin:0 0 4px;}',
+            '.entrega-faixa .entrega-acoes{justify-content:flex-start;margin-top:10px;}',
+            '.entrega-faixa .entrega-acoes button{padding:8px 18px;font-size:0.82rem;}'
         ].join('\n');
         document.head.appendChild(st);
 
@@ -117,14 +125,14 @@
         document.getElementById('entregaCancelar').addEventListener('click', function () { fechar('entregaEscolha'); });
         document.getElementById('entregaEnviar').addEventListener('click', function () {
             var v = document.getElementById('entregaMes').value.split('-');
-            entregar(+v[0], +v[1], 'entregaEnviar');
+            tentarEntregar(+v[0], +v[1], 'entregaEnviar');
         });
         document.getElementById('entregaAvisoOk').addEventListener('click', function () { fechar('entregaAviso'); });
         document.getElementById('entregaAvisoGerar').addEventListener('click', function () {
-            if (situacao) entregar(situacao.ano_ref, situacao.mes_ref, 'entregaAvisoGerar');
+            if (situacao) tentarEntregar(situacao.ano_ref, situacao.mes_ref, 'entregaAvisoGerar');
         });
         document.getElementById('entregaBloqueioGerar').addEventListener('click', function () {
-            if (situacao) entregar(situacao.ano_ref, situacao.mes_ref, 'entregaBloqueioGerar');
+            if (situacao) tentarEntregar(situacao.ano_ref, situacao.mes_ref, 'entregaBloqueioGerar');
         });
     }
 
@@ -160,6 +168,149 @@
         abrir('entregaEscolha');
     }
 
+    // ---------------- dias pendentes (mesma regra do banco) ----------------
+    // Do último dia útil do mês para trás: dia com status diferente de
+    // "Ativo" é pulado; dia "Ativo" sem atividades é pendente; para no
+    // primeiro dia "Ativo" com atividades.
+    function diasPendentes(ano, mes) {
+        var regs = (typeof registros === 'object' && registros) ? registros : {};
+        var pend = [];
+        var ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+        for (var d = ultimo; d >= 1; d--) {
+            var dow = new Date(Date.UTC(ano, mes - 1, d)).getUTCDay();
+            if (dow === 0 || dow === 6) continue;
+            var chave = ano + '-' + pad2(mes) + '-' + pad2(d);
+            var reg = regs[chave];
+            var aus = reg && !reg.example ? String(reg.ausencia || '').trim() : '';
+            if (aus) continue;
+            var total = 0;
+            if (reg && !reg.example && reg.atividades) {
+                Object.keys(reg.atividades).forEach(function (a) { total += (+reg.atividades[a] || 0); });
+            }
+            if (total > 0) break;
+            pend.push(chave);
+        }
+        return pend.reverse();
+    }
+
+    function descreverDia(chave) {
+        var p = chave.split('-');
+        var dow = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay();
+        return p[2] + '/' + p[1] + ' (' + DIAS_SEMANA[dow] + ')';
+    }
+
+    async function tentarEntregar(ano, mes, idBotao) {
+        var pend = diasPendentes(ano, mes);
+        if (pend.length) { entrarPreenchimento(ano, mes, pend); return; }
+        await entregar(ano, mes, idBotao);
+    }
+
+    // mostra o calendário do mês do relatório com os dias pendentes em laranja
+    function entrarPreenchimento(ano, mes, dias) {
+        fechar('entregaEscolha');
+        fechar('entregaAviso');
+        fechar('entregaBloqueio');
+        if (!preenchimento) {
+            preenchimento = { mesOrig: window.mes, anoOrig: window.ano };
+        }
+        preenchimento.ano = ano;
+        preenchimento.mes = mes;
+        preenchimento.dias = dias;
+        preenchimento.bloqueado = !!(situacao && situacao.fase === 'bloqueado' &&
+                                     situacao.ano_ref === ano && situacao.mes_ref === mes);
+        if (window.mes !== mes - 1 || window.ano !== ano) {
+            window.mes = mes - 1;
+            window.ano = ano;
+        }
+        if (typeof renderCalendario === 'function') renderCalendario(); // já marca em laranja
+        mostrarFaixa();
+        var faixa = document.getElementById('entregaFaixa');
+        if (faixa && faixa.scrollIntoView) faixa.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function sairPreenchimento() {
+        if (!preenchimento) return;
+        var orig = preenchimento;
+        preenchimento = null;
+        var f = document.getElementById('entregaFaixa');
+        if (f) f.parentNode.removeChild(f);
+        window.mes = orig.mesOrig;
+        window.ano = orig.anoOrig;
+        if (typeof renderCalendario === 'function') renderCalendario();
+    }
+
+    function mostrarFaixa() {
+        var p = preenchimento;
+        if (!p) return;
+        var faixa = document.getElementById('entregaFaixa');
+        if (!faixa) {
+            faixa = document.createElement('div');
+            faixa.id = 'entregaFaixa';
+            faixa.className = 'entrega-faixa';
+            var secao = document.querySelector('.calendar-section');
+            if (secao) secao.insertBefore(faixa, secao.firstChild);
+            else document.body.insertBefore(faixa, document.body.firstChild);
+        }
+        var lista = p.dias.slice(0, 8).map(descreverDia).join(', ') +
+                    (p.dias.length > 8 ? ' e mais ' + (p.dias.length - 8) + ' dia(s)' : '');
+        var um = p.dias.length === 1;
+        if (!p.dias.length) {
+            faixa.innerHTML =
+                '<h4>Pronto! Os dias do mês de ' + nomeMes(p.ano, p.mes) + ' estão preenchidos.</h4>' +
+                '<p>Agora clique em <b>Gerar relatório</b>.</p>' +
+                '<div class="entrega-acoes">' +
+                    (p.bloqueado ? '' : '<button type="button" class="entrega-secundario" id="entregaFaixaCancelar">Cancelar</button>') +
+                    '<button type="button" class="entrega-principal" id="entregaFaixaGerar">Gerar relatório</button>' +
+                '</div>';
+        } else
+        faixa.innerHTML =
+            '<h4>Antes de gerar o relatório de ' + nomeMes(p.ano, p.mes) + ', ' + (um ? 'falta preencher 1 dia' : 'faltam ' + p.dias.length + ' dias') + '</h4>' +
+            '<p><b>' + (um ? 'Dia pendente: ' : 'Dias pendentes: ') + esc(lista) + '.</b></p>' +
+            '<p>Clique no dia destacado em laranja e lance as atividades. Se não houve atividade nesse dia, ' +
+            'altere o status para Folga, Férias, Atestado, Ausente ou Liberado.</p>' +
+            '<p>Depois, clique em <b>Gerar relatório</b>.</p>' +
+            '<div class="entrega-acoes">' +
+                (p.bloqueado ? '' : '<button type="button" class="entrega-secundario" id="entregaFaixaCancelar">Cancelar</button>') +
+                '<button type="button" class="entrega-principal" id="entregaFaixaGerar">Gerar relatório</button>' +
+            '</div>';
+        document.getElementById('entregaFaixaGerar').addEventListener('click', function () {
+            tentarEntregar(p.ano, p.mes, 'entregaFaixaGerar');
+        });
+        var canc = document.getElementById('entregaFaixaCancelar');
+        if (canc) canc.addEventListener('click', sairPreenchimento);
+    }
+
+    // pinta de laranja os dias pendentes sempre que o calendário é redesenhado
+    function marcarPendentes() {
+        if (!preenchimento) return;
+        var grid = document.getElementById('calendarGrid');
+        if (!grid) return;
+        var celulas = grid.querySelectorAll('.calendar-day:not(.empty)');
+        preenchimento.dias.forEach(function (chave) {
+            var p = chave.split('-');
+            if (+p[0] !== window.ano || +p[1] !== window.mes + 1) return;
+            var c = celulas[+p[2] - 1];
+            if (c) c.classList.add('entrega-pendente');
+        });
+    }
+
+    function instalarGanchoCalendario() {
+        if (typeof window.renderCalendario !== 'function' || window.renderCalendario._entrega) return;
+        var original = window.renderCalendario;
+        var novo = function () {
+            var r = original.apply(this, arguments);
+            if (preenchimento) {
+                // atualiza a lista de pendentes com o que acabou de ser salvo
+                preenchimento.dias = diasPendentes(preenchimento.ano, preenchimento.mes);
+                mostrarFaixa();
+                marcarPendentes();
+            }
+            return r;
+        };
+        novo._entrega = true;
+        window.renderCalendario = novo;
+    }
+
     // ---------------- entrega ----------------
     async function entregar(ano, mes, idBotao) {
         if (enviando) return;
@@ -174,12 +325,15 @@
             if (r.error) throw r.error;
             fechar('entregaEscolha');
             fechar('entregaAviso');
+            sairPreenchimento();
             var envios = r.data && r.data.envios ? r.data.envios : 1;
             avisar('Envio concluído: relatório de ' + nomeMes(ano, mes) + (envios > 1 ? ' (atualizado)' : '') + '.');
             await consultarSituacao(); // desbloqueia se era o mês cobrado
         } catch (e) {
             console.error('Entrega do relatório:', e);
             var msg = (e && e.message) ? e.message : '';
+            var mp = /DIAS_PENDENTES:([0-9,\-]+)/.exec(msg);
+            if (mp) { entrarPreenchimento(ano, mes, mp[1].split(',').filter(Boolean)); return; }
             if (/futuro/i.test(msg)) avisar('Não é possível entregar relatório de mês futuro.');
             else avisar('Não foi possível enviar o relatório. Verifique a conexão e tente novamente.');
         } finally {
@@ -208,7 +362,13 @@
 
     function aplicarSituacao() {
         var s = situacao || { fase: 'nenhum' };
-        if (s.fase === 'bloqueado') {
+        if (s.fase === 'bloqueado' && preenchimento && preenchimento.ano === s.ano_ref && preenchimento.mes === s.mes_ref) {
+            fechar('entregaAviso');
+            fechar('entregaBloqueio');
+            preenchimento.bloqueado = true;
+            mostrarFaixa();
+        } else if (s.fase === 'bloqueado') {
+            if (preenchimento) sairPreenchimento();
             fechar('entregaAviso');
             fechar('entregaEscolha');
             document.getElementById('entregaBloqueioTexto').textContent =
@@ -275,6 +435,7 @@
         try { nome = new URLSearchParams(window.location.search).get('user'); } catch (e) { nome = null; }
         if (!nome) return;
         montarInterface();
+        instalarGanchoCalendario();
         await consultarSituacao();
         carregadoEm = agoraBrasilia();
         if (situacao) situacao._dia = dataHoje();
@@ -283,7 +444,7 @@
     }
 
     // expostas para testes
-    window._entregaRelatorio = { consultarSituacao: consultarSituacao, verificarHorarios: verificarHorarios, estado: function () { return { situacao: situacao, carregadoEm: carregadoEm, difRelogio: difRelogio }; } };
+    window._entregaRelatorio = { diasPendentes: diasPendentes, consultarSituacao: consultarSituacao, verificarHorarios: verificarHorarios, estado: function () { return { situacao: situacao, carregadoEm: carregadoEm, difRelogio: difRelogio }; } };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
     else iniciar();
