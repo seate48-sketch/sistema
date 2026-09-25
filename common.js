@@ -265,9 +265,8 @@ function getAnosDisponiveis() {
 }
 
 // ==================== INDICADORES GERAIS: DISTRIBUIÇÃO DOS CARTÕES ====================
-// Cartões dos anos distribuídos por igual em linhas de no máximo 4
-// (6 anos -> 3+3, 7 -> 4+3, 8 -> 4+4...) e o TOTAL GERAL sempre numa linha
-// inteira embaixo, em destaque. Usado pela Principal, Estatística e Dashboard.
+// 4 cartões por linha; o TOTAL GERAL completa a última linha com a largura
+// que sobrar (sempre em destaque). Usado pela Principal, Estatística e Dashboard.
 function distribuirIndicadores(container) {
     if (!container) return;
     var anosCards = container.querySelectorAll('.indicador-card');
@@ -275,12 +274,16 @@ function distribuirIndicadores(container) {
     var n = anosCards.length;
     if (!n) return;
     var largura = window.innerWidth || 1200;
-    var maxPorLinha = largura < 600 ? 1 : (largura < 900 ? 2 : 4);
-    var linhas = Math.ceil(n / maxPorLinha);
-    var colunas = Math.ceil(n / linhas);
+    // 4 colunas (2 no tablet, 1 no celular); os anos preenchem as linhas de
+    // cima e o TOTAL GERAL ocupa o espaço que sobra na última linha
+    // (ex.: 6 anos -> 4 em cima e, embaixo, 2 anos + TOTAL largo). Se sobraria
+    // só 1 espaço, o TOTAL vai para uma linha inteira, para ficar em evidência.
+    var colunas = largura < 600 ? 1 : (largura < 900 ? 2 : 4);
     container.style.gridTemplateColumns = 'repeat(' + colunas + ', minmax(0, 1fr))';
     if (total) {
-        total.style.gridColumn = '1 / -1';
+        var resto = n % colunas;
+        var vagas = resto === 0 ? colunas : colunas - resto;
+        total.style.gridColumn = (vagas >= 2 || colunas === 1) ? ('span ' + vagas) : '1 / -1';
         total.style.padding = '12px 16px';
         total.style.borderWidth = '1.5px';
         total.style.borderColor = '#1F4E79';
