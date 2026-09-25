@@ -227,10 +227,73 @@ function iniciarSincronizacaoTempoReal() {
 // ==================== ANO ATUAL (DINÂMICO) ====================
 // Compartilhado por index.html e estatistica.html (eram cópias idênticas).
 var ANO_ATUAL = String(new Date().getFullYear());
+// ==================== ANOS EXIBIDOS (botões, cartões, filtros) ====================
+// Vão de 2022 até o MAIOR entre: o ano de hoje, o ano de referência definido
+// pelo gestor na tela Principal e o ano do lançamento mais recente de qualquer
+// servidor. Assim um ano novo aparece assim que o gestor abre o mês de
+// referência (ex.: Janeiro/2027) ou que alguém lança algo nele — mesmo antes
+// da virada no calendário. (Limite: no máximo 1 ano à frente de hoje, para
+// uma data digitada errada não criar anos fantasmas.)
+var _anoMaximoExtra = 0;
+function _anoValido(a) {
+    a = parseInt(a, 10);
+    return (!isNaN(a) && a >= 2022 && a <= parseInt(ANO_ATUAL, 10) + 1) ? a : 0;
+}
+async function atualizarAnoMaximo() {
+    var maior = 0;
+    try {
+        if (typeof dbCarregarConfiguracao === 'function') {
+            var cfg = await dbCarregarConfiguracao();
+            if (cfg) maior = Math.max(maior, _anoValido(cfg.ano));
+        }
+    } catch (e) { console.warn('Anos exibidos (configuração):', e.message); }
+    try {
+        if (typeof db !== 'undefined' && db && typeof db.from === 'function') {
+            var r = await db.from(getTables().REGISTROS).select('data').order('data', { ascending: false }).limit(1);
+            if (r && !r.error && r.data && r.data[0] && r.data[0].data) maior = Math.max(maior, _anoValido(String(r.data[0].data).slice(0, 4)));
+        }
+    } catch (e) { console.warn('Anos exibidos (registros):', e.message); }
+    if (maior) _anoMaximoExtra = Math.max(_anoMaximoExtra, maior);
+    return _anoMaximoExtra;
+}
 function getAnosDisponiveis() {
+    var fim = Math.max(parseInt(ANO_ATUAL, 10), _anoMaximoExtra || 0,
+                       (typeof anoConfigurado !== 'undefined') ? _anoValido(anoConfigurado) : 0);
     var anos = [];
-    for (var y = 2022; y <= parseInt(ANO_ATUAL); y++) { anos.push(String(y)); }
+    for (var y = 2022; y <= fim; y++) { anos.push(String(y)); }
     return anos;
+}
+
+// ==================== INDICADORES GERAIS: DISTRIBUIÇÃO DOS CARTÕES ====================
+// Cartões dos anos distribuídos por igual em linhas de no máximo 4
+// (6 anos -> 3+3, 7 -> 4+3, 8 -> 4+4...) e o TOTAL GERAL sempre numa linha
+// inteira embaixo, em destaque. Usado pela Principal, Estatística e Dashboard.
+function distribuirIndicadores(container) {
+    if (!container) return;
+    var anosCards = container.querySelectorAll('.indicador-card');
+    var total = container.querySelector('.indicador-card-total');
+    var n = anosCards.length;
+    if (!n) return;
+    var largura = window.innerWidth || 1200;
+    var maxPorLinha = largura < 600 ? 1 : (largura < 900 ? 2 : 4);
+    var linhas = Math.ceil(n / maxPorLinha);
+    var colunas = Math.ceil(n / linhas);
+    container.style.gridTemplateColumns = 'repeat(' + colunas + ', minmax(0, 1fr))';
+    if (total) {
+        total.style.gridColumn = '1 / -1';
+        total.style.padding = '12px 16px';
+        total.style.borderWidth = '1.5px';
+        total.style.borderColor = '#1F4E79';
+        var v = total.querySelector('.indicador-valor');
+        if (v) v.style.fontSize = '2.1rem';
+    }
+}
+if (typeof window !== 'undefined' && !window._distribuirIndicadoresResize) {
+    window._distribuirIndicadoresResize = true;
+    window.addEventListener('resize', function () {
+        var g = document.getElementById('indicadoresGrid');
+        if (g) distribuirIndicadores(g);
+    });
 }
 
 // ==================== FONTE DOS NÚMEROS DE CADA ANO ====================
@@ -602,6 +665,7 @@ async function carregarDados() {
         if (!usarSupabase || !supabaseClient) {
             initSupabase();
         }
+        await atualizarAnoMaximo();
         
         if (usarSupabase && supabaseClient) {
             logDebug('📊 Buscando dados do Supabase...');
@@ -888,6 +952,9 @@ async function salvarConfigMes() {
         atualizarDisplayMes();
         if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
         if(typeof renderizarAcessoRapido === 'function') renderizarAcessoRapido();
+        // um ano de referência novo (ex.: Janeiro/2027) já passa a aparecer
+        if(typeof renderizarBotoesAnos === 'function') renderizarBotoesAnos();
+        if(typeof renderizarIndicadores === 'function') renderizarIndicadores();
         feedback("Configuração salva!");
         if (supabaseDisponivel) {
             try { await dbSalvarConfiguracao(mesConfigurado, anoConfigurado); }
@@ -1744,6 +1811,8 @@ window.salvarConfigMes = salvarConfigMes;
 window.getStatusServidor = getStatusServidor;
 window.getLotacaoServidor = getLotacaoServidor;
 window.obterTotaisAno = obterTotaisAno;
+window.distribuirIndicadores = distribuirIndicadores;
+window.atualizarAnoMaximo = atualizarAnoMaximo;
 window.anoUsaRegistros = anoUsaRegistros;
 window.anoSoRegistros = anoSoRegistros;
 window.gerarLink = gerarLink;

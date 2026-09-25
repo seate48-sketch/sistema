@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=15">
-    <link rel="icon" href="icons/favicon-32.png?v=15">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=15">
+    <link rel="manifest" href="manifest.json?v=16">
+    <link rel="icon" href="icons/favicon-32.png?v=16">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=16">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=15').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=16').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=15"></script>
-    <script src="supabase-client.js?v=15"></script>
+    <script src="config.js?v=16"></script>
+    <script src="supabase-client.js?v=16"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -866,7 +866,7 @@
     </div>
 </div>
 
-<script src="common.js?v=15"></script>
+<script src="common.js?v=16"></script>
 <script src="relatorio-servidor.js?v=16"></script>
 <script>
 
@@ -940,6 +940,7 @@ async function renderizarIndicadores() {
     html += '</div>';
     
     container.innerHTML = html;
+    if (typeof distribuirIndicadores === 'function') distribuirIndicadores(container);
 }
 
 // ==================== ABRIR MODAL INDICADOR ====================
