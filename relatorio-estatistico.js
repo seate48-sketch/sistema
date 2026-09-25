@@ -631,12 +631,20 @@
             } else {
                 html += '<table class="tabela-resultados"><thead><tr><th>Atividade</th><th>Total</th></tr></thead><tbody>';
                 s.itens.forEach(function (it) { html += '<tr><td>' + esc(it.nome) + '</td><td>' + num(it.total) + '</td></tr>'; });
-                html += '<tr class="total-row"><td><strong>TOTAL DO PERÍODO</strong></td><td>' + num(s.total) + '</td></tr>';
             }
-            html += '<tr class="total-row"><td><strong>' + rotAno + '</strong></td><td>' + num(s.totalAnoRef) + '</td></tr>';
             html += '<tr class="total-row"><td><strong>' + rotMes + '</strong></td><td>' + num(s.totalMesRef) + '</td></tr>';
+            html += '<tr class="total-row"><td><strong>' + rotAno + '</strong></td><td>' + num(s.totalAnoRef) + '</td></tr>';
             html += '</tbody></table></div>';
         });
+        if (ultimoServidor.servidores.length > 1) {
+            var somaMes = ultimoServidor.servidores.reduce(function (t, x) { return t + x.totalMesRef; }, 0);
+            var somaAno = ultimoServidor.servidores.reduce(function (t, x) { return t + x.totalAnoRef; }, 0);
+            html += '<div class="relatorio-servidor-bloco"><h4>Todos os servidores pesquisados (' + ultimoServidor.servidores.length + ')</h4>' +
+                    '<table class="tabela-resultados"><tbody>' +
+                    '<tr class="total-row"><td><strong>' + rotMes + ' – TODOS OS SERVIDORES</strong></td><td>' + num(somaMes) + '</td></tr>' +
+                    '<tr class="total-row"><td><strong>' + rotAno + ' – TODOS OS SERVIDORES</strong></td><td>' + num(somaAno) + '</td></tr>' +
+                    '</tbody></table></div>';
+        }
         container.innerHTML = html;
     }
 
@@ -657,10 +665,13 @@
         L.push(['Servidor', 'Lotação', 'Atividade', 'Total']);
         u.servidores.forEach(function (s) {
             s.itens.forEach(function (it) { L.push([s.nome, s.lotacao, it.nome, it.total]); });
-            L.push([s.nome, s.lotacao, 'TOTAL DO PERÍODO', s.total]);
-            L.push([s.nome, s.lotacao, 'TOTAL GERAL DO ANO DE REFERÊNCIA (' + u.anoRef + ')', s.totalAnoRef]);
             L.push([s.nome, s.lotacao, 'TOTAL GERAL DO MÊS DE REFERÊNCIA (' + MESES[u.mesRef] + '/' + u.anoRef + ')', s.totalMesRef]);
+            L.push([s.nome, s.lotacao, 'TOTAL GERAL DO ANO DE REFERÊNCIA (' + u.anoRef + ')', s.totalAnoRef]);
         });
+        if (u.servidores.length > 1) {
+            L.push(['TODOS OS SERVIDORES', '', 'TOTAL GERAL DO MÊS DE REFERÊNCIA (' + MESES[u.mesRef] + '/' + u.anoRef + ')', u.servidores.reduce(function (t, x) { return t + x.totalMesRef; }, 0)]);
+            L.push(['TODOS OS SERVIDORES', '', 'TOTAL GERAL DO ANO DE REFERÊNCIA (' + u.anoRef + ')', u.servidores.reduce(function (t, x) { return t + x.totalAnoRef; }, 0)]);
+        }
         baixarCSV(L, 'relatorio_por_servidor_' + new Date().toISOString().slice(0, 10) + '.csv');
         avisar('Arquivo CSV gerado.');
     }
@@ -680,23 +691,24 @@
             if (u.filtroAtiv.length) h += '<div class="rel-subtitulo" style="margin-top:-6px;">Atividades filtradas: ' + esc(u.filtroAtiv.join(', ')) + '</div>';
 
             if (u.servidores.length > 1) {
-                var totG = u.servidores.reduce(function (s, x) { return s + x.total; }, 0);
+                var somaMes = u.servidores.reduce(function (t, x) { return t + x.totalMesRef; }, 0);
+                var somaAno = u.servidores.reduce(function (t, x) { return t + x.totalAnoRef; }, 0);
                 h += '<div class="rel-bloco"><div class="rel-secao">Visão geral</div>' +
-                     '<div class="rel-subtitulo">Comparativo entre os servidores selecionados</div>' +
-                     '<table class="rel-tab"><thead><tr><th style="width:40%">Servidor / Colaborador</th><th class="n">Total do período</th><th class="n">% do período</th><th class="n">Ano ' + u.anoRef + '</th><th class="n">' + esc(refTxt) + '</th></tr></thead><tbody>';
+                     '<div class="rel-subtitulo">Totais de referência dos servidores pesquisados</div>' +
+                     '<table class="rel-tab"><thead><tr><th style="width:38%">Servidor / Colaborador</th><th class="n">' + esc(refTxt) + '</th><th class="n">% do mês</th><th class="n">Ano ' + u.anoRef + '</th><th class="n">% do ano</th></tr></thead><tbody>';
                 u.servidores.forEach(function (s) {
-                    h += '<tr><td>' + esc(s.nome) + '</td><td class="n"><b>' + num(s.total) + '</b></td><td class="n">' + pct(s.total, totG) +
-                         '</td><td class="n">' + num(s.totalAnoRef) + '</td><td class="n">' + num(s.totalMesRef) + '</td></tr>';
+                    h += '<tr><td>' + esc(s.nome) + '</td><td class="n"><b>' + num(s.totalMesRef) + '</b></td><td class="n">' + pct(s.totalMesRef, somaMes) +
+                         '</td><td class="n"><b>' + num(s.totalAnoRef) + '</b></td><td class="n">' + pct(s.totalAnoRef, somaAno) + '</td></tr>';
                 });
-                h += '<tr class="rel-total"><td>TOTAL</td><td class="n">' + num(totG) + '</td><td class="n">100,0%</td><td class="n">' +
-                     num(u.servidores.reduce(function (s, x) { return s + x.totalAnoRef; }, 0)) + '</td><td class="n">' +
-                     num(u.servidores.reduce(function (s, x) { return s + x.totalMesRef; }, 0)) + '</td></tr></tbody></table>';
-                var ord = u.servidores.slice().sort(function (a, b) { return b.total - a.total; });
+                h += '<tr class="rel-total"><td>TODOS OS SERVIDORES</td><td class="n">' + num(somaMes) + '</td><td class="n">100,0%</td><td class="n">' +
+                     num(somaAno) + '</td><td class="n">100,0%</td></tr></tbody></table>';
+                var ordM = u.servidores.slice().sort(function (a, b) { return b.totalMesRef - a.totalMesRef; });
+                var ordA = u.servidores.slice().sort(function (a, b) { return b.totalAnoRef - a.totalAnoRef; });
                 var rg = [];
-                rg.push(u.servidores.length + ' servidores · total do período: <b>' + num(totG) + '</b> atividades.');
-                rg.push('Maior volume no período: <b>' + esc(ord[0].nome) + '</b> (' + num(ord[0].total) + ', ' + pct(ord[0].total, totG) + ').');
-                rg.push('Menor volume no período: ' + esc(ord[ord.length - 1].nome) + ' (' + num(ord[ord.length - 1].total) + ').');
-                rg.push('Média por servidor: <b>' + num(totG / u.servidores.length) + '</b> atividades no período.');
+                rg.push(u.servidores.length + ' servidores · mês de referência (' + esc(refTxt) + '): <b>' + num(somaMes) + '</b> · ano ' + u.anoRef + ': <b>' + num(somaAno) + '</b> atividades.');
+                rg.push('Maior volume no mês: <b>' + esc(ordM[0].nome) + '</b> (' + num(ordM[0].totalMesRef) + ', ' + pct(ordM[0].totalMesRef, somaMes) + ').');
+                rg.push('Maior volume no ano: <b>' + esc(ordA[0].nome) + '</b> (' + num(ordA[0].totalAnoRef) + ', ' + pct(ordA[0].totalAnoRef, somaAno) + ').');
+                rg.push('Média por servidor: <b>' + num(somaMes / u.servidores.length) + '</b> no mês e <b>' + num(somaAno / u.servidores.length) + '</b> no ano.');
                 h += linhas(rg) + '</div>';
             }
 
@@ -708,12 +720,12 @@
                     h += '<tr><td>' + esc(it.nome) + '</td><td class="n">' + num(it.total) + '</td><td class="n">' + pct(it.total, s.total) + '</td></tr>';
                 });
                 if (!s.itens.length) h += '<tr><td colspan="3" style="color:#6B7280;text-align:center;">Nenhum registro no período.</td></tr>';
-                h += '<tr class="rel-total"><td>TOTAL DO PERÍODO</td><td class="n">' + num(s.total) + '</td><td class="n">' + (s.total ? '100,0%' : '—') + '</td></tr>' +
+                h += '<tr class="rel-total"><td>TOTAL GERAL DO MÊS DE REFERÊNCIA (' + esc(refTxt) + ')</td><td class="n">' + num(s.totalMesRef) + '</td><td></td></tr>' +
                      '<tr class="rel-total"><td>TOTAL GERAL DO ANO DE REFERÊNCIA (' + u.anoRef + ')</td><td class="n">' + num(s.totalAnoRef) + '</td><td></td></tr>' +
-                     '<tr class="rel-total"><td>TOTAL GERAL DO MÊS DE REFERÊNCIA (' + esc(refTxt) + ')</td><td class="n">' + num(s.totalMesRef) + '</td><td></td></tr>' +
                      '</tbody></table>';
                 var r = [];
-                r.push('Total no período: <b>' + num(s.total) + '</b> atividades em ' + s.itens.length + ' tipo(s) de atividade.');
+                r.push('Mês de referência (' + esc(refTxt) + '): <b>' + num(s.totalMesRef) + '</b> · ano de referência (' + u.anoRef + '): <b>' + num(s.totalAnoRef) + '</b> atividades.');
+                r.push(s.itens.length + ' tipo(s) de atividade no período filtrado (' + esc(u.periodo) + ').');
                 if (s.itens.length) {
                     r.push('Principal atividade: <b>' + esc(s.itens[0].nome) + '</b> (' + num(s.itens[0].total) + ', ' + pct(s.itens[0].total, s.total) + ').');
                     if (s.itens.length >= 3) {
@@ -726,7 +738,6 @@
                     }
                     r.push('Média mensal no período: <b>' + num(s.total / Math.max(1, u.nMeses)) + '</b>.');
                 }
-                r.push('Ano de referência (' + u.anoRef + '): <b>' + num(s.totalAnoRef) + '</b> · mês de referência (' + esc(refTxt) + '): <b>' + num(s.totalMesRef) + '</b>.');
                 h += linhas(r) + '</div>';
             });
             h += rodape();
