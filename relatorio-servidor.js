@@ -91,7 +91,14 @@
         '.rel-doc tr,.rel-doc tbody.rel-dia,.rel-bloco,.rel-cab,.rel-resumo{break-inside:avoid;page-break-inside:avoid;}',
         '.rel-secao{break-after:avoid;page-break-after:avoid;}',
         '.rel-doc thead{display:table-header-group;}',
-        '.rel-doc tr:hover{background:none;}'
+        '.rel-doc tr:hover{background:none;}',
+        // modal "Dados Estatísticos" (tela Principal): totais no padrão discreto
+        '#listaAtividadesEstatistica th[style*="--destaque"]{background:#F3F4F6 !important;color:#374151 !important;}',
+        '#listaAtividadesEstatistica td[style*="--destaque"]{background:#F3F4F6 !important;color:#0F2D52 !important;}',
+        '#listaAtividadesEstatistica tr.linha-total-setor td{background:#F9FAFB !important;color:#0F2D52;border-top:1.5px solid #9CA3AF;}',
+        '#listaAtividadesEstatistica tr.linha-total-combinado,#listaAtividadesEstatistica tr.linha-total-combinado td{background:#F9FAFB !important;color:#0F2D52;}',
+        '#listaAtividadesEstatistica tr.linha-total-combinado td{border-top:1.5px solid #9CA3AF;}',
+        '#listaAtividadesEstatistica #totalGeralBanner{background:#F9FAFB !important;border:1px solid #D1D5DB;border-top:2px solid #1F4E79;color:#0F2D52 !important;border-radius:10px !important;font-size:0.95rem;}'
     ].join('\n');
 
     var CSS_TELA = [
@@ -687,6 +694,151 @@
         else if (acao === 'csv') exportarCSV();
         else if (acao === 'imprimir') imprimir();
     }
+
+    // ================= DADOS ESTATÍSTICOS DO ANO (PDF / Excel) =================
+    // Lê a tabela exatamente como está no modal "Dados Estatísticos" do ano
+    // aberto (SEATE, NAHORA, totais) e gera o PDF ou o Excel (CSV).
+    function lerTabelaDadosAno() {
+        var lista = document.getElementById('listaAtividadesEstatistica');
+        if (!lista) return null;
+        var setores = [];
+        lista.querySelectorAll('.titulo-secao').forEach(function (tit) {
+            var nomeSetor = tit.textContent.replace(/[^A-Za-zÀ-ÿ ]/g, '').trim();
+            var cont = tit.nextElementSibling;
+            var tab = cont ? cont.querySelector('table') : null;
+            if (!tab) return;
+            var linhas = [];
+            tab.querySelectorAll('tbody tr').forEach(function (tr) {
+                if (tr.classList.contains('linha-total-setor')) return;
+                var ins = tr.querySelectorAll('input.input-mes-estatistica');
+                if (!ins.length) return;
+                var vals = Array.prototype.map.call(ins, function (i) { return parseInt(i.value, 10) || 0; });
+                linhas.push({ ativ: tr.cells[0].textContent.trim(), meses: vals, total: vals.reduce(function (s, v) { return s + v; }, 0) });
+            });
+            var totMes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            linhas.forEach(function (l) { l.meses.forEach(function (v, i) { totMes[i] += v; }); });
+            setores.push({ nome: nomeSetor, linhas: linhas, totMes: totMes, total: totMes.reduce(function (s, v) { return s + v; }, 0) });
+        });
+        if (!setores.length) return null;
+        var comb = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        setores.forEach(function (s) { s.totMes.forEach(function (v, i) { comb[i] += v; }); });
+        var ano = (typeof anoEstatisticaSelecionado !== 'undefined' && anoEstatisticaSelecionado) ? String(anoEstatisticaSelecionado) : '';
+        var tituloModal = (document.getElementById('modalEstatisticaTitulo') || {}).textContent || '';
+        var fonte = (typeof anoSoRegistros === 'function' && anoSoRegistros(ano)) ? 'Registros dos servidores'
+                  : (typeof anoUsaRegistros === 'function' && anoUsaRegistros(ano)) ? 'Registros dos servidores + dados digitados'
+                  : 'Dados digitados (Dados Estatísticos)';
+        return { ano: ano, titulo: tituloModal, fonte: fonte, setores: setores, comb: comb, total: comb.reduce(function (s, v) { return s + v; }, 0) };
+    }
+
+    function exportarDadosAnoExcel() {
+        var d = lerTabelaDadosAno();
+        if (!d) { avisar('Abra um ano em "Dados Estatísticos" primeiro.'); return; }
+        var L = [['Dados Estatísticos - ' + d.ano], ['Fonte', d.fonte], []];
+        L.push(['Setor', 'Atividade'].concat(MESES, ['Total']));
+        d.setores.forEach(function (s) {
+            s.linhas.forEach(function (l) { L.push([s.nome, l.ativ].concat(l.meses, [l.total])); });
+            L.push([s.nome, 'TOTAL ' + s.nome].concat(s.totMes, [s.total]));
+            L.push([]);
+        });
+        if (d.setores.length > 1) L.push(['SEATE + NAHORA', 'Total mensal combinado'].concat(d.comb, [d.total]));
+        L.push(['TOTAL GERAL ' + d.ano, '', '', '', '', '', '', '', '', '', '', '', '', '', d.total]);
+        var csv = L.map(function (row) { return row.map(csvCampo).join(';'); }).join('\r\n');
+        var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a');
+        var url = URL.createObjectURL(blob);
+        a.href = url; a.download = 'Dados_Estatisticos_' + d.ano + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        avisar('Arquivo Excel (CSV) gerado.');
+    }
+
+    var gerandoDadosAno = false;
+    async function exportarDadosAnoPDF() {
+        if (gerandoDadosAno) return;
+        var d = lerTabelaDadosAno();
+        if (!d) { avisar('Abra um ano em "Dados Estatísticos" primeiro.'); return; }
+        injetarEstilos();
+        gerandoDadosAno = true;
+        avisar('Gerando PDF...');
+        var largura = 1045; // A4 paisagem
+        var box = document.createElement('div');
+        try {
+            var h = '<div class="rel-cab"><div class="rel-cab-topo"><h2 class="rel-titulo">Dados Estatísticos – ' + esc(d.ano) + '</h2>' +
+                    '<div class="rel-orgao">SEATE · Justiça Federal – SJDF</div></div>' +
+                    '<div class="rel-info"><div><span>Ano</span>' + esc(d.ano) + '</div><div><span>Fonte dos números</span>' + esc(d.fonte) + '</div>' +
+                    '<div><span>Gerado em</span>' + agora() + '</div></div></div>';
+            d.setores.forEach(function (s) {
+                h += '<div class="rel-bloco"><div class="rel-secao">' + esc(s.nome) + '</div>' +
+                     '<table class="rel-tab rel-anual"><colgroup><col style="width:24%">';
+                for (var i = 0; i < 12; i++) h += '<col>';
+                h += '<col style="width:7%"></colgroup><thead><tr><th>Atividade</th>';
+                MESES_ABREV.forEach(function (m) { h += '<th class="c">' + m + '</th>'; });
+                h += '<th class="n">Total</th></tr></thead><tbody>';
+                s.linhas.forEach(function (l) {
+                    h += '<tr><td>' + esc(l.ativ) + '</td>';
+                    l.meses.forEach(function (v) { h += '<td class="c' + (v ? '' : ' z') + '">' + (v ? num(v) : '–') + '</td>'; });
+                    h += '<td class="n"><b>' + num(l.total) + '</b></td></tr>';
+                });
+                h += '<tr class="rel-total"><td>TOTAL ' + esc(s.nome) + '</td>';
+                s.totMes.forEach(function (v) { h += '<td class="c">' + num(v) + '</td>'; });
+                h += '<td class="n">' + num(s.total) + '</td></tr></tbody></table></div>';
+            });
+            if (d.setores.length > 1) {
+                h += '<div class="rel-bloco"><div class="rel-secao">SEATE + NAHORA</div><table class="rel-tab rel-anual"><colgroup><col style="width:24%">';
+                for (var j = 0; j < 12; j++) h += '<col>';
+                h += '<col style="width:7%"></colgroup><thead><tr><th></th>';
+                MESES_ABREV.forEach(function (m) { h += '<th class="c">' + m + '</th>'; });
+                h += '<th class="n">Total</th></tr></thead><tbody><tr class="rel-total"><td>Total mensal combinado</td>';
+                d.comb.forEach(function (v) { h += '<td class="c">' + num(v) + '</td>'; });
+                h += '<td class="n">' + num(d.total) + '</td></tr></tbody></table></div>';
+            }
+            // resumo curto
+            var r = [];
+            r.push('Total geral de ' + esc(d.ano) + ': <b>' + num(d.total) + '</b> atividades.');
+            if (d.setores.length > 1) {
+                r.push('Participação: ' + d.setores.map(function (s) {
+                    return esc(s.nome) + ' <b>' + (d.total ? (s.total * 100 / d.total).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '0,0') + '%</b> (' + num(s.total) + ')';
+                }).join(' · ') + '.');
+            }
+            var comDados = [];
+            d.comb.forEach(function (v, i) { if (v > 0) comDados.push({ i: i, v: v }); });
+            if (comDados.length) {
+                var mx = comDados.reduce(function (a, b) { return b.v > a.v ? b : a; });
+                var mn = comDados.reduce(function (a, b) { return b.v < a.v ? b : a; });
+                r.push('Mês de maior volume: <b>' + MESES[mx.i] + '</b> (' + num(mx.v) + '); menor: ' + MESES[mn.i] + ' (' + num(mn.v) + ').');
+                r.push('Meses com registros: ' + comDados.length + ' · média mensal: <b>' + num(d.total / comDados.length) + '</b>.');
+            }
+            d.setores.forEach(function (s) {
+                var top = s.linhas.slice().sort(function (a, b) { return b.total - a.total; })[0];
+                if (top && top.total) r.push('Maior volume em ' + esc(s.nome) + ': <b>' + esc(top.ativ) + '</b> (' + num(top.total) + ').');
+            });
+            h += '<div class="rel-resumo" style="display:block;line-height:1.5;">' + r.map(function (x) { return '<div>• ' + x + '</div>'; }).join('') + '</div>';
+            h += '<div class="rel-rodape"><span>SEATE – Sistema de Gestão de Atividades</span><span>Gerado em ' + agora() + '</span></div>';
+
+            box.style.cssText = 'position:absolute;left:0;top:0;width:' + largura + 'px;background:#fff;z-index:-1;pointer-events:none;';
+            box.innerHTML = '<div class="rel-doc" style="padding:0 6px;">' + h + '</div>';
+            document.body.appendChild(box);
+            await carregarHtml2pdf();
+            await html2pdf().set({
+                margin: 10,
+                filename: 'Dados_Estatisticos_' + d.ano + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: largura, windowWidth: largura, scrollX: 0, scrollY: 0, x: 0, y: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['css'], avoid: ['tr', '.rel-bloco', '.rel-cab', '.rel-resumo', '.rel-rodape'] }
+            }).from(box.firstChild).save();
+            avisar('PDF gerado com sucesso!');
+        } catch (e) {
+            console.error('PDF Dados Estatísticos:', e);
+            avisar('Não foi possível gerar o PDF. Tente novamente.');
+        } finally {
+            if (box.parentNode) box.parentNode.removeChild(box);
+            gerandoDadosAno = false;
+        }
+    }
+
+    window.exportarDadosAnoExcel = exportarDadosAnoExcel;
+    window.exportarDadosAnoPDF = exportarDadosAnoPDF;
 
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     window.abrirRelatorioServidor = abrirRelatorioServidor;

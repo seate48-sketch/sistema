@@ -821,6 +821,8 @@
             <div id="listaAtividadesEstatistica"></div>
         </div>
         <div class="modal-estatistica-footer">
+            <button class="btn btn-neutral" onclick="exportarDadosAnoExcel()">Excel</button>
+            <button class="btn btn-neutral" onclick="exportarDadosAnoPDF()">PDF</button>
             <button class="btn btn-primary" id="btnSalvarEstatistica" onclick="salvarDadosEstatisticaModal()">Salvar</button>
             <button class="btn btn-neutral" onclick="fecharModalEstatistica()">Cancelar</button>
         </div>
@@ -865,7 +867,7 @@
 </div>
 
 <script src="common.js?v=15"></script>
-<script src="relatorio-servidor.js?v=15"></script>
+<script src="relatorio-servidor.js?v=16"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
