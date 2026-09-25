@@ -756,6 +756,28 @@
         if (c) c.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>';
     }
 
+    // ---------- estilo discreto das tabelas NA TELA (mesmo padrão dos PDFs) ----------
+    (function estiloTelaDiscreto() {
+        var alvos = ['#containerTabelaResultados', '#containerRelatorioServidor'];
+        var sel = function (suf) { return alvos.map(function (a) { return a + ' ' + suf; }).join(','); };
+        var st = document.createElement('style');
+        st.id = 'estilo-tabelas-discretas';
+        st.textContent = [
+            sel('.relatorio-servidor-bloco') + '{background:#fff;border:1px solid #E5E7EB;border-radius:10px;}',
+            sel('.relatorio-servidor-bloco h4') + '{font-size:0.92rem;color:#0F2D52;}',
+            sel('.tabela-resultados') + '{font-size:0.82rem;border-collapse:collapse;}',
+            sel('.tabela-resultados th') + '{background:#F3F4F6 !important;color:#374151 !important;border:1px solid #D1D5DB;padding:6px 10px;text-align:right;font-weight:600;}',
+            sel('.tabela-resultados th:first-child') + '{text-align:left;}',
+            sel('.tabela-resultados td') + '{border:1px solid #E5E7EB;padding:5px 10px;text-align:right;color:#1F2937;}',
+            sel('.tabela-resultados td:first-child') + '{text-align:left;}',
+            sel('.tabela-resultados tr:hover') + '{background:#FAFAFA;}',
+            sel('.tabela-resultados .total-row') + '{background:#F9FAFB !important;color:#0F2D52 !important;font-weight:600;}',
+            sel('.tabela-resultados .total-row td') + '{border-top:1.5px solid #9CA3AF;color:#0F2D52;}',
+            '#containerTabelaResultados > div[style*="--destaque"]{background:#F9FAFB !important;border:1px solid #D1D5DB;border-top:2px solid #1F4E79;border-radius:10px !important;color:#0F2D52 !important;font-weight:600 !important;}'
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(st);
+    })();
+
     window.renderizarResumoAnaliticoMulti = renderizarResumoAnaliticoMulti;
     window.gerarRelatorioAnalitico = gerarRelatorioAnalitico;
     window.filtrarRelatorioServidor = filtrarRelatorioServidor;
