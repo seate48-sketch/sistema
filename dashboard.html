@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=14">
-    <link rel="icon" href="icons/favicon-32.png?v=14">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=14">
+    <link rel="manifest" href="manifest-dashboard.json?v=15">
+    <link rel="icon" href="icons/favicon-32.png?v=15">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=15">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=14').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=15').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=14"></script>
+    <script src="config.js?v=15"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=14"></script>
+    <script src="supabase-client.js?v=15"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=14"></script>
+    <script src="common.js?v=15"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -947,7 +947,7 @@ async function renderizarIndicadores() {
 // ==================== ABRIR MODAL INDICADOR ====================
 async function abrirModalIndicador(ano, setor) {
     try {
-        var isAnoAtual = (ano === ANO_ATUAL);
+        var isAnoAtual = anoUsaRegistros(ano); // anos com registros dos servidores (2026 em diante)
         var título = ano;
         if (setor === "SEATE") {
             título = ano + " - SEATE";
@@ -964,7 +964,7 @@ async function abrirModalIndicador(ano, setor) {
         var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
         
         if (isAnoAtual) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
+            var totaisAnoAtual = await obterTotaisAno(ano);
             var seateTotais = Object.assign({}, totaisAnoAtual.porAtividadeSeate);
             var nahoraTotais = Object.assign({}, totaisAnoAtual.porAtividadeNahora);
 
@@ -1280,8 +1280,8 @@ async function atualizarGraficoTop10Config() {
         var anoStr = String(ano);
         var seateTotais = {}, nahoraTotais = {};
 
-        if (anoStr === ANO_ATUAL) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
+        if (anoUsaRegistros(anoStr)) {
+            var totaisAnoAtual = await obterTotaisAno(anoStr);
             for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
             for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
         }
@@ -1386,8 +1386,8 @@ async function atualizarGraficoTop10MenosConfig() {
         var anoStr = String(ano);
         var seateTotais = {}, nahoraTotais = {};
 
-        if (anoStr === ANO_ATUAL) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
+        if (anoUsaRegistros(anoStr)) {
+            var totaisAnoAtual = await obterTotaisAno(anoStr);
             for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
             for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
         }
@@ -1647,10 +1647,10 @@ async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, 
     async function obterFonteAno(ano) {
         if (porAno[ano]) return porAno[ano];
         var anoStr = String(ano);
-        var isAnoAtual = (anoStr === ANO_ATUAL);
+        var isAnoAtual = anoUsaRegistros(anoStr); // anos com registros dos servidores
         var fonte = {
             isAnoAtual: isAnoAtual,
-            totaisAnoAtual: isAnoAtual ? await obterTotaisAnoAtual() : null,
+            totaisAnoAtual: isAnoAtual ? await obterTotaisAno(anoStr) : null,
             dadosAno: await obterDadosAno(anoStr)
         };
         porAno[ano] = fonte;
@@ -1764,8 +1764,8 @@ async function buscarDadosAtividade(atividade, ano, mes, setor) {
     var totalSeate = 0;
     var totalNahora = 0;
     var totalGeral = 0;
-    var isAnoAtual = (ano === parseInt(ANO_ATUAL));
-    var totaisAnoAtual = isAnoAtual ? await obterTotaisAnoAtual() : null;
+    var isAnoAtual = anoUsaRegistros(ano);
+    var totaisAnoAtual = isAnoAtual ? await obterTotaisAno(ano) : null;
     
     var mesesExibir = [];
     if (mes === "todos") {

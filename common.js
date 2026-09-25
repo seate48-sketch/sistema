@@ -233,12 +233,34 @@ function getAnosDisponiveis() {
     return anos;
 }
 
-// ==================== TOTAIS DO ANO ATUAL (SUPABASE) ====================
-var _totaisAnoAtualPromise = null;
-function obterTotaisAnoAtual() {
-    if (!_totaisAnoAtualPromise) { _totaisAnoAtualPromise = dbCarregarTotaisAno(ANO_ATUAL); }
-    return _totaisAnoAtualPromise;
+// ==================== FONTE DOS NÚMEROS DE CADA ANO ====================
+// Regra (vale para qualquer ano, sem precisar mexer no código na virada):
+//   * 2022 a 2025 -> só "Dados Estatísticos" (digitados pelo gestor)
+//   * 2026        -> registros dos servidores + meses digitados antes do
+//                    sistema entrar em uso (continua assim mesmo depois
+//                    que 2026 deixar de ser o ano atual)
+//   * 2027 em diante -> EXCLUSIVAMENTE os registros dos servidores; não há
+//                    mais digitação manual (para corrigir, o gestor altera
+//                    o lançamento no registro do servidor)
+var ANO_INICIO_REGISTROS = 2026;
+var ANO_SO_REGISTROS = 2027;
+function anoUsaRegistros(ano) { return parseInt(ano, 10) >= ANO_INICIO_REGISTROS; }
+function anoSoRegistros(ano) { return parseInt(ano, 10) >= ANO_SO_REGISTROS; }
+
+// ==================== TOTAIS DOS REGISTROS DE UM ANO (SUPABASE) ====================
+var _totaisAnoCache = {};
+function obterTotaisAno(ano) {
+    ano = String(ano);
+    if (!anoUsaRegistros(ano)) {
+        var MESES_V = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        var vazio = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {} };
+        MESES_V.forEach(function(m) { vazio.porMes[m] = 0; });
+        return Promise.resolve(vazio);
+    }
+    if (!_totaisAnoCache[ano]) { _totaisAnoCache[ano] = dbCarregarTotaisAno(ano); }
+    return _totaisAnoCache[ano];
 }
+function obterTotaisAnoAtual() { return obterTotaisAno(ANO_ATUAL); }
 
 // ==================== CALCULAR TOTAL DO ANO ATUAL ====================
 async function calcularTotalAnoAtual() {
@@ -253,6 +275,8 @@ async function calcularTotalAnoAtual() {
 var _dadosAnoCache = {};
 function obterDadosAno(ano) {
     ano = String(ano);
+    // de 2027 em diante não existe digitação manual: nada a somar
+    if (anoSoRegistros(ano)) { return Promise.resolve({ SEATE: {}, NAHORA: {} }); }
     if (!_dadosAnoCache[ano]) { _dadosAnoCache[ano] = dbCarregarDadosAno(ano); }
     return _dadosAnoCache[ano];
 }
@@ -266,13 +290,14 @@ function invalidarCacheDadosAno(ano) {
 // cada servidor preencheu); os demais anos -> Supabase (dados_historicos,
 // alimentados manualmente pelo gestor).
 async function obterSeateNahoraPorAno(ano) {
-    if (ano === ANO_ATUAL) {
+    ano = String(ano);
+    if (anoUsaRegistros(ano)) {
         // Ano corrente = registros reais dos servidores (automático, mês a
         // mês conforme cada um preenche) SOMADO com o que o gestor alimentar
         // manualmente em "Dados Estatísticos" para os meses ainda sem
         // registro — os dois nunca se sobrepõem porque tratam de meses
         // diferentes, então somar é seguro.
-        var t = await obterTotaisAnoAtual();
+        var t = await obterTotaisAno(ano);
         var manual = await obterDadosAno(ano);
         var seateManual = 0, nahoraManual = 0;
         if (manual) {
@@ -1553,8 +1578,8 @@ async function buscarAnaliseAtividade(ano, container) {
         var seateTotais = {};
         var nahoraTotais = {};
 
-        if (ano === ANO_ATUAL) {
-            var totaisAnoAtual = await obterTotaisAnoAtual();
+        if (anoUsaRegistros(ano)) {
+            var totaisAnoAtual = await obterTotaisAno(ano);
             for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
             for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
         }
@@ -1718,6 +1743,9 @@ window.calcularTotalAtividade = calcularTotalAtividade;
 window.salvarConfigMes = salvarConfigMes;
 window.getStatusServidor = getStatusServidor;
 window.getLotacaoServidor = getLotacaoServidor;
+window.obterTotaisAno = obterTotaisAno;
+window.anoUsaRegistros = anoUsaRegistros;
+window.anoSoRegistros = anoSoRegistros;
 window.gerarLink = gerarLink;
 window.copiarLink = copiarLink;
 window.acessarRegistro = acessarRegistro;
