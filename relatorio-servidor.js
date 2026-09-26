@@ -191,7 +191,6 @@
                 '<div class="rel-modal-foot">' +
                     '<button class="btn btn-neutral" id="relBtnVoltar">Alterar período</button>' +
                     '<button class="btn btn-neutral" id="relBtnCsv">Excel (CSV)</button>' +
-                    '<button class="btn btn-neutral" id="relBtnImprimir">Imprimir</button>' +
                     '<button class="btn btn-primary" id="relBtnPdf">Gerar PDF</button>' +
                 '</div>' +
             '</div></div>';
@@ -222,7 +221,6 @@
             if (b) acaoEntregue(b.getAttribute('data-acao'), +b.getAttribute('data-idx'));
         });
         document.getElementById('relBtnCsv').addEventListener('click', exportarCSV);
-        document.getElementById('relBtnImprimir').addEventListener('click', imprimir);
         document.getElementById('relBtnPdf').addEventListener('click', gerarPDF);
     }
 
@@ -290,15 +288,29 @@
         return itens;
     }
 
+    // status possíveis do dia (valor gravado → rótulo exibido)
+    var STATUS_DIA = [['', 'Ativo'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado'], ['Folga', 'Folga'], ['Atestado', 'Atestado'], ['Ferias', 'Férias']];
+    function nomeStatus(v) {
+        var x = String(v || '').trim();
+        for (var i = 0; i < STATUS_DIA.length; i++) {
+            if (STATUS_DIA[i][0].toLowerCase() === x.toLowerCase() || STATUS_DIA[i][1].toLowerCase() === x.toLowerCase()) return STATUS_DIA[i][1];
+        }
+        return x || 'Ativo';
+    }
+
     function montarMensal(regs, ano, mes) {
         var prefixo = ano + '-' + pad2(mes + 1) + '-';
         var datas = Object.keys(regs).filter(function (d) { return d.indexOf(prefixo) === 0; }).sort();
         var dias = [], porAtiv = {}, total = 0, diasComAtividade = 0;
+        var status = {};
+        STATUS_DIA.forEach(function (st) { status[st[1]] = 0; });
         datas.forEach(function (d) {
             var reg = regs[d];
             var itens = itensDoDia(reg);
-            var aus = (reg && reg.ausencia) || '';
+            var aus = String((reg && reg.ausencia) || '').trim();
             if (!itens.length && !aus) return;
+            var rotulo = aus ? nomeStatus(aus) : 'Ativo';
+            status[rotulo] = (status[rotulo] || 0) + 1;
             var tDia = 0;
             itens.forEach(function (it) { tDia += it.qtd; porAtiv[it.ativ] = (porAtiv[it.ativ] || 0) + it.qtd; });
             if (itens.length) diasComAtividade++;
@@ -309,7 +321,7 @@
         return {
             tipo: 'mes', ano: ano, mes: mes,
             periodo: MESES[mes] + ' de ' + ano,
-            dias: dias, resumo: resumo, total: total, diasComAtividade: diasComAtividade
+            dias: dias, resumo: resumo, total: total, diasComAtividade: diasComAtividade, status: status
         };
     }
 
@@ -357,10 +369,14 @@
     }
 
     function htmlResumoGeral(m) {
-        return '<div class="rel-resumo">' +
+        var h = '<div class="rel-resumo" style="flex-wrap:wrap;row-gap:4px;">' +
             '<div>Dias com atividade: <b>' + num(m.diasComAtividade) + '</b></div>' +
-            '<div>Total geral do período: <b>' + num(m.total) + '</b></div>' +
-        '</div>';
+            '<div>Total geral do período: <b>' + num(m.total) + '</b></div>';
+        if (m.tipo === 'mes' && m.status) {
+            h += '<div style="flex-basis:100%;border-top:1px solid #E5E7EB;padding-top:4px;">Dias por status no mês: ' +
+                 Object.keys(m.status).map(function (k) { return k + ' <b>' + num(m.status[k]) + '</b>'; }).join(' · ') + '</div>';
+        }
+        return h + '</div>';
     }
 
     function htmlMensal(m) {
@@ -477,6 +493,9 @@
             L.push(['Atividade', 'Quantidade']);
             m.resumo.forEach(function (r) { L.push([r.ativ, r.qtd]); });
             L.push(['TOTAL GERAL', m.total]);
+            L.push([]);
+            L.push(['Status do dia', 'Quantidade de dias']);
+            Object.keys(m.status || {}).forEach(function (k) { L.push([k, m.status[k]]); });
         } else {
             L.push(['Atividade'].concat(MESES, ['Total']));
             m.linhas.forEach(function (l) { L.push([l.ativ].concat(l.meses, [l.total])); });
@@ -545,18 +564,18 @@
         document.body.appendChild(box);
         try {
             await carregarHtml2pdf();
-            await html2pdf().set({
+            await salvarPdfSemBranco(html2pdf().set({
                 margin: 10,
                 filename: sufixoArquivo() + '.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: largura, windowWidth: largura, scrollX: 0, scrollY: 0, x: 0, y: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: paisagem ? 'landscape' : 'portrait' },
                 pagebreak: { mode: ['css'], avoid: ['tr', 'tbody.rel-dia', '.rel-bloco', '.rel-cab', '.rel-resumo', '.rel-rodape'] }
-            }).from(box.firstChild).save();
+            }).from(box.firstChild));
             avisar('PDF gerado com sucesso!');
         } catch (e) {
             console.error('Relatório PDF:', e);
-            avisar('Não foi possível gerar o PDF. Tente "Imprimir" e escolha "Salvar como PDF".');
+            avisar('Não foi possível gerar o PDF. Tente novamente.');
         } finally {
             document.body.removeChild(box);
             btn.disabled = false;
@@ -645,7 +664,6 @@
                         '<button data-acao="ver" data-idx="' + idx + '">Visualizar</button>' +
                         '<button data-acao="pdf" data-idx="' + idx + '">PDF</button>' +
                         '<button data-acao="csv" data-idx="' + idx + '">Excel</button>' +
-                        '<button data-acao="imprimir" data-idx="' + idx + '">Imprimir</button>' +
                         '<button data-acao="excluir" data-idx="' + idx + '" class="ent-excluir">Excluir entrega</button>' +
                      '</div></td>';
             } else {
@@ -819,14 +837,14 @@
             box.innerHTML = '<div class="rel-doc" style="padding:0 6px;">' + h + '</div>';
             document.body.appendChild(box);
             await carregarHtml2pdf();
-            await html2pdf().set({
+            await salvarPdfSemBranco(html2pdf().set({
                 margin: 10,
                 filename: 'Dados_Estatisticos_' + d.ano + '.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: largura, windowWidth: largura, scrollX: 0, scrollY: 0, x: 0, y: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                 pagebreak: { mode: ['css'], avoid: ['tr', '.rel-bloco', '.rel-cab', '.rel-resumo', '.rel-rodape'] }
-            }).from(box.firstChild).save();
+            }).from(box.firstChild));
             avisar('PDF gerado com sucesso!');
         } catch (e) {
             console.error('PDF Dados Estatísticos:', e);
@@ -846,4 +864,35 @@
     window._relatorioServidor = { montarMensal: montarMensal, montarAnual: montarAnual, htmlRelatorio: htmlRelatorio };
 
     injetarEstilos();
+
+    // ---------------- PDF sem páginas em branco no final ----------------
+    // A ferramenta de PDF fatia uma imagem longa do relatório em páginas A4;
+    // quando a imagem passa um pouquinho da última página, sobra uma página
+    // só com espaço em branco. Aqui, antes de salvar, conferimos as últimas
+    // páginas pixel a pixel e removemos as que estão totalmente brancas.
+    function fatiaEmBranco(ctx, largura, y0, altura) {
+        var dados = ctx.getImageData(0, y0, largura, altura).data;
+        for (var i = 0; i < dados.length; i += 12) {
+            if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) return false;
+        }
+        return true;
+    }
+    async function salvarPdfSemBranco(worker) {
+        var pdf = await worker.toPdf().get('pdf');
+        try {
+            var canvas = await worker.get('canvas');
+            var pageSize = await worker.get('pageSize');
+            var pxPagina = Math.floor(canvas.width * pageSize.inner.ratio);
+            var ctx = canvas.getContext('2d');
+            for (var p = pdf.internal.getNumberOfPages() - 1; p >= 1; p--) {
+                var y0 = p * pxPagina;
+                var alt = Math.min(pxPagina, canvas.height - y0);
+                if (alt > 0 && !fatiaEmBranco(ctx, canvas.width, y0, alt)) break;
+                pdf.deletePage(p + 1);
+            }
+        } catch (e) { console.warn('Verificação de páginas em branco:', e && e.message); }
+        pdf.save((worker.opt && worker.opt.filename) || 'relatorio.pdf');
+    }
+
+    window._salvarPdfSemBranco = salvarPdfSemBranco; // (usado nos testes)
 })();

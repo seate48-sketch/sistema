@@ -312,14 +312,14 @@
                 return img.complete ? Promise.resolve() : new Promise(function (ok) { img.onload = img.onerror = ok; });
             }));
 
-            await html2pdf().set({
+            await salvarPdfSemBranco(html2pdf().set({
                 margin: 10,
                 filename: 'Relatorio_Estatistico_SEATE_' + new Date().toISOString().slice(0, 10) + '.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: LARGURA, windowWidth: LARGURA, scrollX: 0, scrollY: 0, x: 0, y: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css'], before: ['.rel-pagina2'], avoid: ['.rel-bloco', '.rel-cab', 'tr', '.rel-rodape'] }
-            }).from(box.querySelector('.rel-doc')).save();
+            }).from(box.querySelector('.rel-doc')));
             avisar('Relatório gerado com sucesso!');
         } catch (e) {
             console.error('Relatório estatístico:', e);
@@ -364,14 +364,14 @@
             await Promise.all(Array.prototype.map.call(box.querySelectorAll('img'), function (img) {
                 return img.complete ? Promise.resolve() : new Promise(function (ok) { img.onload = img.onerror = ok; });
             }));
-            await html2pdf().set({
+            await salvarPdfSemBranco(html2pdf().set({
                 margin: 10,
                 filename: arquivo,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: LARGURA, windowWidth: LARGURA, scrollX: 0, scrollY: 0, x: 0, y: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css'], avoid: ['.rel-bloco', '.rel-cab', 'tr', '.rel-rodape', '.rel-resumo-txt'] }
-            }).from(box.querySelector('.rel-doc')).save();
+            }).from(box.querySelector('.rel-doc')));
         } finally {
             if (box.parentNode) box.parentNode.removeChild(box);
         }
@@ -795,4 +795,35 @@
     window.exportarCSVServidor = exportarCSVServidor;
     window.gerarRelatorioServidorPDF = gerarRelatorioServidorPDF;
     window.limparFiltrosRelatorioServidor = limparFiltrosRelatorioServidor;
+
+    // ---------------- PDF sem páginas em branco no final ----------------
+    // A ferramenta de PDF fatia uma imagem longa do relatório em páginas A4;
+    // quando a imagem passa um pouquinho da última página, sobra uma página
+    // só com espaço em branco. Aqui, antes de salvar, conferimos as últimas
+    // páginas pixel a pixel e removemos as que estão totalmente brancas.
+    function fatiaEmBranco(ctx, largura, y0, altura) {
+        var dados = ctx.getImageData(0, y0, largura, altura).data;
+        for (var i = 0; i < dados.length; i += 12) {
+            if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) return false;
+        }
+        return true;
+    }
+    async function salvarPdfSemBranco(worker) {
+        var pdf = await worker.toPdf().get('pdf');
+        try {
+            var canvas = await worker.get('canvas');
+            var pageSize = await worker.get('pageSize');
+            var pxPagina = Math.floor(canvas.width * pageSize.inner.ratio);
+            var ctx = canvas.getContext('2d');
+            for (var p = pdf.internal.getNumberOfPages() - 1; p >= 1; p--) {
+                var y0 = p * pxPagina;
+                var alt = Math.min(pxPagina, canvas.height - y0);
+                if (alt > 0 && !fatiaEmBranco(ctx, canvas.width, y0, alt)) break;
+                pdf.deletePage(p + 1);
+            }
+        } catch (e) { console.warn('Verificação de páginas em branco:', e && e.message); }
+        pdf.save((worker.opt && worker.opt.filename) || 'relatorio.pdf');
+    }
+
+    window._salvarPdfSemBranco = salvarPdfSemBranco; // (usado nos testes)
 })();

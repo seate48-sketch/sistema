@@ -32,7 +32,9 @@
     var avisosMostrados = {};   // 'AAAA-MM-DD|11' → true
     var timer = null;
     var enviando = false;
-    var preenchimento = null;   // { ano, mes, dias[], mesOrig, anoOrig } enquanto houver dias pendentes
+    var preenchimento = null;
+    var salvando = null;        // { data, ano, mes, completoAntes } do último "Salvar" de um dia
+    var fimMes = null;          // mês oferecido no aviso de fim de mês   // { ano, mes, dias[], mesOrig, anoOrig } enquanto houver dias pendentes
     var DIAS_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
     // ---------------- utilitários ----------------
@@ -60,6 +62,7 @@
             '#entregaAviso{z-index:10003;background:rgba(255,255,255,0.9);}',
             '#entregaBloqueio{z-index:10004;background:rgba(243,244,246,0.97);}',
             '#entregaEscolha{z-index:10005;background:rgba(0,0,0,0.45);}',
+            '#entregaFimMes{z-index:10006;background:rgba(0,0,0,0.45);}',
             '.entrega-caixa{background:var(--branco);border:2px solid var(--azul-institucional);border-radius:24px;padding:32px 40px;text-align:center;max-width:520px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.15);}',
             '.entrega-caixa h3{color:var(--azul-marinho);font-size:1.15rem;margin-bottom:14px;}',
             '.entrega-caixa p{color:var(--azul-marinho);font-size:1.02rem;line-height:1.5;margin-bottom:10px;}',
@@ -112,6 +115,15 @@
                     '<button type="button" class="entrega-principal" id="entregaAvisoGerar">Gerar relatório agora</button>' +
                 '</div>' +
             '</div></div>' +
+            '<div id="entregaFimMes" class="entrega-overlay"><div class="entrega-caixa">' +
+                '<h3>Mês completo</h3>' +
+                '<p>Se estiver certo(a) dos registros lançados neste mês clique em ENVIAR RELATÓRIO ou clique em VOLTAR e faça os lançamentos devidos.</p>' +
+                '<div class="entrega-ref" id="entregaFimMesRef"></div>' +
+                '<div class="entrega-acoes">' +
+                    '<button type="button" class="entrega-principal" id="entregaFimMesEnviar">ENVIAR RELATÓRIO</button>' +
+                    '<button type="button" class="entrega-secundario" id="entregaFimMesVoltar">VOLTAR</button>' +
+                '</div>' +
+            '</div></div>' +
             '<div id="entregaBloqueio" class="entrega-overlay"><div class="entrega-caixa">' +
                 '<h3>Acesso bloqueado</h3>' +
                 '<p id="entregaBloqueioTexto"></p>' +
@@ -134,6 +146,20 @@
         document.getElementById('entregaBloqueioGerar').addEventListener('click', function () {
             if (situacao) tentarEntregar(situacao.ano_ref, situacao.mes_ref, 'entregaBloqueioGerar');
         });
+        document.getElementById('entregaFimMesVoltar').addEventListener('click', function () { fechar('entregaFimMes'); });
+        document.getElementById('entregaFimMesEnviar').addEventListener('click', function () {
+            if (fimMes) tentarEntregar(fimMes.ano, fimMes.mes, 'entregaFimMesEnviar');
+        });
+        // antes de salvar um dia, guarda o dia e se o mês já estava completo
+        var btnSalvar = document.getElementById('saveActivitiesBtn');
+        if (btnSalvar) {
+            btnSalvar.addEventListener('click', function () {
+                var d = window.dataSelecionada;
+                if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) { salvando = null; return; }
+                var ano = +d.slice(0, 4), mes = +d.slice(5, 7);
+                salvando = { data: d, ano: ano, mes: mes, completoAntes: mesCompleto(ano, mes) };
+            }, true);
+        }
     }
 
     function abrir(id) { document.getElementById(id).classList.add('aberto'); }
@@ -294,11 +320,65 @@
         });
     }
 
+    // ---------------- aviso de fim de mês ----------------
+    // Mês completo = todos os dias úteis (seg. a sex.) com atividades lançadas
+    // ou com status diferente de "Ativo".
+    function ultimoDiaUtil(ano, mes) {
+        for (var d = new Date(Date.UTC(ano, mes, 0)).getUTCDate(); d >= 1; d--) {
+            var w = new Date(Date.UTC(ano, mes - 1, d)).getUTCDay();
+            if (w !== 0 && w !== 6) return ano + '-' + pad2(mes) + '-' + pad2(d);
+        }
+        return '';
+    }
+    function mesCompleto(ano, mes) {
+        var regs = (typeof registros === 'object' && registros) ? registros : {};
+        var ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+        for (var d = 1; d <= ultimo; d++) {
+            var w = new Date(Date.UTC(ano, mes - 1, d)).getUTCDay();
+            if (w === 0 || w === 6) continue;
+            var reg = regs[ano + '-' + pad2(mes) + '-' + pad2(d)];
+            if (!reg || reg.example) return false;
+            if (String(reg.ausencia || '').trim()) continue;
+            var total = 0;
+            Object.keys(reg.atividades || {}).forEach(function (a) { total += (+reg.atividades[a] || 0); });
+            if (total <= 0) return false;
+        }
+        return true;
+    }
+    async function mesJaEntregue(ano, mes) {
+        var c = cliente();
+        if (!c) return false;
+        try {
+            var r = await c.rpc('relatorio_entregue', { p_servidor: nome, p_ano: ano, p_mes: mes });
+            if (r.error) throw r.error;
+            return !!r.data;
+        } catch (e) {
+            console.warn('relatorio_entregue indisponível:', e && e.message ? e.message : e);
+            return false;
+        }
+    }
+    async function verificarFimDeMes(s) {
+        if (!s || !mesCompleto(s.ano, s.mes)) return;
+        // aparece quando o mês ACABOU de ficar completo, ou quando o dia salvo
+        // é o último dia útil do mês
+        if (s.completoAntes && s.data !== ultimoDiaUtil(s.ano, s.mes)) return;
+        if (preenchimento && preenchimento.ano === s.ano && preenchimento.mes === s.mes) return; // a faixa laranja já orienta
+        if (await mesJaEntregue(s.ano, s.mes)) return; // correção de mês já entregue: sem aviso
+        fimMes = { ano: s.ano, mes: s.mes };
+        document.getElementById('entregaFimMesRef').textContent = 'Relatório de ' + nomeMes(s.ano, s.mes);
+        abrir('entregaFimMes');
+    }
+
     function instalarGanchoCalendario() {
         if (typeof window.renderCalendario !== 'function' || window.renderCalendario._entrega) return;
         var original = window.renderCalendario;
         var novo = function () {
             var r = original.apply(this, arguments);
+            if (salvando) {
+                var s = salvando;
+                salvando = null;
+                verificarFimDeMes(s);
+            }
             if (preenchimento) {
                 // atualiza a lista de pendentes com o que acabou de ser salvo
                 preenchimento.dias = diasPendentes(preenchimento.ano, preenchimento.mes);
@@ -325,6 +405,7 @@
             if (r.error) throw r.error;
             fechar('entregaEscolha');
             fechar('entregaAviso');
+            fechar('entregaFimMes');
             sairPreenchimento();
             var envios = r.data && r.data.envios ? r.data.envios : 1;
             avisar('Envio concluído: relatório de ' + nomeMes(ano, mes) + (envios > 1 ? ' (atualizado)' : '') + '.');
@@ -444,7 +525,7 @@
     }
 
     // expostas para testes
-    window._entregaRelatorio = { diasPendentes: diasPendentes, consultarSituacao: consultarSituacao, verificarHorarios: verificarHorarios, estado: function () { return { situacao: situacao, carregadoEm: carregadoEm, difRelogio: difRelogio }; } };
+    window._entregaRelatorio = { mesCompleto: mesCompleto, diasPendentes: diasPendentes, consultarSituacao: consultarSituacao, verificarHorarios: verificarHorarios, estado: function () { return { situacao: situacao, carregadoEm: carregadoEm, difRelogio: difRelogio }; } };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
     else iniciar();
