@@ -195,9 +195,9 @@
     }
 
     // ---------------- dias pendentes (mesma regra do banco) ----------------
-    // Do último dia útil do mês para trás: dia com status diferente de
-    // "Ativo" é pulado; dia "Ativo" sem atividades é pendente; para no
-    // primeiro dia "Ativo" com atividades.
+    // TODOS os dias úteis do mês (seg. a sex.) precisam ter atividades
+    // lançadas ou status diferente de "Ativo" (Folga, Férias, Atestado,
+    // Ausente, Liberado). Os que não tiverem são pendentes.
     function diasPendentes(ano, mes) {
         var regs = (typeof registros === 'object' && registros) ? registros : {};
         var pend = [];
@@ -213,7 +213,7 @@
             if (reg && !reg.example && reg.atividades) {
                 Object.keys(reg.atividades).forEach(function (a) { total += (+reg.atividades[a] || 0); });
             }
-            if (total > 0) break;
+            if (total > 0) continue;
             pend.push(chave);
         }
         return pend.reverse();
