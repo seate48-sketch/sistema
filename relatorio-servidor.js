@@ -586,13 +586,15 @@
     // ================= RELATÓRIOS ENTREGUES PELOS SERVIDORES =================
     var entregues = []; // linhas exibidas no painel
 
-    function abrirRelatoriosEntregues() {
+    // anoForcado/mesForcado (mês 0-11) opcionais: usados na abertura automática
+    function abrirRelatoriosEntregues(anoForcado, mesForcado) {
         injetarEstilos();
         criarModais();
         var hoje = new Date();
         // padrão: mês de referência definido pelo gestor na tela Principal
         var mesRef = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
         var anoRef = (typeof anoConfigurado !== 'undefined' && !isNaN(parseInt(anoConfigurado, 10))) ? parseInt(anoConfigurado, 10) : hoje.getFullYear();
+        if (typeof anoForcado === 'number' && typeof mesForcado === 'number') { anoRef = anoForcado; mesRef = mesForcado; }
         var selAno = document.getElementById('entAno');
         var anos = [];
         for (var a = Math.max(hoje.getFullYear(), anoRef); a >= Math.min(2026, anoRef); a--) anos.push(a);
@@ -857,6 +859,37 @@
 
     window.exportarDadosAnoExcel = exportarDadosAnoExcel;
     window.exportarDadosAnoPDF = exportarDadosAnoPDF;
+
+    // ---------- abertura automática (uma vez por mês, neste navegador) ----------
+    // A partir do dia 6 (fim do prazo de entrega), no primeiro acesso do
+    // gestor à tela Principal, abre "Relatórios Entregues" no mês cobrado
+    // (o mês anterior). Depois disso só abre pelo botão. A cobrança começa
+    // pelo relatório de setembro/2026.
+    function verificarAberturaAutomatica() {
+        var hoje = new Date();
+        if (hoje.getDate() < 6) return false;
+        var ref = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+        if (ref < new Date(2026, 8, 1)) return false;
+        var chave = 'seate_entregues_auto_' + hoje.getFullYear() + '-' + pad2(hoje.getMonth() + 1);
+        try { if (localStorage.getItem(chave)) return false; } catch (e) { return false; }
+        try { localStorage.setItem(chave, '1'); } catch (e) {}
+        abrirRelatoriosEntregues(ref.getFullYear(), ref.getMonth());
+        return true;
+    }
+    // espera o gestor entrar (login) e a lista de servidores carregar
+    (function aguardarPrincipal() {
+        if (!document.getElementById('grupoBotoesAnos')) return; // só na tela Principal
+        var tentativas = 0;
+        var t = setInterval(function () {
+            tentativas++;
+            var login = document.getElementById('modalLogin');
+            var app = document.getElementById('appContainer');
+            var logado = (!login || getComputedStyle(login).display === 'none') && !(app && app.classList.contains('app-blur'));
+            var prontos = typeof servidores !== 'undefined' && Array.isArray(servidores) && servidores.length > 0;
+            if (logado && prontos) { clearInterval(t); setTimeout(verificarAberturaAutomatica, 800); }
+            else if (tentativas > 600) clearInterval(t); // desiste após ~10 min
+        }, 1000);
+    })();
 
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     window.abrirRelatorioServidor = abrirRelatorioServidor;
