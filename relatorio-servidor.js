@@ -860,20 +860,176 @@
     window.exportarDadosAnoExcel = exportarDadosAnoExcel;
     window.exportarDadosAnoPDF = exportarDadosAnoPDF;
 
-    // ---------- abertura automática (uma vez por mês, neste navegador) ----------
-    // A partir do dia 6 (fim do prazo de entrega), no primeiro acesso do
-    // gestor à tela Principal, abre "Relatórios Entregues" no mês cobrado
-    // (o mês anterior). Depois disso só abre pelo botão. A cobrança começa
-    // pelo relatório de setembro/2026.
+    // ---------- lembrete mensal ao gestor (uma vez por mês, neste navegador) ----------
+    // A partir do dia 2, no primeiro acesso à tela Principal, aparece uma
+    // mensagem no centro da tela por 8 segundos. Se o gestor clicar em
+    // "Desconsidere", nada mais abre até o mês seguinte; se deixar os
+    // 8 segundos passarem, abre "Relatórios Entregues" no mês anterior.
+    // A cobrança começa pelo relatório de setembro/2026.
+    var SEGUNDOS_LEMBRETE = 8;
+    var NOME_GESTOR = 'Marcus';
+    // MODO DE TESTE: o assistente também aparece ao clicar no botão
+    // "Relatórios Entregues" (para visualizar). Depois de aprovado, volta a
+    // false e o assistente só aparece no lembrete automático do dia 2.
+    var TESTE_ASSISTENTE_NO_BOTAO = true;
+
+    async function contarEntregas(ano, mes1) {
+        var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
+        var r = { total: ativos.length, entregues: 0, pendentes: ativos.slice(), ok: false };
+        try {
+            if (typeof db === 'undefined' || !db || typeof db.from !== 'function') return r;
+            var q = await db.from('relatorios_entregues').select('servidor_id, servidor_nome').eq('ano', ano).eq('mes', mes1);
+            if (q.error) return r;
+            var porId = {}, porNome = {};
+            (q.data || []).forEach(function (e) { porId[String(e.servidor_id)] = true; porNome[e.servidor_nome] = true; });
+            var pend = [], ent = 0;
+            for (var i = 0; i < ativos.length; i++) {
+                var id = await idServidor(ativos[i]);
+                if ((id && porId[id]) || porNome[ativos[i]]) ent++; else pend.push(ativos[i]);
+            }
+            return { total: ativos.length, entregues: ent, pendentes: pend, ok: true };
+        } catch (e) { return r; }
+    }
+
+    function montarFalas(ano, mes1, c) {
+        var h = new Date().getHours();
+        var saud = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+        var periodo = MESES[mes1 - 1].toLowerCase() + '/' + ano;
+        var hoje = new Date();
+        var fimPrazo = new Date(ano, mes1, 5, 23, 59); // dia 5 do mês seguinte ao relatório
+        var prazoTxt = hoje <= fimPrazo ? 'O prazo deles vai até o <b>dia 5</b>.' : 'O prazo terminou no <b>dia 5</b>.';
+        var f = [];
+        if (!c.ok) {
+            f.push(saud + ', ' + NOME_GESTOR + '! Tudo bem?');
+            f.push('Estou aqui para te manter informado sobre os relatórios de <b>' + periodo + '</b>.');
+            f.push('Vou abrir a lista para você ver quem já enviou e quem ainda está pendente. Bom trabalho!');
+            return f;
+        }
+        if (c.total && c.entregues >= c.total) {
+            f.push(saud + ', ' + NOME_GESTOR + '! Boa notícia: <b>todos os ' + c.total + ' servidores</b> já entregaram o relatório de <b>' + periodo + '</b>. 🎉');
+            f.push('Vou abrir a lista caso queira conferir. Bom trabalho!');
+            return f;
+        }
+        f.push(saud + ', ' + NOME_GESTOR + '! Tudo bem?');
+        if (!c.entregues) {
+            f.push('Os relatórios de <b>' + periodo + '</b> ainda não começaram a chegar. Nenhum dos <b>' + c.total + '</b> servidores entregou até agora.');
+        } else {
+            f.push('Já comecei a acompanhar os relatórios de <b>' + periodo + '</b>: <b>' + c.entregues + ' de ' + c.total + '</b> servidores entregaram até agora.');
+            var nomes = c.pendentes.slice(0, 3).map(esc).join(', ');
+            var resto = c.pendentes.length - 3;
+            f.push('Ainda ' + (c.pendentes.length === 1 ? 'falta ' : 'faltam ') + '<b>' + nomes + '</b>' + (resto > 0 ? ' e mais ' + resto : '') + '. ' + prazoTxt);
+        }
+        if (!c.entregues) f.push(prazoTxt + ' Vou abrir a lista para você acompanhar. Bom trabalho!');
+        else f.push('Vou abrir a lista para você dar uma olhada. Bom trabalho!');
+        return f;
+    }
+
+    function mostrarLembreteGestor(ano, mes1, aoTerminar) {
+        var st = document.getElementById('estilo-lembrete-gestor');
+        if (!st) {
+            st = document.createElement('style');
+            st.id = 'estilo-lembrete-gestor';
+            st.textContent = [
+                '#lembreteGestor{position:fixed;inset:0;z-index:1500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,45,82,0.35);backdrop-filter:blur(2px);animation:lgFade .25s ease;}',
+                '#lembreteGestor .lg-caixa{background:#fff;max-width:520px;width:100%;border-radius:22px;padding:22px 24px 18px;box-shadow:0 12px 40px rgba(0,0,0,.18);}',
+                '#lembreteGestor .lg-topo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}',
+                '#lembreteGestor .lg-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1F4E79,#0F2D52);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 6px rgba(31,78,121,.35);}',
+                '#lembreteGestor .lg-nome{font-weight:700;color:#0F2D52;font-size:.95rem;}',
+                '#lembreteGestor .lg-status{font-size:.75rem;color:#10B981;}',
+                '#lembreteGestor .lg-balao{background:#F3F6FA;border:1px solid #E1E8F0;border-radius:4px 16px 16px 16px;padding:14px 16px;min-height:60px;}',
+                '#lembreteGestor .lg-balao div{font-size:.95rem;line-height:1.55;color:#1F2937;margin:0 0 6px;}',
+                '#lembreteGestor .lg-balao div:last-child{margin-bottom:0;}',
+                '#lembreteGestor .lg-cursor{display:inline-block;width:7px;height:1em;background:#1F4E79;margin-left:2px;vertical-align:-2px;animation:lgPisca .8s steps(1) infinite;}',
+                '#lembreteGestor .lg-pontos span{display:inline-block;width:7px;height:7px;margin-right:4px;border-radius:50%;background:#9CA3AF;animation:lgPonto 1s infinite;}',
+                '#lembreteGestor .lg-pontos span:nth-child(2){animation-delay:.15s}#lembreteGestor .lg-pontos span:nth-child(3){animation-delay:.3s}',
+                '#lembreteGestor .lg-barra{height:4px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin:14px 0 12px;visibility:hidden;}',
+                '#lembreteGestor .lg-barra div{height:100%;width:100%;background:#1F4E79;transform-origin:left;}',
+                '#lembreteGestor .lg-barra.ativa{visibility:visible;}',
+                '#lembreteGestor .lg-barra.ativa div{animation:lgBarra ' + SEGUNDOS_LEMBRETE + 's linear forwards;}',
+                '#lembreteGestor .lg-rodape{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.8rem;color:#6B7280;min-height:34px;}',
+                '#lembreteGestor button{background:#fff;border:1px solid #9CA3AF;color:#374151;border-radius:30px;padding:8px 20px;font-weight:600;font-size:.85rem;cursor:pointer;}',
+                '#lembreteGestor button:hover{background:#F3F4F6;}',
+                '@keyframes lgBarra{from{transform:scaleX(1)}to{transform:scaleX(0)}}',
+                '@keyframes lgFade{from{opacity:0}to{opacity:1}}',
+                '@keyframes lgPisca{50%{opacity:0}}',
+                '@keyframes lgPonto{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}'
+            ].join('\n');
+            document.head.appendChild(st);
+        }
+        var el = document.createElement('div');
+        el.id = 'lembreteGestor';
+        el.innerHTML = '<div class="lg-caixa" role="dialog" aria-live="polite">' +
+            '<div class="lg-topo"><div class="lg-avatar">🤖</div><div><div class="lg-nome">Assistente SEATE</div><div class="lg-status">● online</div></div></div>' +
+            '<div class="lg-balao" id="lgBalao"><div class="lg-pontos"><span></span><span></span><span></span></div></div>' +
+            '<div class="lg-barra" id="lgBarra"><div></div></div>' +
+            '<div class="lg-rodape"><span id="lgContagem"></span>' +
+            '<button type="button" id="lgDesconsidere">Desconsidere</button></div></div>';
+        document.body.appendChild(el);
+
+        var terminou = false, relogio = null, timers = [];
+        function fim(abrirRelatorio) {
+            if (terminou) return;
+            terminou = true;
+            if (relogio) clearInterval(relogio);
+            timers.forEach(clearTimeout);
+            if (el.parentNode) el.parentNode.removeChild(el);
+            if (abrirRelatorio && aoTerminar) aoTerminar();
+        }
+        document.getElementById('lgDesconsidere').addEventListener('click', function () { fim(false); });
+
+        function iniciarContagem() {
+            if (terminou) return;
+            var resta = SEGUNDOS_LEMBRETE;
+            var c = document.getElementById('lgContagem');
+            document.getElementById('lgBarra').classList.add('ativa');
+            c.textContent = 'Abrindo a lista em ' + resta + 's...';
+            relogio = setInterval(function () {
+                resta--;
+                c.textContent = 'Abrindo a lista em ' + Math.max(resta, 0) + 's...';
+                if (resta <= 0) fim(true);
+            }, 1000);
+        }
+
+        // "digita" as falas, uma de cada vez
+        function digitar(falas) {
+            var balao = document.getElementById('lgBalao');
+            if (!balao || terminou) return;
+            balao.innerHTML = '';
+            var li = 0;
+            function proxima() {
+                if (terminou) return;
+                if (li >= falas.length) { iniciarContagem(); return; }
+                var html = falas[li++];
+                var tmp = document.createElement('div'); tmp.innerHTML = html;
+                var texto = tmp.textContent;
+                var linha = document.createElement('div');
+                balao.appendChild(linha);
+                var k = 0;
+                (function letra() {
+                    if (terminou) return;
+                    k += 2;
+                    linha.innerHTML = esc(texto.slice(0, k)) + '<span class="lg-cursor"></span>';
+                    if (k < texto.length) timers.push(setTimeout(letra, 22));
+                    else { linha.innerHTML = html; timers.push(setTimeout(proxima, 250)); }
+                })();
+            }
+            proxima();
+        }
+
+        contarEntregas(ano, mes1).then(function (c) {
+            timers.push(setTimeout(function () { digitar(montarFalas(ano, mes1, c)); }, 900));
+        });
+    }
+
     function verificarAberturaAutomatica() {
         var hoje = new Date();
-        if (hoje.getDate() < 6) return false;
+        if (hoje.getDate() < 2) return false;
         var ref = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
         if (ref < new Date(2026, 8, 1)) return false;
         var chave = 'seate_entregues_auto_' + hoje.getFullYear() + '-' + pad2(hoje.getMonth() + 1);
         try { if (localStorage.getItem(chave)) return false; } catch (e) { return false; }
         try { localStorage.setItem(chave, '1'); } catch (e) {}
-        abrirRelatoriosEntregues(ref.getFullYear(), ref.getMonth());
+        mostrarLembreteGestor(ref.getFullYear(), ref.getMonth() + 1, function () { abrirRelatoriosEntregues(ref.getFullYear(), ref.getMonth()); });
         return true;
     }
     // espera o gestor entrar (login) e a lista de servidores carregar
@@ -891,6 +1047,16 @@
         }, 1000);
     })();
 
+    // botão "Relatórios Entregues": em MODO DE TESTE mostra antes o assistente
+    // (sobre o mês que a lista vai abrir); fora do teste abre direto.
+    function botaoRelatoriosEntregues() {
+        if (!TESTE_ASSISTENTE_NO_BOTAO) { abrirRelatoriosEntregues(); return; }
+        var hoje = new Date();
+        var mesRef = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
+        var anoRef = (typeof anoConfigurado !== 'undefined' && !isNaN(parseInt(anoConfigurado, 10))) ? parseInt(anoConfigurado, 10) : hoje.getFullYear();
+        mostrarLembreteGestor(anoRef, mesRef + 1, function () { abrirRelatoriosEntregues(); });
+    }
+    window.botaoRelatoriosEntregues = botaoRelatoriosEntregues;
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     window.abrirRelatorioServidor = abrirRelatorioServidor;
     // expostas para testes
