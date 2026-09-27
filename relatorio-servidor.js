@@ -1167,12 +1167,12 @@
         var nomesTxt = nomes.length > 1 ? nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1] : nomes[0];
         var f = [saud + ', ' + NOME_GESTOR + '! Tudo bem por aí?'];
         if (n === 1) {
-            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b>: <b>1 membro da equipe</b> está com 3 dias úteis ou mais sem preenchimento: ' + nomesTxt + '.');
+            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b> e percebi que: <b>1 membro da equipe</b> está com 3 dias úteis ou mais sem preenchimento: ' + nomesTxt + '.');
         } else {
-            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b>: <b>' + n + ' membros da equipe</b> estão com 3 dias úteis ou mais sem preenchimento, ' +
+            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b> e percebi que: <b>' + n + ' membros da equipe</b> estão com 3 dias úteis ou mais sem preenchimento, ' +
                    (n > 3 ? 'entre eles ' : 'que são ') + nomesTxt + '.');
         }
-        f.push('Quer ver a lista completa? Clique em <b>VERIFICAR</b>. Se preferir deixar para depois, clique em <b>SAIR</b> e acesse depois a área <b>Acesso Rápido aos Registros</b>. Bom trabalho!');
+        f.push('Caso queira ver a lista completa clique em <b>VERIFICAR</b>. Se preferir deixar para depois basta clicar em <b>SAIR</b> e acessar depois a área de <b>Acesso Rápido aos Registros</b>. Bom trabalho!');
         return f;
     }
 
