@@ -872,6 +872,8 @@
     // "Relatórios Entregues" (para visualizar). Depois de aprovado, volta a
     // false e o assistente só aparece no lembrete automático do dia 2.
     var TESTE_ASSISTENTE_NO_BOTAO = false;
+    // TESTE (temporário): o botão "Relatórios Entregues" mostra o aviso de atraso, ignorando data e controle do navegador
+    var TESTE_ATRASO_NO_BOTAO = true;
 
     async function contarEntregas(ano, mes1) {
         var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
@@ -1269,6 +1271,12 @@
     // botão "Relatórios Entregues": em MODO DE TESTE mostra antes o assistente
     // (sobre o mês que a lista vai abrir); fora do teste abre direto.
     function botaoRelatoriosEntregues() {
+        if (TESTE_ATRASO_NO_BOTAO) {
+            calcularAtrasos().then(function (a) {
+                if (a.lista.length) mostrarAvisoAtraso(a); else abrirRelatoriosEntregues();
+            });
+            return;
+        }
         if (!TESTE_ASSISTENTE_NO_BOTAO) { abrirRelatoriosEntregues(); return; }
         var hoje = new Date();
         var mesRef = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
