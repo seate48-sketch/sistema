@@ -871,7 +871,7 @@
     // MODO DE TESTE: o assistente também aparece ao clicar no botão
     // "Relatórios Entregues" (para visualizar). Depois de aprovado, volta a
     // false e o assistente só aparece no lembrete automático do dia 2.
-    var TESTE_ASSISTENTE_NO_BOTAO = true;
+    var TESTE_ASSISTENTE_NO_BOTAO = false;
 
     async function contarEntregas(ano, mes1) {
         var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
