@@ -1051,7 +1051,7 @@
         var ref = mesReferencia();
         var hoje = new Date();
         var chave = ref.ano + '-' + pad2(ref.mes + 1) + '|' + isoData(hoje);
-        if (atrasosCache && atrasosCache.chave === chave) return atrasosCache;
+        if (atrasosCache && atrasosCache.chave === chave && (Date.now() - atrasosCache.em) < 60000) return atrasosCache;
         var vazio = { chave: chave, ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
         var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
         var inicio = new Date(ref.ano, ref.mes, 1);
@@ -1064,13 +1064,18 @@
             if (d.getDay() !== 0 && d.getDay() !== 6) uteis.push(isoData(d));
         }
         if (!uteis.length) { atrasosCache = vazio; return vazio; }
-        var r;
+        var linhas = [];
         try {
-            r = await db.from('registros').select('data, atividades, ausencia, servidores(nome)').gte('data', isoData(inicio)).lte('data', isoData(fim));
+            for (var pg = 0; pg < 50; pg++) { // lê em páginas de 1000 (limite do Supabase)
+                var r = await db.from('registros').select('data, atividades, ausencia, servidores(nome)')
+                    .gte('data', isoData(inicio)).lte('data', isoData(fim)).order('data').range(pg * 1000, pg * 1000 + 999);
+                if (!r || r.error || !Array.isArray(r.data)) return vazio;
+                linhas = linhas.concat(r.data);
+                if (r.data.length < 1000) break;
+            }
         } catch (e) { return vazio; }
-        if (!r || r.error || !Array.isArray(r.data)) return vazio;
         var ok = {}; // nome -> { 'AAAA-MM-DD': true }
-        r.data.forEach(function (reg) {
+        linhas.forEach(function (reg) {
             var nome = reg.servidores && reg.servidores.nome;
             if (!nome) return;
             var tot = 0;
@@ -1079,7 +1084,7 @@
                 (ok[nome] = ok[nome] || {})[String(reg.data).slice(0, 10)] = true;
             }
         });
-        var res = { chave: chave, ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
+        var res = { chave: chave, em: Date.now(), ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
         ativos.forEach(function (nome) {
             var feitos = ok[nome] || {};
             var n = uteis.filter(function (u) { return !feitos[u]; }).length;
@@ -1142,6 +1147,10 @@
         });
         cont._obsAtraso.observe(cont, { childList: true });
         calcularAtrasos().then(aplicarDestaqueAtrasos);
+        // ao voltar para esta página (outra aba, botão Voltar), recalcula com os registros novos
+        function recalcular() { atrasosCache = null; calcularAtrasos().then(aplicarDestaqueAtrasos); }
+        window.addEventListener('pageshow', function (ev) { if (ev.persisted) recalcular(); });
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') recalcular(); });
     }
 
     function irParaAcessoRapido() {
