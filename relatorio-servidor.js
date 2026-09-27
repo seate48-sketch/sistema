@@ -862,11 +862,11 @@
 
     // ---------- lembrete mensal ao gestor (uma vez por mês, neste navegador) ----------
     // A partir do dia 2, no primeiro acesso à tela Principal, aparece uma
-    // mensagem no centro da tela por 15 segundos. Se o gestor clicar em
+    // mensagem no centro da tela por 30 segundos. Se o gestor clicar em
     // "Desconsidere", nada mais abre até o mês seguinte; se deixar os
     // 8 segundos passarem, abre "Relatórios Entregues" no mês anterior.
     // A cobrança começa pelo relatório de setembro/2026.
-    var SEGUNDOS_LEMBRETE = 15;
+    var SEGUNDOS_LEMBRETE = 30;
     var NOME_GESTOR = 'Marcus';
     // MODO DE TESTE: o assistente também aparece ao clicar no botão
     // "Relatórios Entregues" (para visualizar). Depois de aprovado, volta a
