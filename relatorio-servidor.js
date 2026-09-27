@@ -924,7 +924,7 @@
         return f;
     }
 
-    function mostrarLembreteGestor(ano, mes1, aoTerminar) {
+    function garantirEstiloAssistente() {
         var st = document.getElementById('estilo-lembrete-gestor');
         if (!st) {
             st = document.createElement('style');
@@ -949,6 +949,9 @@
                 '#lembreteGestor .lg-rodape{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.8rem;color:#6B7280;min-height:34px;}',
                 '#lembreteGestor button{background:#fff;border:1px solid #9CA3AF;color:#374151;border-radius:30px;padding:8px 20px;font-weight:600;font-size:.85rem;cursor:pointer;}',
                 '#lembreteGestor button:hover{background:#F3F4F6;}',
+                '#lembreteGestor button.lg-principal{background:#1F4E79;border-color:#1F4E79;color:#fff;}',
+                '#lembreteGestor button.lg-principal:hover{background:#0F2D52;}',
+                '#lembreteGestor .lg-botoes{display:flex;gap:10px;justify-content:flex-end;width:100%;}',
                 '@keyframes lgBarra{from{transform:scaleX(1)}to{transform:scaleX(0)}}',
                 '@keyframes lgFade{from{opacity:0}to{opacity:1}}',
                 '@keyframes lgPisca{50%{opacity:0}}',
@@ -956,6 +959,10 @@
             ].join('\n');
             document.head.appendChild(st);
         }
+    }
+
+    function mostrarLembreteGestor(ano, mes1, aoTerminar) {
+        garantirEstiloAssistente();
         var el = document.createElement('div');
         el.id = 'lembreteGestor';
         el.innerHTML = '<div class="lg-caixa" role="dialog" aria-live="polite">' +
@@ -1021,6 +1028,210 @@
         });
     }
 
+    // =====================================================================
+    // ATRASO NO PREENCHIMENTO (Acesso Rápido + aviso dos dias 15 e 25)
+    // Dia em atraso = dia útil (seg. a sex.) do MÊS DE REFERÊNCIA, até ontem,
+    // sem atividades lançadas e sem status (Folga, Férias...). Servidor com
+    // 3 dias ou mais (seguidos ou não) = em atraso.
+    // =====================================================================
+    var MIN_DIAS_ATRASO = 3;
+    var atrasosCache = null; // { chave:'AAAA-MM|AAAA-MM-DD', porServidor:{nome:dias}, lista:[nomes] }
+
+    function isoData(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+    function mesReferencia() {
+        var hoje = new Date();
+        var m = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
+        var a = (typeof anoConfigurado !== 'undefined' && !isNaN(parseInt(anoConfigurado, 10))) ? parseInt(anoConfigurado, 10) : hoje.getFullYear();
+        return { ano: a, mes: m };
+    }
+
+    async function calcularAtrasos() {
+        var ref = mesReferencia();
+        var hoje = new Date();
+        var chave = ref.ano + '-' + pad2(ref.mes + 1) + '|' + isoData(hoje);
+        if (atrasosCache && atrasosCache.chave === chave) return atrasosCache;
+        var vazio = { chave: chave, ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
+        var ativos = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
+        var inicio = new Date(ref.ano, ref.mes, 1);
+        var fimMes = new Date(ref.ano, ref.mes + 1, 0);
+        var ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+        var fim = fimMes < ontem ? fimMes : ontem;
+        if (!ativos.length || fim < inicio || typeof db === 'undefined' || !db || typeof db.from !== 'function') return vazio;
+        var uteis = [];
+        for (var d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+            if (d.getDay() !== 0 && d.getDay() !== 6) uteis.push(isoData(d));
+        }
+        if (!uteis.length) { atrasosCache = vazio; return vazio; }
+        var r;
+        try {
+            r = await db.from('registros').select('data, atividades, ausencia, servidores(nome)').gte('data', isoData(inicio)).lte('data', isoData(fim));
+        } catch (e) { return vazio; }
+        if (!r || r.error || !Array.isArray(r.data)) return vazio;
+        var ok = {}; // nome -> { 'AAAA-MM-DD': true }
+        r.data.forEach(function (reg) {
+            var nome = reg.servidores && reg.servidores.nome;
+            if (!nome) return;
+            var tot = 0;
+            Object.keys(reg.atividades || {}).forEach(function (k) { tot += (+reg.atividades[k] || 0); });
+            if (tot > 0 || String(reg.ausencia || '').trim()) {
+                (ok[nome] = ok[nome] || {})[String(reg.data).slice(0, 10)] = true;
+            }
+        });
+        var res = { chave: chave, ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
+        ativos.forEach(function (nome) {
+            var feitos = ok[nome] || {};
+            var n = uteis.filter(function (u) { return !feitos[u]; }).length;
+            res.porServidor[nome] = n;
+            if (n >= MIN_DIAS_ATRASO) res.lista.push(nome);
+        });
+        atrasosCache = res;
+        return res;
+    }
+
+    // ---- destaque vermelho nos cartões do "Acesso Rápido aos Registros" ----
+    function aplicarDestaqueAtrasos() {
+        var cont = document.getElementById('acessoRapidoLista');
+        if (!cont || !atrasosCache) return;
+        cont.querySelectorAll('.acesso-rapido-item').forEach(function (item) {
+            var nomeEl = item.querySelector('.acesso-rapido-nome');
+            var nome = nomeEl ? (nomeEl.getAttribute('title') || nomeEl.textContent) : '';
+            var n = atrasosCache.porServidor[nome] || 0;
+            var tag = item.querySelector('.ar-atraso-txt');
+            if (n >= MIN_DIAS_ATRASO) {
+                item.classList.add('ar-atraso');
+                var txt = 'Em atraso (' + n + ' dia' + (n > 1 ? 's' : '') + ')';
+                if (!tag) {
+                    var st = item.querySelector('.acesso-rapido-status');
+                    if (st) {
+                        tag = document.createElement('span');
+                        tag.className = 'ar-atraso-txt';
+                        st.appendChild(document.createTextNode(' · '));
+                        st.appendChild(tag);
+                    }
+                }
+                if (tag && tag.textContent !== txt) tag.textContent = txt;
+            } else if (item.classList.contains('ar-atraso')) {
+                item.classList.remove('ar-atraso');
+                if (tag) { var sep = tag.previousSibling; if (sep && sep.nodeType === 3) sep.remove(); tag.remove(); }
+            }
+        });
+    }
+    function observarAcessoRapido() {
+        var cont = document.getElementById('acessoRapidoLista');
+        if (!cont || cont._obsAtraso) return;
+        if (!document.getElementById('estilo-atraso')) {
+            var st = document.createElement('style');
+            st.id = 'estilo-atraso';
+            st.textContent = '.acesso-rapido-item.ar-atraso{background:#FDECEC !important;border-color:#F5A3A3 !important;}' +
+                             '.acesso-rapido-item.ar-atraso .acesso-rapido-nome{color:#991B1B;}' +
+                             '.ar-atraso-txt{color:#DC2626;font-weight:700;}' +
+                             '.ar-flash{animation:arFlash 1.2s ease 2;}' +
+                             '@keyframes arFlash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px rgba(220,38,38,.35)}}';
+            document.head.appendChild(st);
+        }
+        var pendente = false;
+        cont._obsAtraso = new MutationObserver(function () {
+            if (pendente) return;
+            pendente = true;
+            setTimeout(function () {
+                pendente = false;
+                calcularAtrasos().then(aplicarDestaqueAtrasos);
+            }, 150);
+        });
+        cont._obsAtraso.observe(cont, { childList: true });
+        calcularAtrasos().then(aplicarDestaqueAtrasos);
+    }
+
+    function irParaAcessoRapido() {
+        var cont = document.getElementById('acessoRapidoLista');
+        if (!cont) return;
+        var card = cont.closest('.card') || cont;
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        calcularAtrasos().then(function () {
+            aplicarDestaqueAtrasos();
+            cont.querySelectorAll('.acesso-rapido-item.ar-atraso').forEach(function (i) {
+                i.classList.remove('ar-flash'); void i.offsetWidth; i.classList.add('ar-flash');
+            });
+        });
+    }
+
+    // ---- aviso do Assistente nos dias 15 e 25 (uma vez cada, neste navegador) ----
+    function falasAtraso(a) {
+        var h = new Date().getHours();
+        var saud = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+        var periodo = MESES[a.mes].toLowerCase() + '/' + a.ano;
+        var n = a.lista.length;
+        var nomes = a.lista.slice(0, 3).map(function (x) { return '<b>' + esc(x) + '</b>'; });
+        var nomesTxt = nomes.length > 1 ? nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1] : nomes[0];
+        var f = [saud + ', ' + NOME_GESTOR + '! Tudo bem por aí?'];
+        if (n === 1) {
+            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b>: <b>1 membro da equipe</b> está com 3 dias úteis ou mais sem preenchimento: ' + nomesTxt + '.');
+        } else {
+            f.push('Dei uma conferida nos registros de <b>' + periodo + '</b>: <b>' + n + ' membros da equipe</b> estão com 3 dias úteis ou mais sem preenchimento, ' +
+                   (n > 3 ? 'entre eles ' : 'que são ') + nomesTxt + '.');
+        }
+        f.push('Quer ver a lista completa? Clique em <b>VERIFICAR</b>. Se preferir deixar para depois, clique em <b>SAIR</b> e acesse depois a área <b>Acesso Rápido aos Registros</b>. Bom trabalho!');
+        return f;
+    }
+
+    function mostrarAvisoAtraso(a) {
+        garantirEstiloAssistente();
+        var el = document.createElement('div');
+        el.id = 'lembreteGestor';
+        el.innerHTML = '<div class="lg-caixa" role="dialog" aria-live="polite">' +
+            '<div class="lg-topo"><div class="lg-avatar">🤖</div><div><div class="lg-nome">Assistente SEATE</div><div class="lg-status">● online</div></div></div>' +
+            '<div class="lg-balao" id="lgBalao"><div class="lg-pontos"><span></span><span></span><span></span></div></div>' +
+            '<div class="lg-rodape" style="margin-top:14px;"><div class="lg-botoes">' +
+            '<button type="button" id="lgSair">SAIR</button>' +
+            '<button type="button" class="lg-principal" id="lgVerificar">VERIFICAR</button></div></div></div>';
+        document.body.appendChild(el);
+        var terminou = false, timers = [];
+        function fim(verificar) {
+            if (terminou) return;
+            terminou = true;
+            timers.forEach(clearTimeout);
+            if (el.parentNode) el.parentNode.removeChild(el);
+            if (verificar) setTimeout(irParaAcessoRapido, 100);
+        }
+        document.getElementById('lgSair').addEventListener('click', function () { fim(false); });
+        document.getElementById('lgVerificar').addEventListener('click', function () { fim(true); });
+        var falas = falasAtraso(a);
+        timers.push(setTimeout(function () {
+            var balao = document.getElementById('lgBalao');
+            if (!balao || terminou) return;
+            balao.innerHTML = '';
+            var li = 0;
+            (function proxima() {
+                if (terminou || li >= falas.length) return;
+                var html = falas[li++];
+                var tmp = document.createElement('div'); tmp.innerHTML = html;
+                var texto = tmp.textContent, k = 0;
+                var linha = document.createElement('div');
+                balao.appendChild(linha);
+                (function letra() {
+                    if (terminou) return;
+                    k += 2;
+                    linha.innerHTML = esc(texto.slice(0, k)) + '<span class="lg-cursor"></span>';
+                    if (k < texto.length) timers.push(setTimeout(letra, 22));
+                    else { linha.innerHTML = html; timers.push(setTimeout(proxima, 250)); }
+                })();
+            })();
+        }, 900));
+    }
+
+    async function verificarAvisoAtraso() {
+        var hoje = new Date();
+        var dia = hoje.getDate();
+        if (dia < 15) return false;
+        var chave = 'seate_aviso_atraso_' + hoje.getFullYear() + '-' + pad2(hoje.getMonth() + 1) + (dia >= 25 ? '-25' : '-15');
+        try { if (localStorage.getItem(chave)) return false; } catch (e) { return false; }
+        var a = await calcularAtrasos();
+        if (!a.lista.length) return false; // ninguém em atraso: não incomoda
+        try { localStorage.setItem(chave, '1'); } catch (e) {}
+        mostrarAvisoAtraso(a);
+        return true;
+    }
+
     function verificarAberturaAutomatica() {
         var hoje = new Date();
         if (hoje.getDate() < 2) return false;
@@ -1042,7 +1253,15 @@
             var app = document.getElementById('appContainer');
             var logado = (!login || getComputedStyle(login).display === 'none') && !(app && app.classList.contains('app-blur'));
             var prontos = typeof servidores !== 'undefined' && Array.isArray(servidores) && servidores.length > 0;
-            if (logado && prontos) { clearInterval(t); setTimeout(verificarAberturaAutomatica, 800); }
+            if (logado && prontos) {
+                clearInterval(t);
+                observarAcessoRapido();
+                setTimeout(function () {
+                    // um assistente por vez: se o lembrete do dia 2 apareceu,
+                    // o aviso de atraso fica para o próximo acesso
+                    if (!verificarAberturaAutomatica()) verificarAvisoAtraso();
+                }, 800);
+            }
             else if (tentativas > 600) clearInterval(t); // desiste após ~10 min
         }, 1000);
     })();
@@ -1057,6 +1276,7 @@
         mostrarLembreteGestor(anoRef, mesRef + 1, function () { abrirRelatoriosEntregues(); });
     }
     window.botaoRelatoriosEntregues = botaoRelatoriosEntregues;
+    window._atrasos = { calcular: calcularAtrasos, verificar: verificarAvisoAtraso, mostrar: mostrarAvisoAtraso }; // (testes)
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     window.abrirRelatorioServidor = abrirRelatorioServidor;
     // expostas para testes
