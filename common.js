@@ -138,12 +138,85 @@ function initSupabase() {
 // registro.html NUNCA chama estas funções — servidores continuam acessando
 // só pelo link (?user=Nome), sem login.
 
+// ---- Duração máxima do login: 2 horas a partir da entrada ----
+// O horário do login fica guardado neste navegador. Passadas 2 horas, a
+// sessão é encerrada e é preciso entrar de novo (aviso 5 minutos antes).
+var DURACAO_SESSAO_MS = 2 * 60 * 60 * 1000;
+var AVISO_SESSAO_MS = 5 * 60 * 1000;
+var CHAVE_LOGIN_EM = 'seate_login_em';
+var _loginEmMemoria = null, _vigiaSessao = null, _avisouSessao = false;
+
+function registrarInicioSessao() {
+    _loginEmMemoria = Date.now();
+    try { localStorage.setItem(CHAVE_LOGIN_EM, String(_loginEmMemoria)); } catch (e) {}
+    _avisouSessao = false;
+    vigiarSessao();
+}
+function _horaLogin() {
+    var t = null;
+    try { t = parseInt(localStorage.getItem(CHAVE_LOGIN_EM), 10); } catch (e) {}
+    if (!t || isNaN(t)) t = _loginEmMemoria;
+    return t || null;
+}
+function tempoRestanteSessao() {
+    var t = _horaLogin();
+    if (!t || t > Date.now() + 5 * 60 * 1000) return 0; // sem registro (ou relógio adiantado): exige novo login
+    return Math.max(0, t + DURACAO_SESSAO_MS - Date.now());
+}
+async function _encerrarSessao() {
+    _loginEmMemoria = null;
+    try { localStorage.removeItem(CHAVE_LOGIN_EM); } catch (e) {}
+    if (usarSupabase && supabaseClient) {
+        try { await supabaseClient.auth.signOut(); } catch (e) { console.warn('Erro ao sair:', e.message); }
+    }
+}
+function _caixaSessao(id, html) {
+    var velha = document.getElementById(id); if (velha) velha.remove();
+    var el = document.createElement('div');
+    el.id = id;
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10100;display:flex;align-items:center;justify-content:center;padding:16px;';
+    el.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:22px 24px;box-shadow:0 20px 50px rgba(0,0,0,.3);font-size:14px;color:#1F2937;line-height:1.5;">' + html + '</div>';
+    document.body.appendChild(el);
+    return el;
+}
+function _hhmm(ms) { var d = new Date(ms); return String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0'); }
+function vigiarSessao() {
+    if (_vigiaSessao) return;
+    _vigiaSessao = setInterval(async function () {
+        var resta = tempoRestanteSessao();
+        if (resta <= 0) {
+            clearInterval(_vigiaSessao); _vigiaSessao = null;
+            var aviso = document.getElementById('avisoSessao'); if (aviso) aviso.remove();
+            await _encerrarSessao();
+            var el = _caixaSessao('fimSessao',
+                '<h3 style="margin:0 0 8px;color:#0B2A4A;font-size:18px;">🔒 Sessão encerrada</h3>' +
+                '<p style="margin:0 0 6px;">Por segurança, o acesso ao sistema dura no máximo <b>2 horas</b> a partir do login, e esse tempo terminou.</p>' +
+                '<p style="margin:0 0 16px;">Para continuar, faça o login novamente com seu e-mail e senha.</p>' +
+                '<div style="text-align:right"><button id="fimSessaoOk" style="background:#1D4ED8;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:700;cursor:pointer;">FAZER LOGIN</button></div>');
+            el.querySelector('#fimSessaoOk').onclick = function () { window.location.href = 'index.html'; };
+            return;
+        }
+        if (resta <= AVISO_SESSAO_MS && !_avisouSessao) {
+            _avisouSessao = true;
+            var fim = _horaLogin() + DURACAO_SESSAO_MS;
+            var el2 = _caixaSessao('avisoSessao',
+                '<h3 style="margin:0 0 8px;color:#92400E;font-size:18px;">⏰ Sua sessão está terminando</h3>' +
+                '<p style="margin:0 0 6px;">O acesso ao sistema dura no máximo <b>2 horas</b> a partir do login. Sua sessão será encerrada às <b>' + _hhmm(fim) + '</b> (em cerca de ' + Math.max(1, Math.round(resta / 60000)) + ' minutos).</p>' +
+                '<p style="margin:0 0 16px;"><b>Salve agora</b> o que estiver fazendo. Depois disso, será preciso fazer o login novamente.</p>' +
+                '<div style="text-align:right"><button id="avisoSessaoOk" style="background:#1D4ED8;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:700;cursor:pointer;">ENTENDI</button></div>');
+            el2.querySelector('#avisoSessaoOk').onclick = function () { el2.remove(); };
+        }
+    }, 15000);
+}
+
 // Usada por index.html (que exibe o modal de login embutido em vez de redirecionar)
 async function obterSessaoAtual() {
     if (!usarSupabase || !supabaseClient) return null;
     try {
         const { data, error } = await supabaseClient.auth.getSession();
         if (error || !data || !data.session) return null;
+        if (tempoRestanteSessao() <= 0) { await _encerrarSessao(); return null; } // passou de 2 horas
+        vigiarSessao();
         return data.session;
     } catch (e) {
         console.error('Erro ao verificar autenticação:', e.message);
@@ -163,9 +236,7 @@ async function exigirAutenticacao() {
 }
 
 async function fazerLogout() {
-    if (usarSupabase && supabaseClient) {
-        try { await supabaseClient.auth.signOut(); } catch (e) { console.warn('Erro ao sair:', e.message); }
-    }
+    await _encerrarSessao();
     window.location.href = 'index.html';
 }
 

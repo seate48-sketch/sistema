@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=17">
-    <link rel="icon" href="icons/favicon-32.png?v=17">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=17">
+    <link rel="manifest" href="manifest.json?v=18">
+    <link rel="icon" href="icons/favicon-32.png?v=18">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=18">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=17').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=18').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=17"></script>
-    <script src="supabase-client.js?v=17"></script>
+    <script src="config.js?v=18"></script>
+    <script src="supabase-client.js?v=18"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -866,7 +866,7 @@
     </div>
 </div>
 
-<script src="common.js?v=17"></script>
+<script src="common.js?v=18"></script>
 <script src="relatorio-servidor.js?v=27"></script>
 <script>
 
@@ -1995,6 +1995,7 @@ document.getElementById("formLogin").addEventListener("submit", async function(e
             btn.textContent = "Entrar";
             return;
         }
+        registrarInicioSessao(); // login vale por 2 horas
         document.getElementById("modalLogin").style.display = "none";
         document.getElementById("appContainer").classList.remove("app-blur");
         iniciarPaginaPrincipal();
