@@ -518,12 +518,12 @@
             to { transform: translateY(0); opacity: 1; }
         }
         
-        @média (max-width: 1024px) {
+        @media (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .graficos-grid { grid-template-columns: 1fr; }
             .filtros-resultados .form-group { min-width: 120px; }
         }
-        @média (max-width: 768px) {
+        @media (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
@@ -534,7 +534,7 @@
             .grupo-botoes .btn-acao-relatorio,
             .grupo-botoes .btn-acao-limpar { width: 100%; text-align: center; }
         }
-        @média (max-width: 480px) {
+        @media (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
             .tabela-resultados { font-size: 0.7rem; }

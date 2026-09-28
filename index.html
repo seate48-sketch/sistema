@@ -484,7 +484,7 @@
             width: 90%;
         }
         
-        @média (max-width: 768px) {
+        @media (max-width: 768px) {
             .card-duplo .card-metade {
                 flex: 1 1 100%;
                 padding: 8px 12px;
@@ -495,24 +495,20 @@
             }
         }
         
-        @média (max-width: 1024px) {
+        @media (max-width: 1024px) {
             .indicadores-grid { grid-template-columns: repeat(2, 1fr); }
             .comunicados-tres-colunas { flex-wrap: wrap; }
             .comunicado-coluna { flex: 1 1 100%; max-width: 100%; }
             .comunicado-divider { display: none; }
-            .linha-mes-referencia .form-group select,
-            .linha-mes-referencia .form-group input {
-                width: 100px;
-            }
+            .linha-mes-referencia .form-group select { width: 120px; }
+            .linha-mes-referencia .form-group input { width: 100px; }
             .modal-estatistica-content { max-width: 98%; width: 98%; }
         }
-        @média (max-width: 768px) {
+        @media (max-width: 768px) {
             .indicadores-grid { grid-template-columns: repeat(1, 1fr); }
             .acesso-rapido-grid { grid-template-columns: 1fr; }
-            .linha-mes-referencia .form-group select,
-            .linha-mes-referencia .form-group input {
-                width: 80px;
-            }
+            .linha-mes-referencia .form-group select { width: 120px; } /* cabe "Fevereiro" */
+            .linha-mes-referencia .form-group input { width: 80px; }
             .tab-link { padding: 8px 12px; font-size: 0.85rem; }
             .acoes-cell { gap: 4px; }
             .acoes-cell .btn-bloquear,
@@ -538,7 +534,7 @@
             .grafico-container canvas { height: 180px !important; max-height: 180px; }
             .modal-grafico .modal-estatistica-content { max-width: 100%; width: 100%; margin: 0; border-radius: 0; max-height: 100vh; }
         }
-        @média (max-width: 480px) {
+        @media (max-width: 480px) {
             .indicadores-grid { grid-template-columns: 1fr; }
             .grafico-container canvas { height: 150px !important; max-height: 150px; }
         }
@@ -619,7 +615,7 @@
         .mover-botoes-serv {
             display: none;
         }
-        @média (hover: none) and (pointer: coarse) {
+        @media (hover: none) and (pointer: coarse) {
             .drag-handle-serv { display: none; }
             .mover-botoes-serv { display: inline-flex; flex-direction: column; gap: 2px; }
             .btn-mover-serv {
