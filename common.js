@@ -467,6 +467,235 @@ async function renomearServidorNoBanco(nomeAntigo, nomeNovo, novaLotacao, bloque
     }
 }
 
+// ==================== EXCLUSÃO DE SERVIDOR COM VERIFICAÇÃO ====================
+// Antes de excluir, consulta no banco (levantamento_servidor) quantos
+// registros e relatórios entregues a pessoa tem e explica as opções:
+//  • INATIVAR (padrão): sai das listas, histórico mantido nos totais;
+//  • EXCLUIR DEFINITIVAMENTE: só sem relatório entregue; apaga cadastro e
+//    registros (os totais diminuem). Exige digitar o nome.
+// Retorna 'inativado', 'excluido' ou null (cancelado). A ação no banco já
+// é feita aqui; a página só atualiza as listas locais.
+function _exsEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function _exsNum(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+function _exsData(iso) { if (!iso) return '—'; var p = String(iso).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function _exsPlural(n, um, varios) { return _exsNum(n) + ' ' + (Number(n) === 1 ? um : varios); }
+// separa os anos cujos registros entram nos totais (2026 em diante) dos anos com lançamento manual
+function _exsContabil(anos) {
+    var conta = [], fora = [], total = 0;
+    (anos || []).forEach(function (a) {
+        if (!a.total) return;
+        if (typeof anoUsaRegistros !== 'function' || anoUsaRegistros(a.ano)) { conta.push(a); total += Number(a.total); }
+        else fora.push(a);
+    });
+    return { conta: conta, fora: fora, total: total };
+}
+var _EXS_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function _exsEstilo() {
+    if (document.getElementById('exs-estilo')) return;
+    var st = document.createElement('style');
+    st.id = 'exs-estilo';
+    st.textContent =
+        '#exsFundo{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;}' +
+        '#exsFundo .exs-caixa{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);padding:22px 24px;font-size:14px;color:#1F2937;line-height:1.5;}' +
+        '#exsFundo h3{margin:0 0 4px;font-size:18px;color:#0B2A4A;}' +
+        '#exsFundo .exs-sub{color:#6B7280;font-size:13px;margin-bottom:14px;}' +
+        '#exsFundo .exs-resumo{background:#F3F6FA;border:1px solid #DDE4EE;border-radius:10px;padding:12px 14px;margin-bottom:14px;}' +
+        '#exsFundo .exs-resumo b{color:#0B2A4A;}' +
+        '#exsFundo ul{margin:6px 0 0;padding-left:20px;}' +
+        '#exsFundo li{margin:2px 0;}' +
+        '#exsFundo .exs-op{border:1px solid #DDE4EE;border-radius:12px;padding:12px 14px;margin-bottom:10px;}' +
+        '#exsFundo .exs-op h4{margin:0 0 4px;font-size:15px;}' +
+        '#exsFundo .exs-op.rec{border-color:#93C5FD;background:#F0F7FF;}' +
+        '#exsFundo .exs-op.rec h4{color:#1D4ED8;}' +
+        '#exsFundo .exs-op.perigo{border-color:#FCA5A5;background:#FFF5F5;}' +
+        '#exsFundo .exs-op.perigo h4{color:#B91C1C;}' +
+        '#exsFundo .exs-op.bloq{border-color:#E5E7EB;background:#F9FAFB;color:#4B5563;}' +
+        '#exsFundo .exs-op.bloq h4{color:#6B7280;}' +
+        '#exsFundo .exs-quando{font-size:13px;color:#374151;margin-bottom:2px;}' +
+        '#exsFundo .exs-alerta{background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;border-radius:10px;padding:10px 12px;margin:10px 0;}' +
+        '#exsFundo .exs-info{background:#FFFBEB;border:1px solid #FCD34D;color:#92400E;border-radius:10px;padding:10px 12px;margin:10px 0;}' +
+        '#exsFundo input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #CBD5E1;border-radius:8px;font-size:14px;margin-top:6px;}' +
+        '#exsFundo .exs-botoes{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;}' +
+        '#exsFundo button{border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;}' +
+        '#exsFundo .b-cancelar{background:#E5E7EB;color:#374151;}' +
+        '#exsFundo .b-inativar{background:#1D4ED8;color:#fff;}' +
+        '#exsFundo .b-excluir{background:#DC2626;color:#fff;}' +
+        '#exsFundo button:disabled{opacity:.45;cursor:not-allowed;}' +
+        '#exsFundo .exs-op button{margin-top:8px;}';
+    document.head.appendChild(st);
+}
+
+async function _exsIdServidor(nome) {
+    var r = await supabaseClient.from(getTables().SERVIDORES).select('id, nome, ativo').eq('nome', nome);
+    if (r.error || !r.data || !r.data.length) return null;
+    var mesmos = r.data.filter(function (s) { return s.nome === nome; });
+    if (!mesmos.length) return null;
+    var ativo = mesmos.filter(function (s) { return s.ativo !== false; })[0] || mesmos[0];
+    return String(ativo.id);
+}
+
+function dialogoExclusaoServidor(nome) {
+    return new Promise(function (resolver) {
+        _exsEstilo();
+        var fundo = document.createElement('div');
+        fundo.id = 'exsFundo';
+        fundo.innerHTML = '<div class="exs-caixa" role="dialog" aria-modal="true"></div>';
+        document.body.appendChild(fundo);
+        var caixa = fundo.firstChild;
+        var N = '<b>' + _exsEsc(nome) + '</b>';
+        var idServ = null, lev = null;
+
+        function fechar(res) { fundo.remove(); resolver(res); }
+        function tela(html) { caixa.innerHTML = html; caixa.scrollTop = 0; }
+        function ligar(id, fn) { var b = document.getElementById(id); if (b) b.onclick = fn; }
+
+        // --- ações no banco ---
+        async function inativar() {
+            tela('<h3>Inativando…</h3><div class="exs-sub">Aguarde um instante.</div>');
+            await inativarServidorNoBanco(nome);
+            fechar('inativado');
+        }
+        async function excluir() {
+            tela('<h3>Excluindo…</h3><div class="exs-sub">Apagando o cadastro e os registros de ' + N + '. Não feche a página.</div>');
+            try {
+                var r = await supabaseClient.rpc('excluir_servidor_definitivo', { p_servidor: idServ });
+                if (r.error) throw new Error(r.error.message || 'erro');
+                if (typeof invalidarCacheTotaisAno === 'function') invalidarCacheTotaisAno();
+                else if (typeof _totaisAnoCache !== 'undefined') { for (var k in _totaisAnoCache) delete _totaisAnoCache[k]; }
+                fechar('excluido');
+            } catch (e) {
+                var msg = String(e.message || e);
+                var motivo = msg.indexOf('TEM_RELATORIOS_ENTREGUES') !== -1
+                    ? 'Foi encontrado relatório entregue por esta pessoa. Por segurança, a exclusão definitiva não é permitida nesse caso.'
+                    : 'Não foi possível concluir a exclusão (' + _exsEsc(msg) + '). Nenhum dado foi apagado — a operação é "tudo ou nada".';
+                tela('<h3>Exclusão não realizada</h3><div class="exs-alerta">' + motivo + '</div>' +
+                     '<div class="exs-botoes"><button class="b-cancelar" id="exsFechar">FECHAR</button></div>');
+                ligar('exsFechar', function () { fechar(null); });
+            }
+        }
+
+        // --- textos reutilizados ---
+        var TXT_INATIVAR =
+            '<div class="exs-quando"><b>Quando usar:</b> a pessoa saiu da equipe, mudou de setor, aposentou-se ou está afastada por longo período.</div>' +
+            '<ul><li>Deixa de aparecer na lista de servidores, nas seleções, nas atribuições e no Acesso Rápido aos Registros.</li>' +
+            '<li><b>Nada é apagado:</b> os registros continuam guardados e <b>continuam contando nos totais estatísticos</b> (SEATE/NAHORA, gráficos e relatórios).</li>' +
+            '<li>Os relatórios entregues continuam no painel Relatórios Entregues, com a indicação "(inativo)".</li></ul>';
+
+        function telaResumo() {
+            var reg = lev.registros || {}, anos = lev.anos || [], ent = lev.entregas || 0;
+            var temReg = (reg.dias || 0) > 0;
+            // Caso 1: sem nada → confirmação simples
+            if (!temReg && !ent) {
+                tela('<h3>Excluir ' + _exsEsc(nome) + '?</h3>' +
+                     '<div class="exs-sub">Verifiquei o banco de dados antes de excluir.</div>' +
+                     '<div class="exs-resumo">✅ ' + N + ' <b>não tem nenhum registro de atividade</b> e <b>nenhum relatório entregue</b>.</div>' +
+                     '<p>Por isso, o cadastro pode ser <b>apagado definitivamente</b> sem nenhum efeito nos totais estatísticos:</p>' +
+                     '<ul><li>sai da lista de servidores, das seleções, das atribuições e do Acesso Rápido;</li>' +
+                     '<li>o cadastro é removido do banco de dados.</li></ul>' +
+                     '<div class="exs-info">Esta ação não pode ser desfeita. Se precisar da pessoa novamente, basta cadastrá-la outra vez.</div>' +
+                     '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button>' +
+                     '<button class="b-excluir" id="exsExcluir">EXCLUIR</button></div>');
+                ligar('exsCancelar', function () { fechar(null); });
+                ligar('exsExcluir', excluir);
+                return;
+            }
+            // Resumo do que existe
+            var r = '<div class="exs-resumo"><b>O que existe no sistema em nome de ' + _exsEsc(nome) + ':</b><ul>';
+            if (temReg) {
+                r += '<li><b>' + _exsPlural(reg.dias, 'dia registrado', 'dias registrados') + '</b>, de ' + _exsData(reg.primeiro) + ' a ' + _exsData(reg.ultimo) +
+                     ' (' + _exsPlural(reg.dias_ativ, 'dia com atividades lançadas', 'dias com atividades lançadas') +
+                     (reg.dias_status ? ' e ' + _exsPlural(reg.dias_status, 'dia com status (Folga, Férias, Atestado…)', 'dias com status (Folga, Férias, Atestado…)') : '') + ');</li>';
+                var ct = _exsContabil(anos);
+                r += '<li>Esses registros somam <b>' + _exsPlural(ct.total, 'atividade', 'atividades') + '</b> nos totais estatísticos';
+                if (ct.conta.length) r += ': ' + ct.conta.map(function (a) { return _exsNum(a.total) + ' em ' + a.ano; }).join('; ');
+                r += '.';
+                if (ct.fora.length) r += ' <span style="color:#6B7280">(Há também ' + ct.fora.map(function (a) { return _exsNum(a.total) + ' em ' + a.ano; }).join('; ') +
+                    ', que não entram nos totais porque esses anos usam os lançamentos manuais de Dados Estatísticos.)</span>';
+                r += '</li>';
+            } else {
+                r += '<li>Nenhum registro de atividade.</li>';
+            }
+            if (ent) {
+                var meses = (lev.meses_entregues || []).map(function (m) { return _EXS_MESES[m.mes - 1] + '/' + m.ano; });
+                r += '<li><b>' + _exsPlural(ent, 'relatório mensal entregue', 'relatórios mensais entregues') + '</b>: ' + _exsEsc(meses.join(', ')) + '.</li>';
+            } else {
+                r += '<li>Nenhum relatório mensal entregue.</li>';
+            }
+            r += '</ul></div>';
+
+            var h = '<h3>Excluir ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verifiquei o banco de dados antes de excluir. Escolha abaixo o que deseja fazer.</div>' + r;
+            h += '<div class="exs-op rec"><h4>① INATIVAR — recomendado</h4>' + TXT_INATIVAR +
+                 '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>';
+            if (!ent) {
+                h += '<div class="exs-op perigo"><h4>② EXCLUIR DEFINITIVAMENTE</h4>' +
+                     '<div class="exs-quando"><b>Quando usar:</b> somente se o cadastro foi feito <b>por engano</b> (nome errado, pessoa duplicada) ou foi usado para <b>testes</b>.</div>' +
+                     '<ul><li>Apaga o cadastro e <b>todos os ' + _exsPlural(reg.dias, 'dia registrado', 'dias registrados') + '</b>.</li>' +
+                     '<li>' + (_exsContabil(anos).total ? '<b>Os totais estatísticos diminuem ' + _exsNum(_exsContabil(anos).total) + '</b>' : 'Os totais estatísticos <b>não mudam</b>') + ' (painel, gráficos, Relatório Estatístico, Resultados por Atividade e por Servidor).</li>' +
+                     '<li>PDFs e planilhas que já foram gerados antes não mudam — podem ficar diferentes dos novos.</li>' +
+                     '<li><b>Não pode ser desfeito.</b></li></ul>' +
+                     '<button class="b-excluir" id="exsDefinitivo">EXCLUIR DEFINITIVAMENTE…</button></div>';
+            } else {
+                h += '<div class="exs-op bloq"><h4>② Excluir definitivamente — indisponível</h4>' +
+                     'Como ' + N + ' já entregou relatório mensal, a exclusão definitiva não é permitida por aqui. ' +
+                     'Os relatórios entregues são o comprovante oficial da entrega, e os totais desses meses podem já ter sido informados. ' +
+                     'Se a pessoa saiu da equipe, use <b>INATIVAR</b>. Se for realmente necessário apagar (caso excepcional), a exclusão deve ser feita diretamente no banco de dados, pelo suporte técnico.</div>';
+            }
+            h += '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>';
+            tela(h);
+            ligar('exsCancelar', function () { fechar(null); });
+            ligar('exsInativar', inativar);
+            ligar('exsDefinitivo', telaConfirmar);
+        }
+
+        function telaConfirmar() {
+            var reg = lev.registros || {}, anos = lev.anos || [];
+            var porAno = _exsContabil(anos).conta.map(function (a) { return 'os totais de <b>' + a.ano + '</b> vão diminuir <b>' + _exsNum(a.total) + '</b>'; });
+            tela('<h3>Confirmar exclusão definitiva</h3>' +
+                 '<div class="exs-sub">Última etapa — leia com atenção.</div>' +
+                 '<div class="exs-alerta">Serão apagados <b>o cadastro de ' + _exsEsc(nome) + '</b> e <b>' + _exsPlural(reg.dias, 'dia registrado', 'dias registrados') + '</b>' +
+                 (porAno.length ? '; ' + porAno.join('; ') : '') + '.<br>Esta ação <b>não pode ser desfeita</b>.</div>' +
+                 '<label>Para confirmar, digite o nome exatamente como aparece: <b>' + _exsEsc(nome) + '</b></label>' +
+                 '<input id="exsNome" type="text" autocomplete="off" placeholder="Digite o nome aqui">' +
+                 '<div class="exs-botoes"><button class="b-cancelar" id="exsVoltar">VOLTAR</button>' +
+                 '<button class="b-excluir" id="exsConfirmar" disabled>EXCLUIR DEFINITIVAMENTE</button></div>');
+            var inp = document.getElementById('exsNome'), btn = document.getElementById('exsConfirmar');
+            function norm(s) { return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+            inp.oninput = function () { btn.disabled = norm(inp.value) !== norm(nome); };
+            inp.focus();
+            ligar('exsVoltar', telaResumo);
+            ligar('exsConfirmar', function () { if (!btn.disabled) excluir(); });
+        }
+
+        function telaSemVerificacao(motivo) {
+            tela('<h3>Excluir ' + _exsEsc(nome) + '</h3>' +
+                 '<div class="exs-info">Não foi possível verificar os registros e relatórios de ' + N + ' agora' + (motivo ? ' (' + _exsEsc(motivo) + ')' : '') + '. ' +
+                 'Por segurança, só a opção <b>INATIVAR</b> está disponível. A exclusão definitiva volta a aparecer quando a verificação funcionar.</div>' +
+                 '<div class="exs-op rec"><h4>INATIVAR</h4>' + TXT_INATIVAR + '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>' +
+                 '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>');
+            ligar('exsCancelar', function () { fechar(null); });
+            ligar('exsInativar', inativar);
+        }
+
+        tela('<h3>Excluir ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verificando registros e relatórios entregues…</div>');
+        (async function () {
+            if (!usarSupabase || !supabaseClient) { telaSemVerificacao('sem conexão com o banco de dados'); return; }
+            try {
+                idServ = await _exsIdServidor(nome);
+                if (!idServ) { telaSemVerificacao('cadastro não encontrado no banco'); return; }
+                var r = await supabaseClient.rpc('levantamento_servidor', { p_servidor: idServ });
+                if (r.error) {
+                    var m = String(r.error.message || '');
+                    telaSemVerificacao(/levantamento_servidor|function|schema cache/i.test(m) ? 'o banco de dados ainda não recebeu a atualização 13_excluir_servidor.sql' : m);
+                    return;
+                }
+                lev = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+                telaResumo();
+            } catch (e) { telaSemVerificacao(String(e.message || e)); }
+        })();
+    });
+}
+
 async function salvarServidores() {
     var TABLES = getTables();
     
