@@ -686,7 +686,186 @@ function dialogoExclusaoServidor(nome) {
                 var r = await supabaseClient.rpc('levantamento_servidor', { p_servidor: idServ });
                 if (r.error) {
                     var m = String(r.error.message || '');
-                    telaSemVerificacao(/levantamento_servidor|function|schema cache/i.test(m) ? 'o banco de dados ainda não recebeu a atualização 13_excluir_servidor.sql' : m);
+                    telaSemVerificacao(/levantamento_servidor|function|schema cache/i.test(m) ? 'o banco de dados ainda não recebeu a atualização 13_exclusao_servidor_atividade.sql' : m);
+                    return;
+                }
+                lev = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+                telaResumo();
+            } catch (e) { telaSemVerificacao(String(e.message || e)); }
+        })();
+    });
+}
+
+// ==================== EXCLUSÃO DE ATIVIDADE COM VERIFICAÇÃO ====================
+// Mesma lógica da exclusão de servidor:
+//  • RETIRAR DA LISTA (padrão): sai das listas; lançamentos mantidos nos totais;
+//  • EXCLUIR DEFINITIVAMENTE: só se não aparecer em relatório entregue nem em
+//    Dados Estatísticos (manual); retira a atividade de todos os registros.
+// Retorna 'retirada', 'excluida' ou null (cancelado). A ação no banco já é
+// feita aqui; a página só atualiza as listas locais.
+function dialogoExclusaoAtividade(nome) {
+    return new Promise(function (resolver) {
+        _exsEstilo();
+        var fundo = document.createElement('div');
+        fundo.id = 'exsFundo';
+        fundo.innerHTML = '<div class="exs-caixa" role="dialog" aria-modal="true"></div>';
+        document.body.appendChild(fundo);
+        var caixa = fundo.firstChild;
+        var N = '<b>' + _exsEsc(nome) + '</b>';
+        var lev = null;
+
+        function fechar(res) { fundo.remove(); resolver(res); }
+        function tela(html) { caixa.innerHTML = html; caixa.scrollTop = 0; }
+        function ligar(id, fn) { var b = document.getElementById(id); if (b) b.onclick = fn; }
+        function limparCaches() {
+            if (typeof _totaisAnoCache !== 'undefined') { for (var k in _totaisAnoCache) delete _totaisAnoCache[k]; }
+            if (typeof invalidarCacheDadosAno === 'function') invalidarCacheDadosAno();
+        }
+
+        async function retirar() {
+            tela('<h3>Retirando da lista…</h3><div class="exs-sub">Aguarde um instante.</div>');
+            var ok = true;
+            if (typeof supabaseDisponivel !== 'undefined' && supabaseDisponivel && typeof dbExcluirAtividade === 'function') {
+                try { ok = await dbExcluirAtividade(nome); } catch (e) { ok = false; }
+            }
+            if (!ok && typeof feedback === 'function') feedback('Atenção: não foi possível retirar do banco de dados. A atividade pode voltar a aparecer.');
+            fechar('retirada');
+        }
+        async function excluir() {
+            tela('<h3>Excluindo…</h3><div class="exs-sub">Retirando ' + N + ' de todos os registros. Não feche a página.</div>');
+            try {
+                var r = await supabaseClient.rpc('excluir_atividade_definitivo', { p_nome: nome });
+                if (r.error) throw new Error(r.error.message || 'erro');
+                limparCaches();
+                fechar('excluida');
+            } catch (e) {
+                var msg = String(e.message || e), motivo;
+                if (msg.indexOf('TEM_RELATORIOS_ENTREGUES') !== -1) motivo = 'A atividade aparece em relatório entregue. Por segurança, a exclusão definitiva não é permitida nesse caso.';
+                else if (msg.indexOf('TEM_DADOS_ESTATISTICOS') !== -1) motivo = 'A atividade tem lançamento manual em Dados Estatísticos. Por segurança, a exclusão definitiva não é permitida nesse caso.';
+                else motivo = 'Não foi possível concluir a exclusão (' + _exsEsc(msg) + '). Nenhum dado foi alterado — a operação é "tudo ou nada".';
+                tela('<h3>Exclusão não realizada</h3><div class="exs-alerta">' + motivo + '</div>' +
+                     '<div class="exs-botoes"><button class="b-cancelar" id="exsFechar">FECHAR</button></div>');
+                ligar('exsFechar', function () { fechar(null); });
+            }
+        }
+
+        function txtRetirar(atrib) {
+            return '<div class="exs-quando"><b>Quando usar:</b> a atividade deixou de ser realizada, foi substituída por outra ou não deve mais receber lançamentos.</div>' +
+                '<ul><li>Sai da lista de atividades e das telas de lançamento: <b>ninguém consegue mais lançar nela</b>.</li>' +
+                (atrib ? '<li>Os <b>' + _exsPlural(atrib, 'servidor atribuído', 'servidores atribuídos') + '</b> deixam de tê-la na sua lista.</li>' : '') +
+                '<li><b>Nada do que já foi lançado é apagado:</b> as quantidades continuam contando nos totais estatísticos e a atividade continua aparecendo em Resultados por Atividade, nos gráficos e nos relatórios.</li>' +
+                '<li>Se um dia for cadastrada de novo <b>com o mesmo nome</b>, ela volta a reunir os lançamentos antigos.</li></ul>';
+        }
+
+        function telaResumo() {
+            var reg = lev.registros || {}, hist = lev.historico || {}, atrib = lev.atribuicoes || 0, ent = lev.entregas || 0;
+            var ct = _exsContabil(lev.anos || []);
+            var temAlgo = (reg.dias || 0) > 0 || (hist.lancamentos || 0) > 0 || atrib > 0 || ent > 0;
+            if (!temAlgo) {
+                tela('<h3>Excluir a atividade ' + _exsEsc(nome) + '?</h3>' +
+                     '<div class="exs-sub">Verifiquei o banco de dados antes de excluir.</div>' +
+                     '<div class="exs-resumo">✅ A atividade ' + N + ' <b>não tem nenhum lançamento</b> (nem dos servidores, nem em Dados Estatísticos), <b>nenhum servidor atribuído</b> e não aparece em <b>nenhum relatório entregue</b>.</div>' +
+                     '<p>Por isso, pode ser <b>apagada definitivamente</b> sem nenhum efeito nos totais estatísticos.</p>' +
+                     '<div class="exs-info">Esta ação não pode ser desfeita. Se precisar dela novamente, basta cadastrá-la outra vez.</div>' +
+                     '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button>' +
+                     '<button class="b-excluir" id="exsExcluir">EXCLUIR</button></div>');
+                ligar('exsCancelar', function () { fechar(null); });
+                ligar('exsExcluir', excluir);
+                return;
+            }
+            var r = '<div class="exs-resumo"><b>O que existe no sistema para a atividade ' + _exsEsc(nome) + ':</b><ul>';
+            if (reg.dias) {
+                r += '<li><b>Registros dos servidores:</b> lançada em ' + _exsPlural(reg.dias, 'dia', 'dias') + ' por ' + _exsPlural(reg.servidores, 'servidor', 'servidores') +
+                     ', de ' + _exsData(reg.primeiro) + ' a ' + _exsData(reg.ultimo) + ', somando <b>' + _exsNum(ct.total) + '</b> nos totais estatísticos' +
+                     (ct.conta.length ? ' (' + ct.conta.map(function (a) { return _exsNum(a.total) + ' em ' + a.ano; }).join('; ') + ')' : '') + '.' +
+                     (ct.fora.length ? ' <span style="color:#6B7280">Há também ' + ct.fora.map(function (a) { return _exsNum(a.total) + ' em ' + a.ano; }).join('; ') + ', que não entram nos totais porque esses anos usam os lançamentos manuais.</span>' : '') + '</li>';
+            } else {
+                r += '<li><b>Registros dos servidores:</b> nenhum lançamento.</li>';
+            }
+            if (hist.lancamentos) {
+                r += '<li><b>Dados Estatísticos (lançamento manual):</b> ' + _exsPlural(hist.lancamentos, 'lançamento', 'lançamentos') + ', somando <b>' + _exsNum(hist.total) + '</b>' +
+                     ((lev.anos_historico || []).length ? ' (' + lev.anos_historico.map(function (a) { return _exsNum(a.total) + ' em ' + a.ano; }).join('; ') + ')' : '') + '.</li>';
+            } else {
+                r += '<li><b>Dados Estatísticos (lançamento manual):</b> nenhum lançamento.</li>';
+            }
+            r += '<li><b>Atribuições:</b> ' + (atrib ? _exsPlural(atrib, 'servidor atribuído', 'servidores atribuídos') : 'nenhum servidor atribuído') + '.</li>';
+            if (ent) {
+                var lista = (lev.relatorios || []).map(function (x) { return _EXS_MESES[x.mes - 1] + '/' + x.ano + ' – ' + x.servidor; });
+                var mostra = lista.slice(0, 6).join('; ') + (lista.length > 6 ? '; e mais ' + (lista.length - 6) : '');
+                r += '<li><b>Relatórios entregues:</b> aparece em ' + _exsPlural(ent, 'relatório', 'relatórios') + ' (' + _exsEsc(mostra) + ').</li>';
+            } else {
+                r += '<li><b>Relatórios entregues:</b> não aparece em nenhum.</li>';
+            }
+            r += '</ul></div>';
+
+            var h = '<h3>Excluir a atividade ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verifiquei o banco de dados antes de excluir. Escolha abaixo o que deseja fazer.</div>' + r;
+            h += '<div class="exs-op rec"><h4>① RETIRAR DA LISTA — recomendado</h4>' + txtRetirar(atrib) +
+                 '<button class="b-inativar" id="exsRetirar">RETIRAR DA LISTA</button></div>';
+            if (!ent && !hist.lancamentos) {
+                h += '<div class="exs-op perigo"><h4>② EXCLUIR DEFINITIVAMENTE</h4>' +
+                     '<div class="exs-quando"><b>Quando usar:</b> somente se a atividade foi cadastrada <b>por engano</b> (nome errado, duplicada) ou usada para <b>testes</b>.</div>' +
+                     '<ul>' + (reg.dias ? '<li>Retira a atividade de <b>todos os ' + _exsPlural(reg.dias, 'dia lançado', 'dias lançados') + '</b> pelos servidores (as outras atividades desses dias não são tocadas).</li>' : '') +
+                     '<li>' + (ct.total ? '<b>Os totais estatísticos diminuem ' + _exsNum(ct.total) + '</b>' : 'Os totais estatísticos <b>não mudam</b>') + ' (painel, gráficos, Relatório Estatístico, Resultados por Atividade e por Servidor).</li>' +
+                     (atrib ? '<li>Apaga as atribuições e o cadastro da atividade.</li>' : '<li>Apaga o cadastro da atividade.</li>') +
+                     '<li>PDFs e planilhas que já foram gerados antes não mudam — podem ficar diferentes dos novos.</li>' +
+                     '<li><b>Não pode ser desfeito.</b></li></ul>' +
+                     (reg.ficam_vazios ? '<div class="exs-info">⚠️ Em <b>' + _exsPlural(reg.ficam_vazios, 'dia', 'dias') + '</b> esta foi a <b>única</b> atividade lançada. Esses dias ficarão <b>sem lançamento</b>: o servidor precisará preenchê-los de novo, e eles podem aparecer como pendentes na entrega do relatório ou "Em atraso" no Acesso Rápido.</div>' : '') +
+                     '<button class="b-excluir" id="exsDefinitivo">EXCLUIR DEFINITIVAMENTE…</button></div>';
+            } else {
+                var porque = [];
+                if (ent) porque.push('aparece em <b>relatório entregue</b> — o comprovante oficial da entrega do servidor');
+                if (hist.lancamentos) porque.push('tem <b>lançamento manual em Dados Estatísticos</b> — números oficiais já consolidados');
+                h += '<div class="exs-op bloq"><h4>② Excluir definitivamente — indisponível</h4>' +
+                     'A atividade ' + N + ' ' + porque.join(' e ') + '. Apagá-la mudaria números que podem já ter sido informados, por isso a exclusão definitiva não é permitida por aqui. ' +
+                     'Use <b>RETIRAR DA LISTA</b>. Se for realmente necessário apagar (caso excepcional), a exclusão deve ser feita diretamente no banco de dados, pelo suporte técnico.</div>';
+            }
+            h += '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>';
+            tela(h);
+            ligar('exsCancelar', function () { fechar(null); });
+            ligar('exsRetirar', retirar);
+            ligar('exsDefinitivo', telaConfirmar);
+        }
+
+        function telaConfirmar() {
+            var reg = lev.registros || {};
+            var porAno = _exsContabil(lev.anos || []).conta.map(function (a) { return 'os totais de <b>' + a.ano + '</b> vão diminuir <b>' + _exsNum(a.total) + '</b>'; });
+            tela('<h3>Confirmar exclusão definitiva</h3>' +
+                 '<div class="exs-sub">Última etapa — leia com atenção.</div>' +
+                 '<div class="exs-alerta">A atividade <b>' + _exsEsc(nome) + '</b> será apagada' +
+                 (reg.dias ? ' e retirada de <b>' + _exsPlural(reg.dias, 'dia lançado', 'dias lançados') + '</b>' : '') +
+                 (porAno.length ? '; ' + porAno.join('; ') : '') +
+                 (reg.ficam_vazios ? '; <b>' + _exsPlural(reg.ficam_vazios, 'dia ficará', 'dias ficarão') + ' sem lançamento</b>' : '') +
+                 '.<br>Esta ação <b>não pode ser desfeita</b>.</div>' +
+                 '<label>Para confirmar, digite o nome da atividade exatamente como aparece: <b>' + _exsEsc(nome) + '</b></label>' +
+                 '<input id="exsNome" type="text" autocomplete="off" placeholder="Digite o nome aqui">' +
+                 '<div class="exs-botoes"><button class="b-cancelar" id="exsVoltar">VOLTAR</button>' +
+                 '<button class="b-excluir" id="exsConfirmar" disabled>EXCLUIR DEFINITIVAMENTE</button></div>');
+            var inp = document.getElementById('exsNome'), btn = document.getElementById('exsConfirmar');
+            function norm(s) { return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+            inp.oninput = function () { btn.disabled = norm(inp.value) !== norm(nome); };
+            inp.focus();
+            ligar('exsVoltar', telaResumo);
+            ligar('exsConfirmar', function () { if (!btn.disabled) excluir(); });
+        }
+
+        function telaSemVerificacao(motivo) {
+            tela('<h3>Excluir a atividade ' + _exsEsc(nome) + '</h3>' +
+                 '<div class="exs-info">Não foi possível verificar os lançamentos da atividade ' + N + ' agora' + (motivo ? ' (' + _exsEsc(motivo) + ')' : '') + '. ' +
+                 'Por segurança, só a opção <b>RETIRAR DA LISTA</b> está disponível. A exclusão definitiva volta a aparecer quando a verificação funcionar.</div>' +
+                 '<div class="exs-op rec"><h4>RETIRAR DA LISTA</h4>' + txtRetirar(0) + '<button class="b-inativar" id="exsRetirar">RETIRAR DA LISTA</button></div>' +
+                 '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>');
+            ligar('exsCancelar', function () { fechar(null); });
+            ligar('exsRetirar', retirar);
+        }
+
+        tela('<h3>Excluir a atividade ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verificando lançamentos, atribuições e relatórios entregues…</div>');
+        (async function () {
+            if (!usarSupabase || !supabaseClient) { telaSemVerificacao('sem conexão com o banco de dados'); return; }
+            try {
+                var r = await supabaseClient.rpc('levantamento_atividade', { p_nome: nome });
+                if (r.error) {
+                    var m = String(r.error.message || '');
+                    telaSemVerificacao(/levantamento_atividade|function|schema cache/i.test(m) ? 'o banco de dados ainda não recebeu a atualização 13_exclusao_servidor_atividade.sql' : m);
                     return;
                 }
                 lev = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
