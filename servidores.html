@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=18">
-    <link rel="icon" href="icons/favicon-32.png?v=18">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=18">
+    <link rel="manifest" href="manifest.json?v=19">
+    <link rel="icon" href="icons/favicon-32.png?v=19">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=19">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=18').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=19').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Servidores e Colaboradores</title>
-    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="style.css?v=19">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=18"></script>
+    <script src="config.js?v=19"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=18"></script>
+    <script src="supabase-client.js?v=19"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=18"></script>
+    <script src="common.js?v=19"></script>
     
     <style>
         .tabela-container th:nth-child(3),
@@ -114,7 +114,19 @@
             width: 22%;
         }
         /* ===== FIM AJUSTE DE COLUNAS ===== */
-    </style>
+    
+        /* ===== Servidores inativos ===== */
+        .inat-explica { font-size: 0.8rem; color: #4B5563; margin: 0 0 12px; line-height: 1.5; }
+        .tabela-inativos { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .tabela-inativos th { background: var(--cinza-suave, #F3F6FA); color: var(--azul-marinho, #0B2A4A); padding: 8px 10px; font-size: 0.78rem; text-align: center; }
+        .tabela-inativos td { padding: 8px 10px; border-bottom: 1px solid var(--cinza-borda, #E5E7EB); text-align: center; }
+        .tabela-inativos td:first-child, .tabela-inativos td:last-child { text-align: left; }
+        .tabela-inativos .inat-vazio { text-align: center !important; color: #6B7280; padding: 14px; }
+        .tabela-inativos .inat-sub { display: block; font-size: 0.7rem; color: #6B7280; }
+        .btn-reativar, .btn-excluir-def { border: none; border-radius: 20px; padding: 4px 12px; font-size: 0.7rem; font-weight: 700; cursor: pointer; margin: 2px 4px 2px 0; }
+        .btn-reativar { background: #1D4ED8; color: #fff; }
+        .btn-excluir-def { background: #DC2626; color: #fff; }
+</style>
 </head>
 <body>
 <div class="app-container">
@@ -181,6 +193,17 @@
                 </div>
                 <div style="margin-top: 10px; font-size: 0.7rem; color: #888; text-align: center;">
                     <span>⣿</span> Arraste as linhas com o mouse para reordenar os servidores
+                </div>
+            </div>
+            <div class="card" id="cardInativos">
+                <h3>Servidores e Colaboradores Inativos (<span id="qtdInativos">…</span>)</h3>
+                <p class="inat-explica">Quem foi excluído com a opção <b>INATIVAR</b> fica aqui: não aparece nas listas do sistema, mas os registros continuam contando nos totais estatísticos.
+                    <b>Reativar</b> devolve a pessoa à lista de servidores. <b>Excluir definitivamente</b> apaga o cadastro e os registros (só é permitido para quem não tem relatório entregue).</p>
+                <div class="tabela-container">
+                    <table class="tabela-inativos">
+                        <thead><tr><th style="text-align:left;">Nome</th><th>Lotação</th><th>Registros</th><th>Relatórios entregues</th><th style="text-align:left;">Ações</th></tr></thead>
+                        <tbody id="corpoInativos"><tr><td colspan="5" class="inat-vazio">Carregando…</td></tr></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -389,6 +412,8 @@ function adicionarServidor() {
     var lotacao = document.getElementById("novaLotacao").value; 
     if(!nome) { feedback("Digite o nome!"); return; } 
     if(servidores.indexOf(nome) !== -1) { feedback("Já cadastrado!"); return; } 
+    var iInat = inativosLista.findIndex(function (s) { return String(s.nome).trim().toLowerCase() === nome.toLowerCase(); });
+    if(iInat !== -1) { reativarServidor(iInat, true); return; } // nome de um cadastro inativo: reativar em vez de duplicar
     servidores.push(nome); 
     lotacoes.push(lotacao); 
     bloqueios[nome] = false; 
@@ -432,6 +457,7 @@ async function excluirServidor(index) {
         if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal(); 
         var pos = listaVisualizacao.indexOf(nome); 
         if(pos !== -1) { listaVisualizacao.splice(pos,1); if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao(); } 
+        carregarInativos();
         feedback(acao === 'excluido' ? "Excluído definitivamente!" : "Inativado — histórico preservado!"); 
     } 
 }
@@ -499,6 +525,105 @@ async function carregarDadosIniciais() {
     }
 }
 
+// ==================== SERVIDORES INATIVOS ====================
+var inativosLista = [];
+async function carregarInativos() {
+    var corpo = document.getElementById('corpoInativos');
+    var qtd = document.getElementById('qtdInativos');
+    if (!corpo) return;
+    if (!usarSupabase || !supabaseClient) {
+        qtd.textContent = '—';
+        corpo.innerHTML = '<tr><td colspan="5" class="inat-vazio">Sem conexão com o banco de dados.</td></tr>';
+        return;
+    }
+    var r;
+    try { r = await supabaseClient.from(getTables().SERVIDORES).select('id, nome, lotacao, ativo').eq('ativo', false).order('nome'); }
+    catch (e) { r = { error: e }; }
+    if (r.error) {
+        qtd.textContent = '—';
+        corpo.innerHTML = '<tr><td colspan="5" class="inat-vazio">Não foi possível carregar a lista de inativos.</td></tr>';
+        return;
+    }
+    inativosLista = (r.data || []).filter(function (s) { return s.ativo === false; });
+    qtd.textContent = inativosLista.length;
+    if (!inativosLista.length) {
+        corpo.innerHTML = '<tr><td colspan="5" class="inat-vazio">Nenhum servidor ou colaborador inativo.</td></tr>';
+        return;
+    }
+    var html = '';
+    inativosLista.forEach(function (s, i) {
+        html += '<tr><td>' + escapeHtml(s.nome) + '</td><td>' + escapeHtml(s.lotacao || '—') + '</td>' +
+                '<td id="inatReg' + i + '">…</td><td id="inatEnt' + i + '">…</td>' +
+                '<td><button class="btn-reativar" onclick="reativarServidor(' + i + ')">Reativar</button>' +
+                '<button class="btn-excluir-def" onclick="excluirInativo(' + i + ')">Excluir definitivamente</button></td></tr>';
+    });
+    corpo.innerHTML = html;
+    // quantidade de registros e de relatórios entregues de cada um
+    inativosLista.forEach(async function (s, i) {
+        var cReg = document.getElementById('inatReg' + i), cEnt = document.getElementById('inatEnt' + i);
+        try {
+            var q = await supabaseClient.rpc('levantamento_servidor', { p_servidor: String(s.id) });
+            if (q.error) throw q.error;
+            var d = typeof q.data === 'string' ? JSON.parse(q.data) : q.data;
+            var reg = d.registros || {};
+            cReg.innerHTML = reg.dias ? _exsPlural(reg.dias, 'dia', 'dias') + '<span class="inat-sub">' + _exsPlural(reg.total, 'atividade', 'atividades') + '</span>' : 'nenhum';
+            cEnt.textContent = d.entregas ? String(d.entregas) : 'nenhum';
+        } catch (e) { cReg.textContent = '—'; cEnt.textContent = '—'; }
+    });
+}
+
+function reativarServidor(i, avisoCadastro) {
+    var s = inativosLista[i];
+    if (!s) return;
+    _exsEstilo();
+    var fundo = document.createElement('div');
+    fundo.id = 'exsFundo';
+    fundo.innerHTML = '<div class="exs-caixa" role="dialog" aria-modal="true">' +
+        '<h3>Reativar ' + escapeHtml(s.nome) + '?</h3>' +
+        (avisoCadastro ? '<div class="exs-info">Já existe um cadastro <b>inativo</b> com o nome <b>' + escapeHtml(s.nome) + '</b>. Em vez de criar um novo, o correto é reativá-lo — assim o histórico da pessoa continua junto.</div>' : '') +
+        '<div class="exs-sub">Veja o que acontece ao reativar:</div>' +
+        '<ul><li>Volta para a lista de <b>Servidores e Colaboradores Cadastrados</b> (no fim da lista), para as seleções do sistema e para o <b>Acesso Rápido aos Registros</b>.</li>' +
+        '<li>Os registros e os relatórios entregues dela continuam exatamente como estão.</li>' +
+        '<li>O link de acesso volta a funcionar para ela registrar as atividades.</li>' +
+        '<li>As <b>atribuições de atividades não voltam sozinhas</b>: se necessário, atribua de novo em Atribuir/Atividades.</li></ul>' +
+        '<div class="exs-botoes"><button class="b-cancelar" id="reatCancelar">CANCELAR</button>' +
+        '<button class="b-inativar" id="reatOk">REATIVAR</button></div></div>';
+    document.body.appendChild(fundo);
+    document.getElementById('reatCancelar').onclick = function () { fundo.remove(); };
+    document.getElementById('reatOk').onclick = async function () {
+        this.disabled = true;
+        var r = await supabaseClient.from(getTables().SERVIDORES).update({ ativo: true }).eq('id', s.id);
+        fundo.remove();
+        if (r.error) { feedback('Não foi possível reativar: ' + r.error.message); return; }
+        if (servidores.indexOf(s.nome) === -1) {
+            servidores.push(s.nome);
+            lotacoes.push(s.lotacao || 'SEATE');
+            bloqueios[s.nome] = false;
+        }
+        salvarOrdemServidores();
+        salvarServidores();
+        renderizarServidores();
+        atualizarSelects();
+        if (typeof renderizarListaServidoresAtribuicoes === 'function') renderizarListaServidoresAtribuicoes();
+        if (typeof atualizarSelectVisualizacao === 'function') atualizarSelectVisualizacao();
+        if (typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
+        var campo = document.getElementById('novoServidor'); if (campo && avisoCadastro) campo.value = '';
+        carregarInativos();
+        feedback('Reativado!');
+    };
+}
+
+async function excluirInativo(i) {
+    var s = inativosLista[i];
+    if (!s) return;
+    var acao = await dialogoExclusaoServidor(s.nome, { inativo: true, id: s.id });
+    if (acao === 'excluido') {
+        if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+        carregarInativos();
+        feedback('Excluído definitivamente!');
+    }
+}
+
 // ==================== INICIALIZAÇÃO ====================
 async function iniciarPagina() {
     var sessao = await exigirAutenticacao();
@@ -514,6 +639,7 @@ async function iniciarPagina() {
     if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
     atualizarDisplayMes();
     iniciarSincronizacaoTempoReal();
+    carregarInativos();
 }
 iniciarPagina();
 </script>

@@ -606,7 +606,10 @@ async function _exsIdServidor(nome) {
     return String(ativo.id);
 }
 
-function dialogoExclusaoServidor(nome) {
+// opc.inativo = true: servidor já inativado (lista de inativos) — só oferece a exclusão definitiva
+function dialogoExclusaoServidor(nome, opc) {
+    opc = opc || {};
+    var JA_INATIVO = !!opc.inativo;
     return new Promise(function (resolver) {
         _exsEstilo();
         var fundo = document.createElement('div');
@@ -695,11 +698,16 @@ function dialogoExclusaoServidor(nome) {
             }
             r += '</ul></div>';
 
-            var h = '<h3>Excluir ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verifiquei o banco de dados antes de excluir. Escolha abaixo o que deseja fazer.</div>' + r;
-            h += '<div class="exs-op rec"><h4>① INATIVAR — recomendado</h4>' + TXT_INATIVAR +
-                 '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>';
+            var h = JA_INATIVO
+                ? '<h3>Excluir ' + _exsEsc(nome) + ' (inativo)</h3><div class="exs-sub">Este cadastro já está inativo: não aparece nas listas, mas o histórico dele continua nos totais. Verifiquei o banco de dados antes de excluir.</div>' + r
+                : '<h3>Excluir ' + _exsEsc(nome) + '</h3><div class="exs-sub">Verifiquei o banco de dados antes de excluir. Escolha abaixo o que deseja fazer.</div>' + r;
+            if (!JA_INATIVO) {
+                h += '<div class="exs-op rec"><h4>① INATIVAR — recomendado</h4>' + TXT_INATIVAR +
+                     '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>';
+            }
+            var n2 = JA_INATIVO ? '' : '② ';
             if (!ent) {
-                h += '<div class="exs-op perigo"><h4>② EXCLUIR DEFINITIVAMENTE</h4>' +
+                h += '<div class="exs-op perigo"><h4>' + n2 + 'EXCLUIR DEFINITIVAMENTE</h4>' +
                      '<div class="exs-quando"><b>Quando usar:</b> somente se o cadastro foi feito <b>por engano</b> (nome errado, pessoa duplicada) ou foi usado para <b>testes</b>.</div>' +
                      '<ul><li>Apaga o cadastro e <b>todos os ' + _exsPlural(reg.dias, 'dia registrado', 'dias registrados') + '</b>.</li>' +
                      '<li>' + (_exsContabil(anos).total ? '<b>Os totais estatísticos diminuem ' + _exsNum(_exsContabil(anos).total) + '</b>' : 'Os totais estatísticos <b>não mudam</b>') + ' (painel, gráficos, Relatório Estatístico, Resultados por Atividade e por Servidor).</li>' +
@@ -707,10 +715,10 @@ function dialogoExclusaoServidor(nome) {
                      '<li><b>Não pode ser desfeito.</b></li></ul>' +
                      '<button class="b-excluir" id="exsDefinitivo">EXCLUIR DEFINITIVAMENTE…</button></div>';
             } else {
-                h += '<div class="exs-op bloq"><h4>② Excluir definitivamente — indisponível</h4>' +
+                h += '<div class="exs-op bloq"><h4>' + n2 + 'Excluir definitivamente — indisponível</h4>' +
                      'Como ' + N + ' já entregou relatório mensal, a exclusão definitiva não é permitida por aqui. ' +
                      'Os relatórios entregues são o comprovante oficial da entrega, e os totais desses meses podem já ter sido informados. ' +
-                     'Se a pessoa saiu da equipe, use <b>INATIVAR</b>. Se for realmente necessário apagar (caso excepcional), a exclusão deve ser feita diretamente no banco de dados, pelo suporte técnico.</div>';
+                     (JA_INATIVO ? 'O cadastro continua <b>inativo</b> (fora das listas, com o histórico nos totais). ' : 'Se a pessoa saiu da equipe, use <b>INATIVAR</b>. ') + 'Se for realmente necessário apagar (caso excepcional), a exclusão deve ser feita diretamente no banco de dados, pelo suporte técnico.</div>';
             }
             h += '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>';
             tela(h);
@@ -741,8 +749,9 @@ function dialogoExclusaoServidor(nome) {
         function telaSemVerificacao(motivo) {
             tela('<h3>Excluir ' + _exsEsc(nome) + '</h3>' +
                  '<div class="exs-info">Não foi possível verificar os registros e relatórios de ' + N + ' agora' + (motivo ? ' (' + _exsEsc(motivo) + ')' : '') + '. ' +
-                 'Por segurança, só a opção <b>INATIVAR</b> está disponível. A exclusão definitiva volta a aparecer quando a verificação funcionar.</div>' +
-                 '<div class="exs-op rec"><h4>INATIVAR</h4>' + TXT_INATIVAR + '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>' +
+                 (JA_INATIVO ? 'Por segurança, a exclusão definitiva só fica disponível quando a verificação funcionar. O cadastro continua inativo.</div>'
+                             : 'Por segurança, só a opção <b>INATIVAR</b> está disponível. A exclusão definitiva volta a aparecer quando a verificação funcionar.</div>' +
+                 '<div class="exs-op rec"><h4>INATIVAR</h4>' + TXT_INATIVAR + '<button class="b-inativar" id="exsInativar">INATIVAR</button></div>') +
                  '<div class="exs-botoes"><button class="b-cancelar" id="exsCancelar">CANCELAR</button></div>');
             ligar('exsCancelar', function () { fechar(null); });
             ligar('exsInativar', inativar);
@@ -752,7 +761,7 @@ function dialogoExclusaoServidor(nome) {
         (async function () {
             if (!usarSupabase || !supabaseClient) { telaSemVerificacao('sem conexão com o banco de dados'); return; }
             try {
-                idServ = await _exsIdServidor(nome);
+                idServ = opc.id ? String(opc.id) : await _exsIdServidor(nome);
                 if (!idServ) { telaSemVerificacao('cadastro não encontrado no banco'); return; }
                 var r = await supabaseClient.rpc('levantamento_servidor', { p_servidor: idServ });
                 if (r.error) {
