@@ -864,3 +864,67 @@ tr:hover{background:var(--cinza-suave);}
     .card{padding:12px;}
     .acesso-rapido-grid{grid-template-columns:1fr;}
 }
+
+/* ===== CELULAR: tabelas viram cartões e palavras não são partidas ===== */
+@media (max-width:768px){
+    .painel-esquerdo, .painel-direito{min-width:0;width:100%;}
+}
+@media (max-width:820px){
+    /* nomes e textos só quebram entre palavras, nunca no meio */
+    td, th, .c-nome, .acesso-rapido-nome{word-break:normal !important;overflow-wrap:normal !important;hyphens:manual;}
+
+    .tabela-cartoes, .tabela-cartoes tbody{display:block;width:100% !important;min-width:0 !important;}
+    .tabela-cartoes thead, .tabela-cartoes colgroup{display:none;}
+    .tabela-cartoes tr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;margin:0 0 10px;
+        border:1px solid var(--cinza-borda);border-radius:12px;background:var(--branco);}
+    .tabela-cartoes tr:hover{background:var(--branco);}
+    .tabela-cartoes td{display:block;border:none !important;padding:0 !important;width:auto !important;
+        text-align:left !important;white-space:normal !important;background:transparent;}
+    .tabela-cartoes td:empty{display:none;}
+
+    /* linha 1: (código) (setas) nome */
+    .tabela-cartoes .c-codigo{order:1;font-size:0.75rem;color:#6B7280;min-width:18px;}
+    .tabela-cartoes .c-codigo::before{content:"#";}
+    .tabela-cartoes .c-mover{order:2;}
+    .tabela-cartoes .c-nome{order:3;flex:1 1 60%;min-width:0;font-weight:600;font-size:0.95rem;color:var(--azul-marinho);line-height:1.3;}
+    /* linha 2: lotação / setor, status, link */
+    .tabela-cartoes .c-lotacao, .tabela-cartoes .c-setor{order:4;}
+    .tabela-cartoes .c-status{order:5;font-size:0.8rem;font-weight:600;}
+    .tabela-cartoes .c-link{order:6;}
+    .tabela-cartoes .c-link .link-exibicao{display:none;}
+    .tabela-cartoes .c-info{order:6;flex:1 1 100%;font-size:0.8rem;}
+    .tabela-cartoes .c-info::before{content:attr(data-rotulo) " ";color:#6B7280;}
+    .tabela-cartoes .c-info .inat-sub{display:inline;margin-left:4px;}
+    /* linha 3: ações */
+    .tabela-cartoes .c-acoes{order:7;flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;}
+    .tabela-cartoes .c-acoes .ent-acoes{display:flex;flex-wrap:wrap;gap:6px;}
+    .tabela-cartoes .c-acoes button{margin:0 !important;}
+}
+
+@media (max-width:820px){
+    /* formulários em coluna ocupam a largura toda */
+    .linha-dupla{align-items:stretch;}
+    .linha-dupla > *{width:100%;}
+    .linha-dupla .btn{margin-top:4px !important;align-self:flex-start;}
+
+    /* tabelas de resultados (Estatística / Dashboard) cabem na tela */
+    .tabela-resultados th, .tabela-resultados td{padding:6px 6px !important;font-size:0.75rem !important;}
+    .tabela-resultados td:first-child{white-space:normal;}
+
+    /* modais de Dados Estatísticos / gráfico: cabeçalho e botões quebram linha */
+    .modal-estatistica-header{flex-wrap:wrap;align-items:center;gap:8px;padding:14px 16px !important;}
+    .modal-estatistica-header h3{flex:1 1 calc(100% - 44px);font-size:1rem;line-height:1.3;}
+    .modal-estatistica-header .modal-close{order:2;}
+    .modal-estatistica-header .btn-travar{order:3;}
+    .modal-estatistica-footer{flex-wrap:wrap;justify-content:center !important;gap:8px !important;padding:12px !important;}
+    .modal-estatistica-footer .btn{flex:1 1 40%;margin:0;}
+
+    /* prévia do relatório: mantém o formato da folha e rola para o lado */
+    .rel-previa{padding:12px !important;-webkit-overflow-scrolling:touch;}
+    .rel-previa .rel-doc{min-width:640px;}
+}
+
+/* colunas de setas (reordenar) e ações não estouram em telas médias/tablets */
+#tabelaServidores colgroup .col-arraste, #tabelaAtividades colgroup .col-arraste{width:38px !important;}
+#tabelaServidores td.c-acoes, #tabelaAtividades td.c-acoes{white-space:normal !important;}
+#tabelaServidores td.c-acoes button, #tabelaAtividades td.c-acoes button{margin:2px 4px 2px 0;}

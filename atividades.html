@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=19">
-    <link rel="icon" href="icons/favicon-32.png?v=19">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=19">
+    <link rel="manifest" href="manifest.json?v=20">
+    <link rel="icon" href="icons/favicon-32.png?v=20">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=19').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=20').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Atividades</title>
-    <link rel="stylesheet" href="style.css?v=19">
+    <link rel="stylesheet" href="style.css?v=20">
 
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA             -->
     <!-- ======================================== -->
-    <script src="config.js?v=19"></script>
+    <script src="config.js?v=20"></script>
 
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=19"></script>
+    <script src="supabase-client.js?v=20"></script>
 
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=19"></script>
+    <script src="common.js?v=20"></script>
 
     <style>
         .dragging {
@@ -365,7 +365,7 @@
                     <input type="text" id="searchAtividade" placeholder="Buscar atividade..." onkeyup="filtrarAtividades()">
                 </div>
                 <div class="tabela-container" style="overflow-x:auto;">
-                    <table id="tabelaAtividades" style="width:100%; table-layout:fixed; min-width:640px;">
+                    <table id="tabelaAtividades" class="tabela-cartoes" style="width:100%; table-layout:fixed; min-width:640px;">
                         <colgroup>
                             <col class="col-codigo">
                             <col class="col-arraste">
@@ -424,19 +424,19 @@ function renderizarAtividades() {
         var idx = atividades.indexOf(ativ);
         var posicaoReal = idx + 1;
         html += '<tr draggable="true" data-index="' + idx + '" data-atividade="' + escapeHtml(ativ) + '" class="atividade-linha" ondragstart="dragStart(event)" ondragend="dragEnd(event)" ondragover="dragOver(event)" ondrop="drop(event)">';
-        html += '<td style="text-align:center;">' + posicaoReal + '</td>';
-        html += '<td style="text-align:center; cursor:move; font-size:0.8rem;">';
+        html += '<td class="c-codigo" style="text-align:center;">' + posicaoReal + '</td>';
+        html += '<td class="c-mover" style="text-align:center; cursor:move; font-size:0.8rem;">';
         html += '<span class="drag-handle">⣿⣿</span>';
         html += '<span class="mover-botoes">';
         html += '<button type="button" class="btn-mover" onclick="moverAtividade(' + idx + ', -1)"' + (idx === 0 ? ' disabled' : '') + '>▲</button>';
         html += '<button type="button" class="btn-mover" onclick="moverAtividade(' + idx + ', 1)"' + (idx === atividades.length - 1 ? ' disabled' : '') + '>▼</button>';
         html += '</span>';
         html += '</td>';
-        html += '<td style="word-break:break-word;">' + escapeHtml(ativ) + '</td>';
+        html += '<td class="c-nome">' + escapeHtml(ativ) + '</td>';
         var setorAtual = (typeof setoresAtividades !== 'undefined' && setoresAtividades[ativ]) ? setoresAtividades[ativ] : 'SEATE';
         var corSetor = setorAtual === 'NAHORA' ? '#B30000' : '#0F2D52';
-        html += '<td style="text-align:center;"><span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';
-        html += '<td class="acoes-cell">';
+        html += '<td class="c-setor" style="text-align:center;"><span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';
+        html += '<td class="c-acoes acoes-cell">';
         html += '<button class="btn-editar" onclick="abrirModalEditarNomeSetor(' + idx + ')">Editar</button>';
         html += '<button class="btn-excluir-circular" onclick="excluirAtividade(' + idx + ')">Excluir</button>';
         html += '<button class="btn-atribuir-rapido" onclick="abrirModalAtribuirMultiplo(' + idx + ')">Atribuir</button>';

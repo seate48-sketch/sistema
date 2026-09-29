@@ -656,20 +656,20 @@
         resumo.innerHTML = MESES[mes - 1] + ' de ' + ano + ': <b>' + qtdOk + '</b> de <b>' + ativos.length + '</b> servidores entregaram o relatório.';
 
         if (!entregues.length) { lista.innerHTML = '<div class="rel-vazio">Nenhum servidor cadastrado.</div>'; return; }
-        var h = '<table class="ent-tab"><thead><tr><th>Servidor / Colaborador</th><th>Lotação</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
+        var h = '<table class="ent-tab tabela-cartoes"><thead><tr><th>Servidor / Colaborador</th><th>Lotação</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
         entregues.forEach(function (x, idx) {
-            h += '<tr><td>' + esc(x.nome) + (x.inativo ? ' <span class="ent-sub">(inativo)</span>' : '') + '</td><td>' + esc(x.lotacao || '—') + '</td>';
+            h += '<tr><td class="c-nome">' + esc(x.nome) + (x.inativo ? ' <span class="ent-sub">(inativo)</span>' : '') + '</td><td class="c-lotacao">' + esc(x.lotacao || '—') + '</td>';
             if (x.entrega) {
-                h += '<td><span class="ent-ok">Entregue</span><span class="ent-sub">' + dataHoraBR(x.entrega.ultima_entrega) +
+                h += '<td class="c-status"><span class="ent-ok">Entregue</span><span class="ent-sub">' + dataHoraBR(x.entrega.ultima_entrega) +
                      (x.entrega.envios > 1 ? ' · ' + x.entrega.envios + ' envios' : '') + '</span></td>' +
-                     '<td><div class="ent-acoes">' +
+                     '<td class="c-acoes"><div class="ent-acoes">' +
                         '<button data-acao="ver" data-idx="' + idx + '">Visualizar</button>' +
                         '<button data-acao="pdf" data-idx="' + idx + '">PDF</button>' +
                         '<button data-acao="csv" data-idx="' + idx + '">Excel</button>' +
                         '<button data-acao="excluir" data-idx="' + idx + '" class="ent-excluir">Excluir entrega</button>' +
                      '</div></td>';
             } else {
-                h += '<td><span class="ent-pend">Pendente</span></td><td></td>';
+                h += '<td class="c-status"><span class="ent-pend">Pendente</span></td><td class="c-acoes"></td>';
             }
             h += '</tr>';
         });
