@@ -1056,17 +1056,21 @@
         var fimMes = new Date(ref.ano, ref.mes + 1, 0);
         var ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
         var fim = fimMes < ontem ? fimMes : ontem;
-        if (!ativos.length || fim < inicio || typeof db === 'undefined' || !db || typeof db.from !== 'function') return vazio;
+        if (!ativos.length || typeof db === 'undefined' || !db || typeof db.from !== 'function') return vazio;
+        var uteisMes = []; // todos os dias úteis do mês (para "Concluído")
+        for (var dm = new Date(inicio); dm <= fimMes; dm.setDate(dm.getDate() + 1)) {
+            if (dm.getDay() !== 0 && dm.getDay() !== 6) uteisMes.push(isoData(dm));
+        }
         var uteis = [];
         for (var d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
             if (d.getDay() !== 0 && d.getDay() !== 6) uteis.push(isoData(d));
         }
-        if (!uteis.length) { atrasosCache = vazio; return vazio; }
+        vazio.concluidos = {};
         var linhas = [];
         try {
             for (var pg = 0; pg < 50; pg++) { // lê em páginas de 1000 (limite do Supabase)
                 var r = await db.from('registros').select('data, atividades, ausencia, servidores(nome)')
-                    .gte('data', isoData(inicio)).lte('data', isoData(fim)).order('data').range(pg * 1000, pg * 1000 + 999);
+                    .gte('data', isoData(inicio)).lte('data', isoData(fimMes)).order('data').range(pg * 1000, pg * 1000 + 999);
                 if (!r || r.error || !Array.isArray(r.data)) return vazio;
                 linhas = linhas.concat(r.data);
                 if (r.data.length < 1000) break;
@@ -1082,12 +1086,14 @@
                 (ok[nome] = ok[nome] || {})[String(reg.data).slice(0, 10)] = true;
             }
         });
-        var res = { chave: chave, em: Date.now(), ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [] };
+        var res = { chave: chave, em: Date.now(), ano: ref.ano, mes: ref.mes, porServidor: {}, lista: [], concluidos: {} };
         ativos.forEach(function (nome) {
             var feitos = ok[nome] || {};
             var n = uteis.filter(function (u) { return !feitos[u]; }).length;
             res.porServidor[nome] = n;
             if (n >= MIN_DIAS_ATRASO) res.lista.push(nome);
+            // concluído = todos os dias úteis do mês com atividade ou status
+            if (uteisMes.length && uteisMes.every(function (u) { return feitos[u]; })) res.concluidos[nome] = true;
         });
         atrasosCache = res;
         return res;
@@ -1102,6 +1108,15 @@
             var nome = nomeEl ? (nomeEl.getAttribute('title') || nomeEl.textContent) : '';
             var n = atrasosCache.porServidor[nome] || 0;
             var tag = item.querySelector('.ar-atraso-txt');
+            // "Iniciado" vira "Concluído" quando todos os dias úteis do mês estão preenchidos
+            var st0 = item.querySelector('.acesso-rapido-status');
+            if (st0 && (st0.classList.contains('iniciado') || st0.classList.contains('ar-concluido'))) {
+                var concl = !!(atrasosCache.concluidos && atrasosCache.concluidos[nome]);
+                var txt0 = st0.firstChild;
+                if (txt0 && txt0.nodeType === 3) txt0.nodeValue = concl ? 'Concluído' : 'Iniciado';
+                st0.classList.toggle('ar-concluido', concl);
+                st0.classList.toggle('iniciado', !concl);
+            }
             if (n >= MIN_DIAS_ATRASO) {
                 item.classList.add('ar-atraso');
                 var txt = 'Em atraso (' + n + ' dia' + (n > 1 ? 's' : '') + ')';
@@ -1130,6 +1145,7 @@
             st.textContent = '.acesso-rapido-item.ar-atraso{background:#FDECEC !important;border-color:#F5A3A3 !important;}' +
                              '.acesso-rapido-item.ar-atraso .acesso-rapido-nome{color:#991B1B;}' +
                              '.ar-atraso-txt{color:#DC2626;font-weight:700;}' +
+                             '.acesso-rapido-status.ar-concluido{color:#15803D;font-weight:700;}' +
                              '.ar-flash{animation:arFlash 1.2s ease 2;}' +
                              '@keyframes arFlash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px rgba(220,38,38,.35)}}';
             document.head.appendChild(st);

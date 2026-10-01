@@ -298,6 +298,11 @@
         .activity-input{width:110px;padding:8px;border:1px solid var(--cinza-borda);border-radius:30px;text-align:center}
         .absence-select{width:100%;padding:10px;margin:15px 0;border-radius:12px;border:1px solid var(--cinza-borda)}
         .modal-actions{display:flex;justify-content:center;gap:12px;margin-top:20px}
+        /* a janela cabe sempre na tela (qualquer resolução): a lista rola e os botões ficam fixos embaixo */
+        .modal-content{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);margin:16px auto;overflow:hidden}
+        .modal-header{flex-shrink:0}
+        .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto}
+        .modal-body .modal-actions{position:sticky;bottom:-22px;background:var(--branco);margin:12px -22px -22px;padding:14px 22px 18px;border-top:1px solid var(--cinza-borda);flex-wrap:wrap;z-index:2}
         .btn{padding:10px 20px;border:none;border-radius:40px;cursor:pointer;font-weight:600}
         .btn-primary{background:var(--azul-institucional);color:var(--branco)}
         .btn-danger{background:var(--perigo);color:var(--branco)}
