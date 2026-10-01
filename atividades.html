@@ -576,31 +576,135 @@ function fecharModalEditarNomeSetor() {
     idxEditandoAtividade = null;
 }
 
+// ---- caixa de diálogo simples (mesmo visual da exclusão) ----
+function caixaPergunta(html, botoes) {
+    return new Promise(function (resolver) {
+        if (typeof _exsEstilo === 'function') _exsEstilo();
+        var fundo = document.createElement('div');
+        fundo.id = 'exsFundo';
+        fundo.innerHTML = '<div class="exs-caixa" role="dialog" aria-modal="true">' + html +
+            '<div class="exs-botoes">' + botoes.map(function (b, i) {
+                return '<button class="' + (b.classe || 'b-cancelar') + '" data-i="' + i + '">' + b.texto + '</button>';
+            }).join('') + '</div></div>';
+        document.body.appendChild(fundo);
+        fundo.querySelectorAll('button[data-i]').forEach(function (bt) {
+            bt.onclick = function () { fundo.remove(); resolver(botoes[+bt.getAttribute('data-i')].valor); };
+        });
+    });
+}
+function _num(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+function _dataBR(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p[1] + '/' + p[0]; }
+function _escA(t) { return (typeof escapeHtml === 'function') ? escapeHtml(t) : String(t); }
+// quantos lançamentos a atividade tem (servidores + Dados Estatísticos)
+async function usoDaAtividade(nome) {
+    var r = await supabaseClient.rpc('levantamento_atividade', { p_nome: nome });
+    if (r.error) throw r.error;
+    var d = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+    var reg = d.registros || {}, hist = d.historico || {};
+    return { dias: reg.dias || 0, total: Number(reg.total || 0) + Number(hist.total || 0), totalReg: Number(reg.total || 0),
+             manual: Number(hist.lancamentos || 0), primeiro: reg.primeiro, ultimo: reg.ultimo,
+             tem: (reg.dias || 0) > 0 || (hist.lancamentos || 0) > 0 };
+}
+function textoUso(nome, u) {
+    if (!u.tem) return '<li><b>"' + _escA(nome) + '"</b> não possui lançamentos.</li>';
+    var t = '<li><b>"' + _escA(nome) + '"</b> soma <b>' + _num(u.total) + '</b> em lançamentos';
+    if (u.dias) t += ' (' + _num(u.dias) + ' dia(s) lançados pelos servidores' + (u.primeiro ? ', de ' + _dataBR(u.primeiro) + ' a ' + _dataBR(u.ultimo) : '') + ')';
+    if (u.manual) t += (u.dias ? ' e ' : ' (') + _num(u.manual) + ' lançamento(s) em Dados Estatísticos' + (u.dias ? '' : ')');
+    return t + '.</li>';
+}
+
 async function salvarEdicaoNomeSetor() {
     if (idxEditandoAtividade === null) return;
     var novo = document.getElementById("editarNomeAtividadeInput").value.trim();
     var novoSetor = document.getElementById("editarSetorAtividadeInput").value;
     if (!novo) { feedback("Digite o nome!"); return; }
-    if (atividades.indexOf(novo) !== -1 && atividades[idxEditandoAtividade] !== novo) { feedback("Nome ja existe!"); return; }
 
     var antigo = atividades[idxEditandoAtividade];
     var nomeMudou = antigo !== novo;
+    var juntar = false;
 
-    atividades[idxEditandoAtividade] = novo;
-    if (atribuicoes[antigo]) {
-        atribuicoes[novo] = atribuicoes[antigo];
-        delete atribuicoes[antigo];
-        salvarAtribuicoes();
-    }
-    await salvarAtividades();
+    if (nomeMudou) {
+        if (!supabaseDisponivel || !supabaseClient) { feedback("Sem conexão com o servidor. Tente novamente."); return; }
+        var jaExiste = atividades.indexOf(novo) !== -1;
+        var usoAnt, usoNovo;
+        try {
+            usoAnt = await usoDaAtividade(antigo);
+            usoNovo = jaExiste ? await usoDaAtividade(novo) : null;
+        } catch (e) {
+            await caixaPergunta('<h3>Não foi possível verificar os lançamentos</h3><div class="exs-info">Para trocar o nome com segurança, o banco de dados precisa das atualizações <b>13_exclusao_servidor_atividade.sql</b> e <b>15_renomear_atividade.sql</b>. Nada foi alterado.</div>',
+                [{ texto: 'FECHAR', valor: null }]);
+            return;
+        }
 
-    if (supabaseDisponivel) {
-        try { await dbSalvarSetorAtividade(novo, novoSetor); }
-        catch(e) { console.warn('Erro ao salvar setor da atividade:', e.message); }
+        if (!jaExiste) {
+            // A) troca de nome simples — avisa quando há dados
+            if (usoAnt.tem) {
+                var ok = await caixaPergunta(
+                    '<h3>Renomear a atividade</h3>' +
+                    '<div class="exs-resumo">A atividade <b>"' + _escA(antigo) + '"</b> já tem lançamentos registrados:' +
+                    '<ul>' + textoUso(antigo, usoAnt) + '</ul></div>' +
+                    '<p>Ao renomear para <b>"' + _escA(novo) + '"</b>, <b>todos esses lançamentos passarão para o novo nome</b>, em todo o sistema e nas estatísticas (gráficos, Top 10, Resultados por Atividade e relatórios gerados a partir de agora).</p>' +
+                    '<div class="exs-info">Somente os relatórios <b>já entregues</b> pelos servidores manterão o nome antigo, por serem a cópia fiel de cada entrega.</div>',
+                    [{ texto: 'CANCELAR', valor: false }, { texto: 'RENOMEAR', valor: true, classe: 'b-inativar' }]);
+                if (!ok) return;
+            }
+        } else {
+            // B) o nome novo já existe: perguntar se junta
+            var resp = await caixaPergunta(
+                '<h3>Já existe uma atividade com esse nome</h3>' +
+                '<div class="exs-resumo">Você está renomeando <b>"' + _escA(antigo) + '"</b> para <b>"' + _escA(novo) + '"</b>, mas esse nome já existe.' +
+                '<ul>' + textoUso(antigo, usoAnt) + textoUso(novo, usoNovo) + '</ul></div>' +
+                '<p>Deseja <b>juntar as duas atividades</b>? Os lançamentos serão somados (total de <b>' + _num(usoAnt.total + usoNovo.total) + '</b>) em <b>"' + _escA(novo) + '"</b>, ' +
+                'os servidores atribuídos passam para ela e <b>"' + _escA(antigo) + '"</b> deixará de existir.</p>' +
+                '<div class="exs-info">Os relatórios já entregues pelos servidores não são alterados. Esta junção não pode ser desfeita.</div>',
+                [{ texto: 'NÃO JUNTAR', valor: 'nao' }, { texto: 'JUNTAR ATIVIDADES', valor: 'juntar', classe: 'b-inativar' }]);
+            if (resp === 'nao') {
+                // C) reforça o risco de manter separadas
+                resp = await caixaPergunta(
+                    '<h3>Atenção: as atividades continuarão separadas</h3>' +
+                    '<div class="exs-alerta">Sem juntar, <b>"' + _escA(antigo) + '"</b> e <b>"' + _escA(novo) + '"</b> continuarão <b>separadas</b>. ' +
+                    'Os relatórios e gráficos mostrarão <b>dados diferentes para atividades com o mesmo objetivo</b> (' + _num(usoAnt.total) + ' em uma e ' + _num(usoNovo.total) + ' na outra), ' +
+                    'e isso pode <b>comprometer os dados estatísticos</b>: totais divididos, ranking do Top 10 distorcido e comparações incorretas.</div>' +
+                    '<p>Deseja juntar as duas atividades assim mesmo?</p>',
+                    [{ texto: 'MANTER SEPARADAS', valor: 'nao' }, { texto: 'JUNTAR ATIVIDADES', valor: 'juntar', classe: 'b-inativar' }]);
+            }
+            if (resp !== 'juntar') { feedback("Nada foi alterado — as atividades continuam separadas."); return; }
+            juntar = true;
+        }
+
+        var r = await supabaseClient.rpc('renomear_atividade', { p_antigo: antigo, p_novo: novo, p_juntar: juntar });
+        if (r.error) {
+            await caixaPergunta('<h3>Não foi possível ' + (juntar ? 'juntar as atividades' : 'renomear a atividade') + '</h3><div class="exs-alerta">' + _escA(r.error.message || 'erro') +
+                '<br>Nenhum dado foi alterado — a operação é "tudo ou nada".</div>', [{ texto: 'FECHAR', valor: null }]);
+            return;
+        }
+
+        // listas locais
+        if (juntar) {
+            atividades.splice(idxEditandoAtividade, 1);
+            var lista = (atribuicoes[novo] || []).slice();
+            (atribuicoes[antigo] || []).forEach(function (sv) { if (lista.indexOf(sv) === -1) lista.push(sv); });
+            if (lista.length) atribuicoes[novo] = lista;
+            delete atribuicoes[antigo];
+        } else {
+            atividades[idxEditandoAtividade] = novo;
+            if (atribuicoes[antigo]) { atribuicoes[novo] = atribuicoes[antigo]; delete atribuicoes[antigo]; }
+        }
+        localStorage.setItem("seate_atividades", JSON.stringify(atividades));
+        localStorage.setItem("seate_atribuicoes", JSON.stringify(atribuicoes));
+        if (typeof setoresAtividades !== 'undefined') delete setoresAtividades[antigo];
+        if (typeof _totaisAnoCache !== 'undefined') { for (var k in _totaisAnoCache) delete _totaisAnoCache[k]; }
+        if (typeof invalidarCacheDadosAno === 'function') invalidarCacheDadosAno();
+        await salvarAtividades();
     }
-    if (typeof setoresAtividades !== 'undefined') {
-        if (nomeMudou) { delete setoresAtividades[antigo]; }
-        setoresAtividades[novo] = novoSetor;
+
+    // setor (na junção, a atividade que fica mantém o setor dela)
+    if (!juntar) {
+        if (supabaseDisponivel) {
+            try { await dbSalvarSetorAtividade(novo, novoSetor); }
+            catch(e) { console.warn('Erro ao salvar setor da atividade:', e.message); }
+        }
+        if (typeof setoresAtividades !== 'undefined') setoresAtividades[novo] = novoSetor;
     }
 
     renderizarAtividades();
@@ -610,7 +714,7 @@ async function salvarEdicaoNomeSetor() {
     if(typeof renderizarListaVisualizacao === 'function') renderizarListaVisualizacao();
     if(typeof atualizarListaFuncionariosPrincipal === 'function') atualizarListaFuncionariosPrincipal();
     fecharModalEditarNomeSetor();
-    feedback("Atividade atualizada!");
+    feedback(juntar ? "Atividades juntadas!" : (nomeMudou ? "Atividade renomeada — lançamentos mantidos!" : "Atividade atualizada!"));
 }
 
 async function excluirAtividade(idx) {
