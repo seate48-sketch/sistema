@@ -924,7 +924,9 @@ tr:hover{background:var(--cinza-suave);}
     .rel-previa .rel-doc{min-width:640px;}
 }
 
-/* colunas de setas (reordenar) e ações não estouram em telas médias/tablets */
-#tabelaServidores colgroup .col-arraste, #tabelaAtividades colgroup .col-arraste{width:38px !important;}
-#tabelaServidores td.c-acoes, #tabelaAtividades td.c-acoes{white-space:normal !important;}
-#tabelaServidores td.c-acoes button, #tabelaAtividades td.c-acoes button{margin:2px 4px 2px 0;}
+/* tablets (tela de toque, sem mouse): setas de reordenar e ações não estouram */
+@media (hover:none) and (pointer:coarse){
+    #tabelaServidores colgroup .col-arraste, #tabelaAtividades colgroup .col-arraste{width:38px !important;}
+    #tabelaServidores td.c-acoes, #tabelaAtividades td.c-acoes{white-space:normal !important;}
+    #tabelaServidores td.c-acoes button, #tabelaAtividades td.c-acoes button{margin:2px 4px 2px 0;}
+}

@@ -432,7 +432,7 @@ function renderizarAtividades() {
         html += '<button type="button" class="btn-mover" onclick="moverAtividade(' + idx + ', 1)"' + (idx === atividades.length - 1 ? ' disabled' : '') + '>▼</button>';
         html += '</span>';
         html += '</td>';
-        html += '<td class="c-nome">' + escapeHtml(ativ) + '</td>';
+        html += '<td class="c-nome" style="word-break:break-word;">' + escapeHtml(ativ) + '</td>';
         var setorAtual = (typeof setoresAtividades !== 'undefined' && setoresAtividades[ativ]) ? setoresAtividades[ativ] : 'SEATE';
         var corSetor = setorAtual === 'NAHORA' ? '#B30000' : '#0F2D52';
         html += '<td class="c-setor" style="text-align:center;"><span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';

@@ -105,10 +105,10 @@
             width: 10%;
         }
         #tabelaServidores colgroup .col-status {
-            width: 10%;
+            width: 7%;
         }
         #tabelaServidores colgroup .col-link {
-            width: 33%;
+            width: 36%;
         }
         #tabelaServidores colgroup .col-acoes {
             width: 22%;
@@ -281,7 +281,7 @@ function renderizarServidores() {
         var posicaoReal = idx + 1;
         
         html += `<tr draggable="true" data-index="${idx}" data-servidor="${escapeHtml(nome)}" class="servidor-linha" ondragstart="dragStart(event)" ondragend="dragEnd(event)" ondragover="dragOver(event)" ondrop="drop(event)">`;
-        html += `<td class="c-nome">${escapeHtml(nome)}</td>`;
+        html += `<td class="c-nome" style="word-break:break-word;">${escapeHtml(nome)}</td>`;
         html += `<td class="c-mover" style="text-align:center; cursor:move; font-size:0.8rem;">`;
         html += `<span class="drag-handle">⣿</span>`;
         html += `<span class="mover-botoes">`;
@@ -291,7 +291,7 @@ function renderizarServidores() {
         html += `</td>`;
         html += `<td class="c-lotacao" style="text-align:center; white-space:nowrap;"><span class="badge badge-lotacao">${escapeHtml(lotacao)}</span></td>`;
         html += `<td class="c-status ${statusClass}" style="text-align:center; white-space:nowrap;">${statusText}</td>`;
-        html += `<td class="c-link" style="white-space:normal;"><button class="btn-link-copiar" onclick="copiarLink('${nome.replace(/'/g,"\\'")}')">Copiar Link</button><span class="link-exibicao" style="font-size:0.6rem;">${escapeHtml(link)}</span></td>`;
+        html += `<td class="c-link" style="word-break:break-word; white-space:normal;"><button class="btn-link-copiar" onclick="copiarLink('${nome.replace(/'/g,"\\'")}')">Copiar Link</button><span class="link-exibicao" style="font-size:0.6rem;">${escapeHtml(link)}</span></td>`;
         html += `<td class="c-acoes acoes-cell" style="white-space:nowrap;"><button class="btn-bloquear" onclick="toggleBloqueio('${nome.replace(/'/g,"\\'")}')">${status === "liberado" ? "Bloquear" : "Liberar"}</button><button class="btn-editar" onclick="abrirModalEdicaoServidor(${idx})">Editar</button><button class="btn-excluir-circular" onclick="excluirServidor(${idx})">Excluir</button></td>`;
         html += '</tr>';
     }
