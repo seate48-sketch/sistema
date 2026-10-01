@@ -796,6 +796,197 @@
     window.gerarRelatorioServidorPDF = gerarRelatorioServidorPDF;
     window.limparFiltrosRelatorioServidor = limparFiltrosRelatorioServidor;
 
+    // =====================================================================
+    // TOP 10 MAIS / MENOS REALIZADAS — mesma pesquisa de "Resultados por
+    // Atividade": ano/mês de, ano/mês até, setor e atividade(s) (vazio =
+    // todas), com Filtrar, Exportar CSV, Gerar Relatório PDF e Limpar.
+    // =====================================================================
+    var MESES_CHAVE = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    var TOP = {
+        mais:  { pre: 'Top10',      card: 'graficoTop10ConfigCard',      canvas: 'graficoTop10Config',      chart: 'chartTop10Config',
+                 titulo: 'Top 10 Atividades Mais Realizadas',  menos: false, arquivo: 'top10_mais_realizadas' },
+        menos: { pre: 'Top10Menos', card: 'graficoTop10MenosConfigCard', canvas: 'graficoTop10MenosConfig', chart: 'chartTop10MenosConfig',
+                 titulo: 'Top 10 Serviços Menos Realizados',   menos: true,  arquivo: 'top10_menos_realizadas' }
+    };
+    var ultimoTop = {};
+    function el(t, campo) { return document.getElementById(campo + TOP[t].pre + 'Config'); }
+
+    function iniciarTop10(t) {
+        var c = TOP[t];
+        var anos = (typeof getAnosDisponiveis === 'function') ? getAnosDisponiveis() : [anoAtual()];
+        var hA = anos.map(function (a) { return '<option value="' + a + '">' + a + '</option>'; }).join('');
+        var hM = MESES.map(function (m, i) { return '<option value="' + i + '">' + m + '</option>'; }).join('');
+        ['selectAnoDe', 'selectAnoAte'].forEach(function (k) { var s = el(t, k); if (s) { s.innerHTML = hA; s.value = anoAtual(); } });
+        var mDe = el(t, 'selectMesDe'), mAte = el(t, 'selectMesAte');
+        if (mDe) { mDe.innerHTML = hM; mDe.value = 0; }
+        if (mAte) { mAte.innerHTML = hM; mAte.value = 11; }
+        var box = el(t, 'multiSelectAtiv');
+        if (box) {
+            var lista = (typeof atividades !== 'undefined' && Array.isArray(atividades)) ? atividades : [];
+            box.innerHTML = lista.length ? lista.map(function (n) {
+                return '<span class="pill-item" data-value="' + esc(n) + '" onclick="togglePill(this)">' + esc(n) + '</span>';
+            }).join('') : '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+        }
+    }
+
+    function filtrosTop(t) {
+        var g = function (k) { var e = el(t, k); return e ? e.value : ''; };
+        var anoDe = parseInt(g('selectAnoDe'), 10), anoAte = parseInt(g('selectAnoAte'), 10);
+        var mesDe = parseInt(g('selectMesDe'), 10), mesAte = parseInt(g('selectMesAte'), 10);
+        if (isNaN(mesDe)) mesDe = 0; if (isNaN(mesAte)) mesAte = 11;
+        if (anoDe > anoAte) { var x = anoDe; anoDe = anoAte; anoAte = x; }
+        if (anoDe === anoAte && mesDe > mesAte) { var y = mesDe; mesDe = mesAte; mesAte = y; }
+        var setor = g('selectSetor') || 'ambos';
+        var sel = Array.prototype.map.call(document.querySelectorAll('#multiSelectAtiv' + TOP[t].pre + 'Config .pill-item.selecionado'),
+            function (p) { return p.getAttribute('data-value'); });
+        var periodo = (anoDe === anoAte)
+            ? (mesDe === 0 && mesAte === 11 ? String(anoDe) : MESES[mesDe] + (mesDe === mesAte ? '' : ' a ' + MESES[mesAte]) + ' de ' + anoDe)
+            : MESES[mesDe] + '/' + anoDe + ' a ' + MESES[mesAte] + '/' + anoAte;
+        return { anoDe: anoDe, anoAte: anoAte, mesDe: mesDe, mesAte: mesAte, setor: setor, sel: sel, periodo: periodo,
+                 setorTxt: setor === 'ambos' ? 'SEATE + NAHORA' : setor };
+    }
+
+    async function calcularTop(t, f) {
+        var mapa = {}; // atividade -> {seate, nahora}
+        function soma(nome, s, n) { var o = mapa[nome] || (mapa[nome] = { seate: 0, nahora: 0 }); o.seate += s; o.nahora += n; }
+        for (var ano = f.anoDe; ano <= f.anoAte; ano++) {
+            var anoStr = String(ano);
+            var reg = (typeof anoUsaRegistros === 'function' && anoUsaRegistros(anoStr)) ? await obterTotaisAno(anoStr) : null;
+            var man = (typeof obterDadosAno === 'function') ? await obterDadosAno(anoStr) : null;
+            var ini = (ano === f.anoDe) ? f.mesDe : 0, fim = (ano === f.anoAte) ? f.mesAte : 11;
+            for (var m = ini; m <= fim; m++) {
+                var mes = MESES_CHAVE[m];
+                if (reg) {
+                    Object.keys(reg.porAtividadeMesSeate || {}).forEach(function (a) { soma(a, +(reg.porAtividadeMesSeate[a][mes] || 0), 0); });
+                    Object.keys(reg.porAtividadeMesNahora || {}).forEach(function (a) { soma(a, 0, +(reg.porAtividadeMesNahora[a][mes] || 0)); });
+                }
+                if (man) {
+                    Object.keys(man.SEATE || {}).forEach(function (a) { soma(a, +((man.SEATE[a] || {})[mes] || 0), 0); });
+                    Object.keys(man.NAHORA || {}).forEach(function (a) { soma(a, 0, +((man.NAHORA[a] || {})[mes] || 0)); });
+                }
+            }
+        }
+        // "menos realizadas" também considera as atividades cadastradas que não tiveram nenhum registro
+        if (TOP[t].menos && typeof atividades !== 'undefined' && Array.isArray(atividades)) atividades.forEach(function (a) { soma(a, 0, 0); });
+        var itens = Object.keys(mapa).map(function (a) {
+            var o = mapa[a];
+            var s = f.setor === 'NAHORA' ? 0 : o.seate, n = f.setor === 'SEATE' ? 0 : o.nahora;
+            return { nome: a, seate: s, nahora: n, total: s + n };
+        });
+        if (f.sel.length) itens = itens.filter(function (i) { return f.sel.indexOf(i.nome) !== -1; });
+        if (TOP[t].menos) itens.sort(function (a, b) { return a.total - b.total || a.nome.localeCompare(b.nome); });
+        else itens = itens.filter(function (i) { return i.total > 0; }).sort(function (a, b) { return b.total - a.total; });
+        return itens.slice(0, 10);
+    }
+
+    async function filtrarTop10(t) {
+        var c = TOP[t];
+        if (typeof Chart === 'undefined') { avisar('Não foi possível carregar os gráficos. Verifique sua conexão.'); return; }
+        var f = filtrosTop(t);
+        var top = await calcularTop(t, f);
+        ultimoTop[t] = { f: f, itens: top };
+        var h4 = document.querySelector('#' + c.card + ' h4');
+        if (h4) h4.textContent = c.titulo + ' — ' + f.periodo + ' (' + f.setorTxt + ')' + (f.sel.length ? ' · ' + f.sel.length + ' atividade(s) selecionada(s)' : '');
+        var canvas = document.getElementById(c.canvas);
+        if (!canvas) return;
+        if (window[c.chart]) { window[c.chart].destroy(); window[c.chart] = null; }
+        var pai = canvas.parentElement;
+        pai.querySelectorAll('.sem-dados-top10').forEach(function (e) { e.remove(); });
+        if (!top.length) {
+            canvas.style.display = 'none';
+            var aviso = document.createElement('div');
+            aviso.className = 'sem-dados-top10';
+            aviso.style.cssText = 'text-align:center; padding:30px; color:#888;';
+            aviso.textContent = 'Nenhum dado encontrado para esse filtro.';
+            pai.appendChild(aviso);
+            return;
+        }
+        canvas.style.display = '';
+        var cores = (typeof gerarCoresDegrade === 'function')
+            ? (c.menos ? gerarCoresDegrade({ r: 34, g: 139, b: 87 }, { r: 8, g: 61, b: 119 }, top.length)
+                       : gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, top.length))
+            : '#1F4E79';
+        window[c.chart] = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: { labels: top.map(function (i) { return i.nome; }),
+                    datasets: [{ label: 'Total no período', data: top.map(function (i) { return i.total; }), backgroundColor: cores, borderColor: cores, borderWidth: 1 }] },
+            plugins: (typeof valorTopoPlugin !== 'undefined') ? [valorTopoPlugin] : [],
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+                plugins: { legend: { display: false },
+                           tooltip: { callbacks: { label: function (ctx) { return 'Total: ' + num(ctx.parsed.x); } } } },
+                scales: { y: { ticks: { font: { size: 9 } } },
+                          x: { beginAtZero: true, ticks: { callback: function (v) { return num(v); }, font: { size: 9 } } } }
+            }
+        });
+    }
+
+    function exportarCSVTop10(t) {
+        var u = ultimoTop[t];
+        if (!u || !u.itens.length) { avisar('Não há dados para exportar. Clique em Filtrar primeiro.'); return; }
+        var f = u.f, comS = f.setor !== 'NAHORA', comN = f.setor !== 'SEATE';
+        var csv = TOP[t].titulo + ';' + f.periodo + ' (' + f.setorTxt + ')\n';
+        csv += 'Posicao;Atividade' + (comS ? ';SEATE' : '') + (comN ? ';NAHORA' : '') + ';TOTAL\n';
+        u.itens.forEach(function (i, k) {
+            csv += (k + 1) + ';' + i.nome + (comS ? ';' + i.seate : '') + (comN ? ';' + i.nahora : '') + ';' + i.total + '\n';
+        });
+        var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a'), url = URL.createObjectURL(blob);
+        a.href = url; a.download = TOP[t].arquivo + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        avisar('CSV exportado com sucesso!');
+    }
+
+    var gerandoTop = false;
+    async function gerarPDFTop10(t) {
+        if (gerandoTop) return;
+        var u = ultimoTop[t];
+        if (!u || !u.itens.length) { avisar('Clique em "Filtrar" primeiro para escolher o período do relatório.'); return; }
+        if (typeof html2pdf === 'undefined') { avisar('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
+        gerandoTop = true;
+        avisar('Gerando relatório...');
+        try {
+            var f = u.f, comS = f.setor !== 'NAHORA', comN = f.setor !== 'SEATE';
+            var tot = u.itens.reduce(function (s, i) { return s + i.total; }, 0);
+            var h = cabecalho(TOP[t].titulo, [['Período', f.periodo], ['Setores', setorTexto(f.setor)], ['Gerado em', agora()]]);
+            if (f.sel.length) h += '<div class="rel-subtitulo" style="margin:-4px 0 8px;">Atividades consideradas: ' + esc(f.sel.join(', ')) + '</div>';
+            h += await (TOP[t].menos ? secaoTop10Menos() : secaoTop10Mais());
+            h += '<div class="rel-bloco"><div class="rel-secao">Classificação</div>' +
+                 '<table class="rel-tab"><thead><tr><th style="width:8%">Posição</th><th>Atividade</th>' +
+                 (comS ? '<th class="n">SEATE</th>' : '') + (comN ? '<th class="n">NAHORA</th>' : '') +
+                 '<th class="n">Total</th><th class="n">% do grupo</th></tr></thead><tbody>';
+            u.itens.forEach(function (i, k) {
+                h += '<tr><td>' + (k + 1) + 'º</td><td>' + esc(i.nome) + '</td>' + (comS ? '<td class="n">' + num(i.seate) + '</td>' : '') +
+                     (comN ? '<td class="n">' + num(i.nahora) + '</td>' : '') + '<td class="n"><b>' + num(i.total) + '</b></td><td class="n">' + pct(i.total, tot) + '</td></tr>';
+            });
+            h += '<tr class="rel-total"><td></td><td>TOTAL</td>' +
+                 (comS ? '<td class="n">' + num(u.itens.reduce(function (s, i) { return s + i.seate; }, 0)) + '</td>' : '') +
+                 (comN ? '<td class="n">' + num(u.itens.reduce(function (s, i) { return s + i.nahora; }, 0)) + '</td>' : '') +
+                 '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr></tbody></table></div>';
+            h += rodape();
+            await gerarPDF(h, 'Relatorio_' + TOP[t].arquivo + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
+            avisar('Relatório gerado com sucesso!');
+        } catch (e) {
+            console.error('Relatório Top 10:', e);
+            avisar('Erro ao gerar o relatório. Tente novamente.');
+        } finally { gerandoTop = false; }
+    }
+
+    function limparFiltrosTop10(t) {
+        iniciarTop10(t);
+        var s = el(t, 'selectSetor'); if (s) s.value = 'ambos';
+        var dd = el(t, 'dropdownAtiv');
+        if (dd && typeof atualizarLabelDropdown === 'function') atualizarLabelDropdown(dd);
+        filtrarTop10(t);
+        avisar('Filtros limpos!');
+    }
+
+    window.iniciarTop10 = iniciarTop10;
+    window.filtrarTop10 = filtrarTop10;
+    window.exportarCSVTop10 = exportarCSVTop10;
+    window.gerarPDFTop10 = gerarPDFTop10;
+    window.limparFiltrosTop10 = limparFiltrosTop10;
+
     // ---------------- PDF sem páginas em branco no final ----------------
     // A ferramenta de PDF fatia uma imagem longa do relatório em páginas A4;
     // quando a imagem passa um pouquinho da última página, sobra uma página
