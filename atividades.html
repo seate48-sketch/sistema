@@ -355,6 +355,7 @@
                     <select id="novoSetorAtividade">
                         <option value="SEATE">SEATE</option>
                         <option value="NAHORA">NAHORA</option>
+                        <option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option>
                     </select>
                 </div>
                 <button class="btn btn-primary" onclick="adicionarAtividade()">Adicionar Atividade</button>
@@ -391,7 +392,7 @@
 <div id="modalEdicaoAtividade" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEdicao()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Servidor</label><input type="text" id="modalServidorNome" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Atividade Atual</label><input type="text" id="modalAtividadeAtual" readonly style="background:var(--cinza-claro);"></div><div class="form-group"><label>Substituir por</label><select id="modalNovaAtividade" class="select-atribuir-rapido" style="width:100%;padding:10px;"></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEdicao()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoAtividade()">Salvar</button></div></div></div>
 
 <!-- Modal para editar nome e setor de uma atividade cadastrada -->
-<div id="modalEditarNomeSetor" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEditarNomeSetor()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Nome da Atividade</label><input type="text" id="editarNomeAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"></div><div class="form-group" style="margin-top:12px;"><label>Setor</label><select id="editarSetorAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEditarNomeSetor()">Cancelar</button><button class="btn btn-primary" onclick="salvarEdicaoNomeSetor()">Salvar</button></div></div></div>
+<div id="modalEditarNomeSetor" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Editar Atividade</h3><span class="modal-close" onclick="fecharModalEditarNomeSetor()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Nome da Atividade</label><input type="text" id="editarNomeAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"></div><div class="form-group" style="margin-top:12px;"><label>Setor</label><select id="editarSetorAtividadeInput" style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option><option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option></select></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalEditarNomeSetor()">Cancelar</button><button class="btn btn-primary" onclick="salvarEdicaoNomeSetor()">Salvar</button></div></div></div>
 
 <!-- Modal para atribuir uma atividade a vários servidores de uma vez -->
 <div id="modalAtribuirMultiplo" class="modal-edicao"><div class="modal-edicao-content"><div class="modal-edicao-header"><h3>Atribuir Atividade</h3><span class="modal-close" onclick="fecharModalAtribuirMultiplo()">&times;</span></div><div class="modal-edicao-body"><div class="form-group"><label>Atividade</label><input type="text" id="atribuirMultiploAtividadeLabel" readonly style="width:100%;padding:10px;border:2px solid var(--cinza-borda);border-radius:14px;box-sizing:border-box;background:var(--cinza-claro);"></div><div class="form-group" style="margin-top:12px;"><label>Servidor(es)</label><div class="dropdown-select" id="dropdownServidoresAtribuirMultiplo" data-label-padrao="Selecione o servidor"><div class="dropdown-trigger" onclick="toggleDropdownSelect('dropdownServidoresAtribuirMultiplo')"><span id="dropdownServidoresAtribuirMultiploLabel">Selecione o servidor</span><span class="dropdown-arrow">▾</span></div><div class="dropdown-panel"><div class="lista-servidores-atribuir" id="listaServidoresAtribuirMultiplo"></div></div></div></div></div><div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalAtribuirMultiplo()">Cancelar</button><button class="btn btn-primary" onclick="confirmarAtribuicaoMultipla()">Atribuir Selecionados</button></div></div></div>
@@ -402,7 +403,7 @@
 
 var draggingIndex = null;
 var atividadeOriginal = null;
-var setoresAtividades = {}; // nome da atividade -> "SEATE" ou "NAHORA"
+var setoresAtividades = {}; // nome da atividade -> "SEATE", "NAHORA" ou "DIGITALIZAÇÃO"
 
 // ============================================================
 // CORREÇÃO: Renderizar Atividades com select melhorado
@@ -434,8 +435,9 @@ function renderizarAtividades() {
         html += '</td>';
         html += '<td class="c-nome" style="word-break:break-word;">' + escapeHtml(ativ) + '</td>';
         var setorAtual = (typeof setoresAtividades !== 'undefined' && setoresAtividades[ativ]) ? setoresAtividades[ativ] : 'SEATE';
-        var corSetor = setorAtual === 'NAHORA' ? '#B30000' : '#0F2D52';
-        html += '<td class="c-setor" style="text-align:center;"><span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';
+        var corSetor = setorAtual === 'NAHORA' ? '#B30000' : (setorAtual === 'DIGITALIZAÇÃO' ? '#0F766E' : '#0F2D52');
+        var estiloSetor = setorAtual === 'DIGITALIZAÇÃO' ? 'padding:3px 6px; font-size:0.6rem;' : 'padding:3px 10px; font-size:0.7rem;';
+        html += '<td class="c-setor" style="text-align:center;"><span style="display:inline-block; ' + estiloSetor + ' border-radius:12px; font-weight:600; color:#fff; background:' + corSetor + ';">' + setorAtual + '</span></td>';
         html += '<td class="c-acoes acoes-cell">';
         html += '<button class="btn-editar" onclick="abrirModalEditarNomeSetor(' + idx + ')">Editar</button>';
         html += '<button class="btn-excluir-circular" onclick="excluirAtividade(' + idx + ')">Excluir</button>';
@@ -527,6 +529,13 @@ function moverAtividade(idx, direcao) {
     feedback("Atividade movida com sucesso!");
 }
 
+// O banco recusou gravar o setor (ex.: DIGITALIZAÇÃO ainda não liberado): avisa em vez de falhar calado
+function avisarFalhaSetorAtividade(nome, setor) {
+    alert('A atividade "' + nome + '" foi salva, mas o banco de dados não aceitou o setor "' + setor + '".\n\n' +
+          (setor === 'DIGITALIZAÇÃO' ? 'Para liberar o setor DIGITALIZAÇÃO nas atividades, rode no Supabase o arquivo 17_setor_atividade_digitalizacao.sql e depois edite a atividade para escolher o setor novamente.'
+                                     : 'Tente editar a atividade e escolher o setor novamente.'));
+}
+
 async function adicionarAtividade() { 
     var nova = document.getElementById("novaAtividade").value.trim(); 
     if(!nova) { feedback("Digite o nome!"); return; } 
@@ -546,8 +555,10 @@ async function adicionarAtividade() {
 
     await salvarAtividades(); 
     if (supabaseDisponivel) {
-        try { await dbSalvarSetorAtividade(nova, setorEscolhido); }
+        var okSetor = false;
+        try { okSetor = await dbSalvarSetorAtividade(nova, setorEscolhido); }
         catch(e) { console.warn('Erro ao salvar setor da nova atividade:', e.message); }
+        if (!okSetor) { avisarFalhaSetorAtividade(nova, setorEscolhido); setorEscolhido = (setoresAtividades && setoresAtividades[nova]) || 'SEATE'; }
     }
     if (typeof setoresAtividades !== 'undefined') { setoresAtividades[nova] = setorEscolhido; }
     renderizarAtividades(); 
@@ -701,8 +712,10 @@ async function salvarEdicaoNomeSetor() {
     // setor (na junção, a atividade que fica mantém o setor dela)
     if (!juntar) {
         if (supabaseDisponivel) {
-            try { await dbSalvarSetorAtividade(novo, novoSetor); }
+            var okSetorEd = false;
+            try { okSetorEd = await dbSalvarSetorAtividade(novo, novoSetor); }
             catch(e) { console.warn('Erro ao salvar setor da atividade:', e.message); }
+            if (!okSetorEd) { avisarFalhaSetorAtividade(novo, novoSetor); novoSetor = (setoresAtividades && setoresAtividades[novo]) || 'SEATE'; }
         }
         if (typeof setoresAtividades !== 'undefined') setoresAtividades[novo] = novoSetor;
     }
