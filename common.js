@@ -390,7 +390,7 @@ function obterTotaisAno(ano) {
     ano = String(ano);
     if (!anoUsaRegistros(ano)) {
         var MESES_V = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-        var vazio = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {} };
+        var vazio = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, digitTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porAtividadeDigit: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {}, porAtividadeMesDigit: {} };
         MESES_V.forEach(function(m) { vazio.porMes[m] = 0; });
         return Promise.resolve(vazio);
     }
@@ -441,14 +441,15 @@ async function obterSeateNahoraPorAno(ano) {
             for (var ativ in manual.SEATE) { for (var m in manual.SEATE[ativ]) seateManual += manual.SEATE[ativ][m] || 0; }
             for (var ativ in manual.NAHORA) { for (var m in manual.NAHORA[ativ]) nahoraManual += manual.NAHORA[ativ][m] || 0; }
         }
-        return { seateTotal: t.seateTotal + seateManual, nahoraTotal: t.nahoraTotal + nahoraManual };
+        // DIGITALIZAÇÃO: só registros dos servidores (não há dados digitados)
+        return { seateTotal: t.seateTotal + seateManual, nahoraTotal: t.nahoraTotal + nahoraManual, digitTotal: t.digitTotal || 0 };
     }
     var dadosAno = await obterDadosAno(ano);
-    if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0 };
+    if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0, digitTotal: 0 };
     var seateTotal = 0, nahoraTotal = 0;
     for (var ativ in dadosAno.SEATE) { for (var m in dadosAno.SEATE[ativ]) seateTotal += dadosAno.SEATE[ativ][m] || 0; }
     for (var ativ in dadosAno.NAHORA) { for (var m in dadosAno.NAHORA[ativ]) nahoraTotal += dadosAno.NAHORA[ativ][m] || 0; }
-    return { seateTotal: seateTotal, nahoraTotal: nahoraTotal };
+    return { seateTotal: seateTotal, nahoraTotal: nahoraTotal, digitTotal: 0 };
 }
 
 // ==================== ATIVIDADES POR SETOR (MESMA LISTA DE "ADICIONAR/ATIVIDADES") ====================
@@ -2149,11 +2150,13 @@ async function buscarAnaliseAtividade(ano, container) {
     try {
         var seateTotais = {};
         var nahoraTotais = {};
+        var digitTotais = {}; // DIGITALIZAÇÃO: só registros (a partir de set/2026)
 
         if (anoUsaRegistros(ano)) {
             var totaisAnoAtual = await obterTotaisAno(ano);
             for (var ativ in totaisAnoAtual.porAtividadeSeate) { seateTotais[ativ] = (seateTotais[ativ] || 0) + totaisAnoAtual.porAtividadeSeate[ativ]; }
             for (var ativ in totaisAnoAtual.porAtividadeNahora) { nahoraTotais[ativ] = (nahoraTotais[ativ] || 0) + totaisAnoAtual.porAtividadeNahora[ativ]; }
+            for (var ativ in (totaisAnoAtual.porAtividadeDigit || {})) { digitTotais[ativ] = (digitTotais[ativ] || 0) + totaisAnoAtual.porAtividadeDigit[ativ]; }
         }
         var manualAno = await obterDadosAno(ano);
         if (manualAno) {
@@ -2169,47 +2172,51 @@ async function buscarAnaliseAtividade(ano, container) {
             }
         }
 
-        var totalSeate = 0, totalNahora = 0;
+        var totalSeate = 0, totalNahora = 0, totalDigit = 0;
         for (var ativ in seateTotais) { totalSeate += seateTotais[ativ]; }
         for (var ativ in nahoraTotais) { totalNahora += nahoraTotais[ativ]; }
+        for (var ativ in digitTotais) { totalDigit += digitTotais[ativ]; }
+        var comDigit = totalDigit > 0; // a coluna DIGITALIZAÇÃO só aparece quando há dados
 
-        if (totalSeate === 0 && totalNahora === 0) {
+        if (totalSeate === 0 && totalNahora === 0 && totalDigit === 0) {
             container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Nenhum dado encontrado para ' + ano + '</p>';
             return;
         }
 
         var todasAtividades = {};
-        for (var ativ in seateTotais) { todasAtividades[ativ] = { seate: seateTotais[ativ], nahora: nahoraTotais[ativ] || 0 }; }
-        for (var ativ in nahoraTotais) {
-            if (todasAtividades[ativ]) { todasAtividades[ativ].nahora = nahoraTotais[ativ]; }
-            else { todasAtividades[ativ] = { seate: 0, nahora: nahoraTotais[ativ] }; }
-        }
+        function item(a) { return todasAtividades[a] || (todasAtividades[a] = { seate: 0, nahora: 0, digit: 0 }); }
+        for (var ativ in seateTotais) { item(ativ).seate = seateTotais[ativ]; }
+        for (var ativ in nahoraTotais) { item(ativ).nahora = nahoraTotais[ativ]; }
+        for (var ativ in digitTotais) { item(ativ).digit = digitTotais[ativ]; }
 
         var items = [];
         for (var ativ in todasAtividades) {
-            var total = todasAtividades[ativ].seate + todasAtividades[ativ].nahora;
-            if (total > 0) { items.push({ nome: ativ, seate: todasAtividades[ativ].seate, nahora: todasAtividades[ativ].nahora, total: total }); }
+            var t = todasAtividades[ativ];
+            var total = t.seate + t.nahora + t.digit;
+            if (total > 0) { items.push({ nome: ativ, seate: t.seate, nahora: t.nahora, digit: t.digit, total: total }); }
         }
         items.sort(function(a, b) { return b.total - a.total; });
 
         var html = '';
-        html += '<div class="titulo-secao">\ud83d\udccd ATIVIDADES - ' + ano + '</div>';
+        html += '<div class="titulo-secao">📍 ATIVIDADES - ' + ano + '</div>';
         html += '<div class="tabela-estatistica-container">';
         html += '<table class="tabela-estatistica">';
         html += '<thead><tr>';
         html += '<th style="text-align:left; min-width:200px;">Atividade</th>';
         html += '<th style="text-align:center; background:#0F2D52; color:#fff;">SEATE</th>';
         html += '<th style="text-align:center; background:#B30000; color:#fff;">NAHORA</th>';
+        if (comDigit) html += '<th style="text-align:center; background:#0F766E; color:#fff;">DIGITALIZAÇÃO</th>';
         html += '<th style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
         html += '</tr></thead><tbody>';
 
         for (var i = 0; i < items.length; i++) {
-            var item = items[i];
+            var it = items[i];
             html += '<tr>';
-            html += '<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td>';
-            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(item.seate) + '</td>';
-            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(item.nahora) + '</td>';
-            html += '<td style="text-align:center; font-weight:700; background:var(--cinza-suave);">' + formatarMilhar(item.total) + '</td>';
+            html += '<td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(it.nome) + '</td>';
+            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(it.seate) + '</td>';
+            html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(it.nahora) + '</td>';
+            if (comDigit) html += '<td style="text-align:center; font-weight:600;">' + formatarMilhar(it.digit) + '</td>';
+            html += '<td style="text-align:center; font-weight:700; background:var(--cinza-suave);">' + formatarMilhar(it.total) + '</td>';
             html += '</tr>';
         }
 
@@ -2217,14 +2224,15 @@ async function buscarAnaliseAtividade(ano, container) {
         html += '<td style="text-align:left; color:var(--azul-marinho);">TOTAL GERAL</td>';
         html += '<td style="text-align:center; background:#0F2D52; color:#fff;">' + formatarMilhar(totalSeate) + '</td>';
         html += '<td style="text-align:center; background:#B30000; color:#fff;">' + formatarMilhar(totalNahora) + '</td>';
-        html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(totalSeate + totalNahora) + '</td>';
+        if (comDigit) html += '<td style="text-align:center; background:#0F766E; color:#fff;">' + formatarMilhar(totalDigit) + '</td>';
+        html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(totalSeate + totalNahora + totalDigit) + '</td>';
         html += '</tr>';
         html += '</tbody></table></div>';
 
         container.innerHTML = html;
     } catch(e) {
-        console.warn('Erro ao buscar an\u00e1lise de atividade:', e.message);
-        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">N\u00e3o foi poss\u00edvel carregar a an\u00e1lise. Verifique sua conex\u00e3o e tente novamente.</p>';
+        console.warn('Erro ao buscar análise de atividade:', e.message);
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar a análise. Verifique sua conexão e tente novamente.</p>';
     }
 }
 

@@ -153,29 +153,32 @@
         var dados = [];
         for (var i = 0; i < anos.length; i++) {
             var t = await obterSeateNahoraPorAno(anos[i]);
-            var s = (t && t.seateTotal) || 0, n = (t && t.nahoraTotal) || 0;
-            dados.push({ ano: String(anos[i]), seate: s, nahora: n, total: s + n });
+            var s = (t && t.seateTotal) || 0, n = (t && t.nahoraTotal) || 0, dg = (t && t.digitTotal) || 0;
+            dados.push({ ano: String(anos[i]), seate: s, nahora: n, digit: dg, total: s + n + dg });
         }
         var totS = 0, totN = 0;
-        dados.forEach(function (d) { totS += d.seate; totN += d.nahora; });
-        var tot = totS + totN;
+        var totD = 0;
+        dados.forEach(function (d) { totS += d.seate; totN += d.nahora; totD += d.digit; });
+        var tot = totS + totN + totD;
+        var comD = totD > 0; // coluna DIGITALIZAÇÃO só quando houver dados
 
         var h = '<div class="rel-bloco"><div class="rel-secao">Resumo Geral</div>' +
                 '<div class="rel-subtitulo">Total de atividades por ano e por setor</div>' +
-                '<table class="rel-tab"><thead><tr><th>Ano</th><th class="n">SEATE</th><th class="n">NAHORA</th><th class="n">Total</th><th class="n">% do total</th></tr></thead><tbody>';
+                '<table class="rel-tab"><thead><tr><th>Ano</th><th class="n">SEATE</th><th class="n">NAHORA</th>' + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th><th class="n">% do total</th></tr></thead><tbody>';
         dados.forEach(function (d) {
             h += '<tr><td>' + esc(d.ano) + (d.ano === anoAtual() ? ' <span style="color:#6B7280">(em andamento)</span>' : '') + '</td>' +
-                 '<td class="n">' + num(d.seate) + '</td><td class="n">' + num(d.nahora) + '</td><td class="n"><b>' + num(d.total) + '</b></td>' +
+                 '<td class="n">' + num(d.seate) + '</td><td class="n">' + num(d.nahora) + '</td>' + (comD ? '<td class="n">' + num(d.digit) + '</td>' : '') + '<td class="n"><b>' + num(d.total) + '</b></td>' +
                  '<td class="n">' + pct(d.total, tot) + '</td></tr>';
         });
-        h += '<tr class="rel-total"><td>TOTAL GERAL</td><td class="n">' + num(totS) + '</td><td class="n">' + num(totN) + '</td><td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr>';
+        h += '<tr class="rel-total"><td>TOTAL GERAL</td><td class="n">' + num(totS) + '</td><td class="n">' + num(totN) + '</td>' + (comD ? '<td class="n">' + num(totD) + '</td>' : '') + '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr>';
         h += '</tbody></table>';
 
         var completos = dados.filter(function (d) { return d.ano !== anoAtual(); });
         var r = [];
         if (dados.length) {
             r.push('Período: <b>' + dados[0].ano + ' a ' + dados[dados.length - 1].ano + '</b> (' + dados.length + ' anos), com <b>' + num(tot) + '</b> atividades registradas.');
-            r.push('Participação por setor: SEATE <b>' + pct(totS, tot) + '</b> (' + num(totS) + ') e NAHORA <b>' + pct(totN, tot) + '</b> (' + num(totN) + ').');
+            if (comD) r.push('Participação por setor: SEATE <b>' + pct(totS, tot) + '</b> (' + num(totS) + '), NAHORA <b>' + pct(totN, tot) + '</b> (' + num(totN) + ') e DIGITALIZAÇÃO <b>' + pct(totD, tot) + '</b> (' + num(totD) + ').');
+            else r.push('Participação por setor: SEATE <b>' + pct(totS, tot) + '</b> (' + num(totS) + ') e NAHORA <b>' + pct(totN, tot) + '</b> (' + num(totN) + ').');
         }
         if (completos.length) {
             var maior = completos.reduce(function (a, b) { return b.total > a.total ? b : a; });
@@ -289,13 +292,15 @@
         var box = null;
         try {
             var partes = await Promise.all([secaoResumoGeral(), secaoTop10Mais(), secaoTop10Menos(), secaoMensal()]);
+            var temDigitGeral = false;
+            try { var tAt = await obterTotaisAno(anoAtual()); temDigitGeral = !!(tAt && tAt.digitTotal); } catch (eT) {}
             var anos = (typeof getAnosDisponiveis === 'function') ? getAnosDisponiveis() : [anoAtual()];
             var cab = '<div class="rel-cab">' +
                 '<div class="rel-cab-topo"><h2 class="rel-titulo">Relatório Estatístico</h2>' +
                 '<div class="rel-orgao">SEATE · Justiça Federal – SJDF</div></div>' +
                 '<div class="rel-info">' +
                     '<div><span>Período</span>' + esc(anos[0] + ' a ' + anos[anos.length - 1]) + '</div>' +
-                    '<div><span>Setores</span>SEATE e NAHORA</div>' +
+                    '<div><span>Setores</span>' + (temDigitGeral ? 'SEATE, NAHORA e DIGITALIZAÇÃO' : 'SEATE e NAHORA') + '</div>' +
                     '<div><span>Gerado em</span>' + agora() + '</div>' +
                 '</div></div>';
             var rodape = '<div class="rel-rodape"><span>SEATE – Sistema de Gestão de Atividades</span><span>Gerado em ' + agora() + '</span></div>';
@@ -348,7 +353,7 @@
         return '<div class="rel-rodape"><span>SEATE – Sistema de Gestão de Atividades</span><span>Gerado em ' + agora() + '</span></div>';
     }
     function nomeMesBonito(m) { return m === 'Marco' ? 'Março' : m; }
-    function setorTexto(setor) { return setor === 'SEATE' ? 'SEATE' : setor === 'NAHORA' ? 'NAHORA' : 'SEATE e NAHORA'; }
+    function setorTexto(setor, comDigit) { return setor === 'SEATE' ? 'SEATE' : setor === 'NAHORA' ? 'NAHORA' : setor === 'DIGITALIZAÇÃO' ? 'DIGITALIZAÇÃO' : (comDigit ? 'SEATE, NAHORA e DIGITALIZAÇÃO' : 'SEATE e NAHORA'); }
     function variacaoTxt(de, para) {
         if (!de) return '';
         var v = (para - de) * 100 / de;
@@ -422,8 +427,8 @@
         var r = [];
         var tot = resultado.totalGeral;
         var n = resultado.porAtividade.length;
-        r.push('Período: <b>' + esc(f.periodo) + '</b> · ' + n + ' atividade(s) com registros · setor: ' + setorTexto(f.setor) + '.');
-        r.push('Total geral: <b>' + num(tot) + '</b> atividades' + (f.setor === 'ambos' ? ' (SEATE ' + pct(resultado.totalSeate, tot) + ' | NAHORA ' + pct(resultado.totalNahora, tot) + ').' : '.'));
+        r.push('Período: <b>' + esc(f.periodo) + '</b> · ' + n + ' atividade(s) com registros · setor: ' + setorTexto(f.setor, (resultado.totalDigit || 0) > 0) + '.');
+        r.push('Total geral: <b>' + num(tot) + '</b> atividades' + (f.setor === 'ambos' ? ' (SEATE ' + pct(resultado.totalSeate, tot) + ' | NAHORA ' + pct(resultado.totalNahora, tot) + (resultado.totalDigit ? ' | DIGITALIZAÇÃO ' + pct(resultado.totalDigit, tot) : '') + ').' : '.'));
         var maior = resultado.porAtividade[0];
         if (maior) r.push('Maior volume: <b>' + esc(maior.nome) + '</b>, com ' + num(maior.total) + ' (' + pct(maior.total, tot) + ' do total).');
         if (n > 1) {
@@ -474,25 +479,26 @@
         avisar('Gerando relatório...');
         try {
             var f = filtrosResultado();
-            var ambos = f.setor === 'ambos', comS = f.setor !== 'NAHORA', comN = f.setor !== 'SEATE';
+            var ambos = f.setor === 'ambos', comS = ambos || f.setor === 'SEATE', comN = ambos || f.setor === 'NAHORA';
+            var comD = f.setor === 'DIGITALIZAÇÃO' || (ambos && (resultado.totalDigit || 0) > 0);
             var tot = resultado.totalGeral;
             var h = cabecalho('Relatório de Resultados por Atividade', [
-                ['Período', f.periodo], ['Setores', setorTexto(f.setor)], ['Gerado em', agora()]
+                ['Período', f.periodo], ['Setores', setorTexto(f.setor, comD)], ['Gerado em', agora()]
             ]);
 
             // visão geral
             h += '<div class="rel-bloco"><div class="rel-secao">Visão geral</div>' +
                  '<div class="rel-subtitulo">Total de cada atividade no período</div>' +
                  '<table class="rel-tab"><thead><tr><th style="width:44%">Atividade</th>' +
-                 (comS ? '<th class="n">SEATE</th>' : '') + (comN ? '<th class="n">NAHORA</th>' : '') +
+                 (comS ? '<th class="n">SEATE</th>' : '') + (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') +
                  '<th class="n">Total</th><th class="n">% do total</th></tr></thead><tbody>';
             resultado.porAtividade.forEach(function (b) {
                 h += '<tr><td>' + esc(b.nome) + '</td>' + (comS ? '<td class="n">' + num(b.totalSeate) + '</td>' : '') +
-                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') +
+                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') + (comD ? '<td class="n">' + num(b.totalDigit || 0) + '</td>' : '') +
                      '<td class="n"><b>' + num(b.total) + '</b></td><td class="n">' + pct(b.total, tot) + '</td></tr>';
             });
             h += '<tr class="rel-total"><td>TOTAL GERAL</td>' + (comS ? '<td class="n">' + num(resultado.totalSeate) + '</td>' : '') +
-                 (comN ? '<td class="n">' + num(resultado.totalNahora) + '</td>' : '') +
+                 (comN ? '<td class="n">' + num(resultado.totalNahora) + '</td>' : '') + (comD ? '<td class="n">' + num(resultado.totalDigit || 0) + '</td>' : '') +
                  '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr></tbody></table>';
             h += linhas(resumoResultados(resultado, f)) + '</div>';
 
@@ -501,16 +507,16 @@
             resultado.porAtividade.forEach(function (b) {
                 h += '<div class="rel-bloco" style="margin-top:8px;"><div class="rel-subtitulo" style="color:#0F2D52;font-weight:600;font-size:10.5px;">' + esc(b.nome) + '</div>' +
                      '<table class="rel-tab"><thead><tr><th>Mês</th>' + (comS ? '<th class="n">SEATE</th>' : '') +
-                     (comN ? '<th class="n">NAHORA</th>' : '') + '<th class="n">Total</th></tr></thead><tbody>';
+                     (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th></tr></thead><tbody>';
                 b.linhas.forEach(function (l) {
                     h += '<tr><td>' + nomeMesBonito(l.mesNome) + '/' + l.ano + '</td>' + (comS ? '<td class="n">' + num(l.seate) + '</td>' : '') +
-                         (comN ? '<td class="n">' + num(l.nahora) + '</td>' : '') + '<td class="n">' + num(l.total) + '</td></tr>';
+                         (comN ? '<td class="n">' + num(l.nahora) + '</td>' : '') + (comD ? '<td class="n">' + num(l.digit || 0) + '</td>' : '') + '<td class="n">' + num(l.total) + '</td></tr>';
                 });
                 h += '<tr class="rel-total"><td>SUBTOTAL</td>' + (comS ? '<td class="n">' + num(b.totalSeate) + '</td>' : '') +
-                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') + '<td class="n">' + num(b.total) + '</td></tr></tbody></table>';
+                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') + (comD ? '<td class="n">' + num(b.totalDigit || 0) + '</td>' : '') + '<td class="n">' + num(b.total) + '</td></tr></tbody></table>';
                 var r = [];
                 r.push('Total no período: <b>' + num(b.total) + '</b> (' + pct(b.total, tot) + ' do total geral)' +
-                       (ambos ? ' · SEATE ' + pct(b.totalSeate, b.total) + ' | NAHORA ' + pct(b.totalNahora, b.total) : '') + '.');
+                       (ambos ? ' · SEATE ' + pct(b.totalSeate, b.total) + ' | NAHORA ' + pct(b.totalNahora, b.total) + (comD ? ' | DIGITALIZAÇÃO ' + pct(b.totalDigit || 0, b.total) : '') : '') + '.');
                 if (b.linhas.length) {
                     var mx = b.linhas.reduce(function (a, c) { return c.total > a.total ? c : a; });
                     var mn = b.linhas.reduce(function (a, c) { return c.total < a.total ? c : a; });
@@ -843,12 +849,12 @@
             ? (mesDe === 0 && mesAte === 11 ? String(anoDe) : MESES[mesDe] + (mesDe === mesAte ? '' : ' a ' + MESES[mesAte]) + ' de ' + anoDe)
             : MESES[mesDe] + '/' + anoDe + ' a ' + MESES[mesAte] + '/' + anoAte;
         return { anoDe: anoDe, anoAte: anoAte, mesDe: mesDe, mesAte: mesAte, setor: setor, sel: sel, periodo: periodo,
-                 setorTxt: setor === 'ambos' ? 'SEATE + NAHORA' : setor };
+                 setorTxt: setor === 'ambos' ? 'SEATE + NAHORA' : setor }; // (passa a incluir DIGITALIZAÇÃO quando houver dados — ver calcularTop)
     }
 
     async function calcularTop(t, f) {
-        var mapa = {}; // atividade -> {seate, nahora}
-        function soma(nome, s, n) { var o = mapa[nome] || (mapa[nome] = { seate: 0, nahora: 0 }); o.seate += s; o.nahora += n; }
+        var mapa = {}; // atividade -> {seate, nahora, digit}
+        function soma(nome, s, n, d) { var o = mapa[nome] || (mapa[nome] = { seate: 0, nahora: 0, digit: 0 }); o.seate += s; o.nahora += n; o.digit += (d || 0); }
         for (var ano = f.anoDe; ano <= f.anoAte; ano++) {
             var anoStr = String(ano);
             var reg = (typeof anoUsaRegistros === 'function' && anoUsaRegistros(anoStr)) ? await obterTotaisAno(anoStr) : null;
@@ -859,6 +865,7 @@
                 if (reg) {
                     Object.keys(reg.porAtividadeMesSeate || {}).forEach(function (a) { soma(a, +(reg.porAtividadeMesSeate[a][mes] || 0), 0); });
                     Object.keys(reg.porAtividadeMesNahora || {}).forEach(function (a) { soma(a, 0, +(reg.porAtividadeMesNahora[a][mes] || 0)); });
+                    Object.keys(reg.porAtividadeMesDigit || {}).forEach(function (a) { soma(a, 0, 0, +(reg.porAtividadeMesDigit[a][mes] || 0)); });
                 }
                 if (man) {
                     Object.keys(man.SEATE || {}).forEach(function (a) { soma(a, +((man.SEATE[a] || {})[mes] || 0), 0); });
@@ -870,8 +877,9 @@
         if (TOP[t].menos && typeof atividades !== 'undefined' && Array.isArray(atividades)) atividades.forEach(function (a) { soma(a, 0, 0); });
         var itens = Object.keys(mapa).map(function (a) {
             var o = mapa[a];
-            var s = f.setor === 'NAHORA' ? 0 : o.seate, n = f.setor === 'SEATE' ? 0 : o.nahora;
-            return { nome: a, seate: s, nahora: n, total: s + n };
+            var todos = f.setor === 'ambos';
+            var s = (todos || f.setor === 'SEATE') ? o.seate : 0, n = (todos || f.setor === 'NAHORA') ? o.nahora : 0, d = (todos || f.setor === 'DIGITALIZAÇÃO') ? o.digit : 0;
+            return { nome: a, seate: s, nahora: n, digit: d, total: s + n + d };
         });
         if (f.sel.length) itens = itens.filter(function (i) { return f.sel.indexOf(i.nome) !== -1; });
         if (TOP[t].menos) itens.sort(function (a, b) { return a.total - b.total || a.nome.localeCompare(b.nome); });
@@ -884,6 +892,8 @@
         if (typeof Chart === 'undefined') { avisar('Não foi possível carregar os gráficos. Verifique sua conexão.'); return; }
         var f = filtrosTop(t);
         var top = await calcularTop(t, f);
+        f.comD = f.setor === 'DIGITALIZAÇÃO' || (f.setor === 'ambos' && top.some(function (i) { return i.digit > 0; }));
+        if (f.setor === 'ambos' && f.comD) f.setorTxt = 'SEATE + NAHORA + DIGITALIZAÇÃO';
         ultimoTop[t] = { f: f, itens: top };
         var h4 = document.querySelector('#' + c.card + ' h4');
         if (h4) h4.textContent = c.titulo + ' — ' + f.periodo + ' (' + f.setorTxt + ')' + (f.sel.length ? ' · ' + f.sel.length + ' atividade(s) selecionada(s)' : '');
@@ -924,11 +934,11 @@
     function exportarCSVTop10(t) {
         var u = ultimoTop[t];
         if (!u || !u.itens.length) { avisar('Não há dados para exportar. Clique em Filtrar primeiro.'); return; }
-        var f = u.f, comS = f.setor !== 'NAHORA', comN = f.setor !== 'SEATE';
+        var f = u.f, comS = f.setor === 'ambos' || f.setor === 'SEATE', comN = f.setor === 'ambos' || f.setor === 'NAHORA', comD = !!f.comD;
         var csv = TOP[t].titulo + ';' + f.periodo + ' (' + f.setorTxt + ')\n';
-        csv += 'Posicao;Atividade' + (comS ? ';SEATE' : '') + (comN ? ';NAHORA' : '') + ';TOTAL\n';
+        csv += 'Posicao;Atividade' + (comS ? ';SEATE' : '') + (comN ? ';NAHORA' : '') + (comD ? ';DIGITALIZAÇÃO' : '') + ';TOTAL\n';
         u.itens.forEach(function (i, k) {
-            csv += (k + 1) + ';' + i.nome + (comS ? ';' + i.seate : '') + (comN ? ';' + i.nahora : '') + ';' + i.total + '\n';
+            csv += (k + 1) + ';' + i.nome + (comS ? ';' + i.seate : '') + (comN ? ';' + i.nahora : '') + (comD ? ';' + i.digit : '') + ';' + i.total + '\n';
         });
         var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
         var a = document.createElement('a'), url = URL.createObjectURL(blob);
@@ -946,22 +956,23 @@
         gerandoTop = true;
         avisar('Gerando relatório...');
         try {
-            var f = u.f, comS = f.setor !== 'NAHORA', comN = f.setor !== 'SEATE';
+            var f = u.f, comS = f.setor === 'ambos' || f.setor === 'SEATE', comN = f.setor === 'ambos' || f.setor === 'NAHORA', comD = !!f.comD;
             var tot = u.itens.reduce(function (s, i) { return s + i.total; }, 0);
-            var h = cabecalho(TOP[t].titulo, [['Período', f.periodo], ['Setores', setorTexto(f.setor)], ['Gerado em', agora()]]);
+            var h = cabecalho(TOP[t].titulo, [['Período', f.periodo], ['Setores', setorTexto(f.setor, comD)], ['Gerado em', agora()]]);
             if (f.sel.length) h += '<div class="rel-subtitulo" style="margin:-4px 0 8px;">Atividades consideradas: ' + esc(f.sel.join(', ')) + '</div>';
             h += await (TOP[t].menos ? secaoTop10Menos() : secaoTop10Mais());
             h += '<div class="rel-bloco"><div class="rel-secao">Classificação</div>' +
                  '<table class="rel-tab"><thead><tr><th style="width:8%">Posição</th><th>Atividade</th>' +
-                 (comS ? '<th class="n">SEATE</th>' : '') + (comN ? '<th class="n">NAHORA</th>' : '') +
+                 (comS ? '<th class="n">SEATE</th>' : '') + (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') +
                  '<th class="n">Total</th><th class="n">% do grupo</th></tr></thead><tbody>';
             u.itens.forEach(function (i, k) {
                 h += '<tr><td>' + (k + 1) + 'º</td><td>' + esc(i.nome) + '</td>' + (comS ? '<td class="n">' + num(i.seate) + '</td>' : '') +
-                     (comN ? '<td class="n">' + num(i.nahora) + '</td>' : '') + '<td class="n"><b>' + num(i.total) + '</b></td><td class="n">' + pct(i.total, tot) + '</td></tr>';
+                     (comN ? '<td class="n">' + num(i.nahora) + '</td>' : '') + (comD ? '<td class="n">' + num(i.digit) + '</td>' : '') + '<td class="n"><b>' + num(i.total) + '</b></td><td class="n">' + pct(i.total, tot) + '</td></tr>';
             });
             h += '<tr class="rel-total"><td></td><td>TOTAL</td>' +
                  (comS ? '<td class="n">' + num(u.itens.reduce(function (s, i) { return s + i.seate; }, 0)) + '</td>' : '') +
                  (comN ? '<td class="n">' + num(u.itens.reduce(function (s, i) { return s + i.nahora; }, 0)) + '</td>' : '') +
+                 (comD ? '<td class="n">' + num(u.itens.reduce(function (s, i) { return s + i.digit; }, 0)) + '</td>' : '') +
                  '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr></tbody></table></div>';
             h += rodape();
             await gerarPDF(h, 'Relatorio_' + TOP[t].arquivo + '_' + new Date().toISOString().slice(0, 10) + '.pdf');

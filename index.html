@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=21">
-    <link rel="icon" href="icons/favicon-32.png?v=21">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=21">
+    <link rel="manifest" href="manifest.json?v=22">
+    <link rel="icon" href="icons/favicon-32.png?v=22">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=22">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=21').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=22').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=21">
+    <link rel="stylesheet" href="style.css?v=22">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=21"></script>
-    <script src="supabase-client.js?v=21"></script>
+    <script src="config.js?v=22"></script>
+    <script src="supabase-client.js?v=22"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -862,8 +862,8 @@
     </div>
 </div>
 
-<script src="common.js?v=21"></script>
-<script src="relatorio-servidor.js?v=29"></script>
+<script src="common.js?v=22"></script>
+<script src="relatorio-servidor.js?v=30"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -891,6 +891,7 @@ async function renderizarIndicadores() {
     
     var totalSeateGeral = 0;
     var totalNahoraGeral = 0;
+    var totalDigitGeral = 0; // DIGITALIZAÇÃO (só registros, a partir de set/2026)
     
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
@@ -904,6 +905,7 @@ async function renderizarIndicadores() {
         
         totalSeateGeral += seateTotal;
         totalNahoraGeral += nahoraTotal;
+        totalDigitGeral += (totaisAno.digitTotal || 0);
     }
     
     for (var i = 0; i < anos.length; i++) {
@@ -917,21 +919,22 @@ async function renderizarIndicadores() {
         seateTotal = totaisAno2.seateTotal;
         nahoraTotal = totaisAno2.nahoraTotal;
         
-        var totalGeral = seateTotal + nahoraTotal;
+        var digitTotal = totaisAno2.digitTotal || 0;
+        var totalGeral = seateTotal + nahoraTotal + digitTotal;
         
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
         html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
-        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + (digitTotal ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(digitTotal) : '') + '</div>';
         html += '<div class="indicador-status">Clique para ver detalhes</div>';
         html += '</div>';
     }
     
-    var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
+    var totalGeralFinal = totalSeateGeral + totalNahoraGeral + totalDigitGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
     html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
-    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + (totalDigitGeral ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(totalDigitGeral) : '') + '</div>';
     html += '<div class="indicador-status">Clique para ver evolução anual</div>';
     html += '</div>';
     
@@ -993,6 +996,7 @@ async function abrirModalIndicador(ano, setor) {
         // sistema entrar em uso) continuam editáveis normalmente.
         // ============================================================
         var mesesHerdados = {};
+        var dadosDigit = {};
         if (anoUsaRegistros(ano)) {
             var dataMaisAntigaModal = null;
             try { dataMaisAntigaModal = await dbCarregarDataMaisAntigaRegistro(); }
@@ -1030,6 +1034,8 @@ async function abrirModalIndicador(ano, setor) {
                 SEATE: mesclarComRegistrosAoVivo(dadosAno.SEATE || {}, totaisAnoAtualModal.porAtividadeMesSeate || {}),
                 NAHORA: mesclarComRegistrosAoVivo(dadosAno.NAHORA || {}, totaisAnoAtualModal.porAtividadeMesNahora || {})
             };
+            // DIGITALIZAÇÃO: vem só dos registros dos servidores (não há dados digitados)
+            dadosDigit = mesclarComRegistrosAoVivo({}, totaisAnoAtualModal.porAtividadeMesDigit || {}); // mesmos meses herdados de SEATE/NAHORA
         }
 
         // ============================================================
@@ -1052,11 +1058,20 @@ async function abrirModalIndicador(ano, setor) {
 
         var mostrarSeate = (setor === null || setor === "SEATE");
         var mostrarNahora = (setor === null || setor === "NAHORA");
+        var atividadesDigitCompleta = [];
+        try { atividadesDigitCompleta = (await obterAtividadesPorSetor('DIGITALIZAÇÃO')) || []; } catch (eDg) { atividadesDigitCompleta = []; }
+        atividadesDigitCompleta = atividadesDigitCompleta.slice();
+        for (var ativDg in dadosDigit) { if (atividadesDigitCompleta.indexOf(ativDg) === -1) atividadesDigitCompleta.push(ativDg); }
+        var mostrarDigit = (setor === null || setor === "DIGITALIZAÇÃO") && anoUsaRegistros(ano) && Object.keys(dadosDigit).length > 0;
+        var totalGeralDigit = 0, porMesDigit = {};
+        if (mostrarDigit && setor === null) {
+            document.getElementById("modalEstatisticaTitulo").innerText = document.getElementById("modalEstatisticaTitulo").innerText.replace('SEATE + NAHORA', 'SEATE + NAHORA + DIGITALIZAÇÃO');
+        }
         var html = '';
         var totalGeralSeate = 0;
         var totalGeralNahora = 0;
 
-        function renderTabelaSetor(nomeSetor, listaAtividades, dadosSetor) {
+        function renderTabelaSetor(nomeSetor, listaAtividades, dadosSetor, soLeitura) {
             var totalGeralSetor = 0;
             html += '<div class="titulo-secao">📍 ' + nomeSetor + '</div>';
             html += '<div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr>';
@@ -1072,7 +1087,7 @@ async function abrirModalIndicador(ano, setor) {
                 for (var j = 0; j < meses.length; j++) {
                     var valorMes = (dadosSetor[ativ] && dadosSetor[ativ][meses[j]]) || 0;
                     totalLinha += valorMes;
-                    var ehMesHerdado = !!mesesHerdados[meses[j]];
+                    var ehMesHerdado = !!soLeitura || !!mesesHerdados[meses[j]];
                     var classeHerdado = ehMesHerdado ? ' input-herdado' : '';
                     var atribDisabled = ehMesHerdado ? 'disabled title="Vem do registro do servidor — para corrigir, edite lá."' : '';
                     var estiloHerdado = ehMesHerdado ? 'background:#eef2f6; color:#5a6b7a; cursor:not-allowed;' : '';
@@ -1100,13 +1115,14 @@ async function abrirModalIndicador(ano, setor) {
         var porMesSeate = {}, porMesNahora = {};
         if (mostrarSeate) { var resSeate = renderTabelaSetor('SEATE', atividadesSeateCompleta, dadosAno.SEATE || {}); totalGeralSeate = resSeate.total; porMesSeate = resSeate.porMes; }
         if (mostrarNahora) { var resNahora = renderTabelaSetor('NAHORA', atividadesNahoraCompleta, dadosAno.NAHORA || {}); totalGeralNahora = resNahora.total; porMesNahora = resNahora.porMes; }
+        if (mostrarDigit) { var resDigit = renderTabelaSetor('DIGITALIZAÇÃO', atividadesDigitCompleta, dadosDigit, true); totalGeralDigit = resDigit.total; porMesDigit = resDigit.porMes; }
 
         // Linha combinada (SEATE + NAHORA) mês a mês, logo abaixo das duas
         // tabelas — só faz sentido quando os dois setores estão visíveis
         // juntos no modal (não quando filtrado só por um deles).
         if (mostrarSeate && mostrarNahora) {
             html += '<div class="tabela-estatistica-container" style="margin-top:8px;"><table class="tabela-estatistica"><thead><tr>';
-            html += '<th style="text-align:left; min-width:180px;">SEATE + NAHORA</th>';
+            html += '<th style="text-align:left; min-width:180px;">SEATE + NAHORA' + (mostrarDigit ? ' + DIGITALIZAÇÃO' : '') + '</th>';
             html += '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>';
             html += '<th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>';
             html += '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th></tr></thead><tbody>';
@@ -1114,7 +1130,7 @@ async function abrirModalIndicador(ano, setor) {
             html += '<td style="text-align:left; color:var(--azul-marinho);">Total Mensal Combinado</td>';
             var totalCombinadoGeral = 0;
             for (var jc = 0; jc < meses.length; jc++) {
-                var somaMesCombinado = (porMesSeate[meses[jc]] || 0) + (porMesNahora[meses[jc]] || 0);
+                var somaMesCombinado = (porMesSeate[meses[jc]] || 0) + (porMesNahora[meses[jc]] || 0) + (porMesDigit[meses[jc]] || 0);
                 totalCombinadoGeral += somaMesCombinado;
                 html += '<td style="text-align:center;" data-total-mes-combinado="' + meses[jc] + '">' + formatarMilhar(somaMesCombinado) + '</td>';
             }
@@ -1123,9 +1139,9 @@ async function abrirModalIndicador(ano, setor) {
         }
 
         if (setor === null) {
-            var rotuloBanner = 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA)';
+            var rotuloBanner = 'TOTAL GERAL ' + ano + (mostrarDigit ? ' (SEATE + NAHORA + DIGITALIZAÇÃO)' : ' (SEATE + NAHORA)');
             html += '<div id="totalGeralBanner" data-rotulo="' + rotuloBanner + '" style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-            html += rotuloBanner + ': ' + formatarMilhar(totalGeralSeate + totalGeralNahora);
+            html += rotuloBanner + ': ' + formatarMilhar(totalGeralSeate + totalGeralNahora + totalGeralDigit);
             html += '</div>';
         }
 
@@ -1235,20 +1251,14 @@ function recalcularTotalLinha(inputEl) {
     var containerCombinado = document.getElementById("listaAtividadesEstatistica");
     var linhaCombinada = containerCombinado ? containerCombinado.querySelector('.linha-total-combinado') : null;
     if (linhaCombinada) {
-        var linhaSeate = containerCombinado.querySelector('.linha-total-setor[data-setor-total="SEATE"]');
-        var linhaNahora = containerCombinado.querySelector('.linha-total-setor[data-setor-total="NAHORA"]');
+        var linhasSetores = containerCombinado.querySelectorAll('.linha-total-setor'); // SEATE, NAHORA e DIGITALIZAÇÃO (quando houver)
         var totalGeralCombinadoRecalc = 0;
         for (var jc = 0; jc < meses.length; jc++) {
-            var valSeate = 0, valNahora = 0;
-            if (linhaSeate) {
-                var celSeate = linhaSeate.querySelector('[data-total-mes="' + meses[jc] + '"]');
-                if (celSeate) valSeate = parseInt(celSeate.innerText.replace(/\D/g, '')) || 0;
-            }
-            if (linhaNahora) {
-                var celNahora = linhaNahora.querySelector('[data-total-mes="' + meses[jc] + '"]');
-                if (celNahora) valNahora = parseInt(celNahora.innerText.replace(/\D/g, '')) || 0;
-            }
-            var somaMesRecalc = valSeate + valNahora;
+            var somaMesRecalc = 0;
+            linhasSetores.forEach(function (ls) {
+                var cel = ls.querySelector('[data-total-mes="' + meses[jc] + '"]');
+                if (cel) somaMesRecalc += parseInt(cel.innerText.replace(/\D/g, '')) || 0;
+            });
             totalGeralCombinadoRecalc += somaMesRecalc;
             var celulaCombinada = linhaCombinada.querySelector('[data-total-mes-combinado="' + meses[jc] + '"]');
             if (celulaCombinada) celulaCombinada.innerText = formatarMilhar(somaMesRecalc);
@@ -1272,6 +1282,7 @@ async function salvarDadosEstatisticaModal() {
         for (var i = 0; i < inputs.length; i++) {
             var inp = inputs[i];
             var setorInput = inp.getAttribute('data-setor');
+            if (setorInput !== 'SEATE' && setorInput !== 'NAHORA') continue; // DIGITALIZAÇÃO vem só dos registros
             var atividade = inp.getAttribute('data-atividade');
             var mes = inp.getAttribute('data-mes');
             var valor = parseInt(inp.value) || 0;
@@ -1391,6 +1402,7 @@ function criarGraficoEvolucao() {
     var anos = getAnosDisponiveis();
     var seateValues = [];
     var nahoraValues = [];
+    var digitValues = [];
     
     async function montar() {
     for (var i = 0; i < anos.length; i++) {
@@ -1398,7 +1410,10 @@ function criarGraficoEvolucao() {
         var totaisAno = await obterSeateNahoraPorAno(ano);
         seateValues.push(totaisAno.seateTotal);
         nahoraValues.push(totaisAno.nahoraTotal);
+        digitValues.push(totaisAno.digitTotal || null); // sem barra (nem "0") nos anos sem DIGITALIZAÇÃO
     }
+    var h3Evo = document.querySelector('#modalGraficoEvolucao h3');
+    if (h3Evo) h3Evo.textContent = digitValues.some(function (v) { return v > 0; }) ? '📊 Evolução Anual - SEATE, NAHORA e DIGITALIZAÇÃO' : '📊 Evolução Anual - SEATE vs NAHORA';
     
     var coresSeate = ['#0F2D52', '#1F4E79', '#3B80C0', '#639CD0', '#8BB8E0'];
     var coresNahora = ['#B30000', '#CC3333', '#E66666', '#FF9999', '#FFCCCC'];
@@ -1429,7 +1444,14 @@ function criarGraficoEvolucao() {
                     borderWidth: 1,
                     datasetIndex: 1
                 }
-            ]
+            ].concat(digitValues.some(function (v) { return v > 0; }) ? [{
+                    label: 'DIGITALIZAÇÃO',
+                    data: digitValues,
+                    backgroundColor: '#0F766E',
+                    borderColor: '#0F766E',
+                    borderWidth: 1,
+                    datasetIndex: 2
+                }] : [])
         },
         options: {
             responsive: true,
@@ -1465,7 +1487,7 @@ function criarGraficoEvolucao() {
                     var datasetIndex = elements[0].datasetIndex;
                     var anos = getAnosDisponiveis();
                     var ano = anos[index];
-                    var setor = datasetIndex === 0 ? "SEATE" : "NAHORA";
+                    var setor = datasetIndex === 0 ? "SEATE" : (datasetIndex === 1 ? "NAHORA" : "DIGITALIZAÇÃO");
                     fecharModalGraficoEvolucao();
                     abrirModalIndicador(ano, setor);
                 }
@@ -1490,20 +1512,16 @@ function criarGraficoEvolucao() {
                     });
                 });
 
-                // Total combinado (SEATE + NAHORA) de cada ano, centralizado
-                // entre as duas barras e acima dos dois números individuais
-                // — assim o gestor vê o separado e o conjunto ao mesmo tempo.
-                var metaSeate = chart.getDatasetMeta(0);
-                var metaNahora = chart.getDatasetMeta(1);
-                var seateData = chart.data.datasets[0].data;
-                var nahoraData = chart.data.datasets[1].data;
+                // Total combinado (SEATE + NAHORA + DIGITALIZAÇÃO, quando houver) de cada ano,
+                // centralizado acima das barras do ano.
+                var metas = chart.data.datasets.map(function (d, k) { return chart.getDatasetMeta(k); });
+                var metaSeate = metas[0];
                 for (var i = 0; i < metaSeate.data.length; i++) {
-                    var barSeate = metaSeate.data[i];
-                    var barNahora = metaNahora.data[i];
-                    if (!barSeate || !barNahora) continue;
-                    var total = (seateData[i] || 0) + (nahoraData[i] || 0);
-                    var xCentro = (barSeate.x + barNahora.x) / 2;
-                    var yTopo = Math.min(barSeate.y, barNahora.y) - 18;
+                    var barras = metas.map(function (m) { return m.data[i]; }).filter(function (b) { return b && isFinite(b.y); });
+                    if (barras.length < 2) continue;
+                    var total = chart.data.datasets.reduce(function (soma, d) { return soma + (d.data[i] || 0); }, 0);
+                    var xCentro = (barras[0].x + barras[barras.length - 1].x) / 2;
+                    var yTopo = Math.min.apply(null, barras.map(function (b) { return b.y; })) - 18;
                     ctx.fillStyle = '#8A5A00';
                     ctx.font = 'bold 12px Arial';
                     ctx.textAlign = 'center';

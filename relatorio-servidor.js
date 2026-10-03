@@ -760,7 +760,7 @@
             L.push([s.nome, 'TOTAL ' + s.nome].concat(s.totMes, [s.total]));
             L.push([]);
         });
-        if (d.setores.length > 1) L.push(['SEATE + NAHORA', 'Total mensal combinado'].concat(d.comb, [d.total]));
+        if (d.setores.length > 1) L.push([d.setores.map(function (x) { return x.nome; }).join(' + '), 'Total mensal combinado'].concat(d.comb, [d.total]));
         L.push(['TOTAL GERAL ' + d.ano, '', '', '', '', '', '', '', '', '', '', '', '', '', d.total]);
         var csv = L.map(function (row) { return row.map(csvCampo).join(';'); }).join('\r\n');
         var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -804,7 +804,7 @@
                 h += '<td class="n">' + num(s.total) + '</td></tr></tbody></table></div>';
             });
             if (d.setores.length > 1) {
-                h += '<div class="rel-bloco"><div class="rel-secao">SEATE + NAHORA</div><table class="rel-tab rel-anual"><colgroup><col style="width:24%">';
+                h += '<div class="rel-bloco"><div class="rel-secao">' + esc(d.setores.map(function (x) { return x.nome; }).join(' + ')) + '</div><table class="rel-tab rel-anual"><colgroup><col style="width:24%">';
                 for (var j = 0; j < 12; j++) h += '<col>';
                 h += '<col style="width:7%"></colgroup><thead><tr><th></th>';
                 MESES_ABREV.forEach(function (m) { h += '<th class="c">' + m + '</th>'; });

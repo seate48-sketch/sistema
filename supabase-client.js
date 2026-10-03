@@ -565,7 +565,7 @@ async function dbExcluirRegistroDia(nomeServidor, data) {
 
 async function dbCarregarTotaisAno(ano) {
     const MESES = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-    const vazio = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {} };
+    const vazio = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, digitTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porAtividadeDigit: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {}, porAtividadeMesDigit: {} };
     MESES.forEach(m => { vazio.porMes[m] = 0; });
     if (!supabaseDisponivel || !db) return vazio;
 
@@ -577,20 +577,21 @@ async function dbCarregarTotaisAno(ano) {
             .lte('data', ano + '-12-31');
         if (error) { console.error('dbCarregarTotaisAno:', error); return vazio; }
 
-        const resultado = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {} };
+        const resultado = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, digitTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porAtividadeDigit: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {}, porAtividadeMesDigit: {} };
         MESES.forEach(m => { resultado.porMes[m] = 0; });
 
         (data || []).forEach(linha => {
             const lot = linha.servidores ? linha.servidores.lotacao : null;
             const atividadesDia = linha.atividades || {};
             const mesNome = MESES[parseInt(linha.data.split('-')[1], 10) - 1];
-            const porAtivMes = lot === 'SEATE' ? resultado.porAtividadeMesSeate : (lot === 'NAHORA' ? resultado.porAtividadeMesNahora : null);
+            const porAtivMes = lot === 'SEATE' ? resultado.porAtividadeMesSeate : (lot === 'NAHORA' ? resultado.porAtividadeMesNahora : (lot === 'DIGITALIZAÇÃO' ? resultado.porAtividadeMesDigit : null));
             let totalDia = 0;
             for (const ativ in atividadesDia) {
                 const valor = atividadesDia[ativ] || 0;
                 totalDia += valor;
                 if (lot === 'SEATE') resultado.porAtividadeSeate[ativ] = (resultado.porAtividadeSeate[ativ] || 0) + valor;
                 else if (lot === 'NAHORA') resultado.porAtividadeNahora[ativ] = (resultado.porAtividadeNahora[ativ] || 0) + valor;
+                else if (lot === 'DIGITALIZAÇÃO') resultado.porAtividadeDigit[ativ] = (resultado.porAtividadeDigit[ativ] || 0) + valor;
                 if (porAtivMes && mesNome) {
                     if (!porAtivMes[ativ]) porAtivMes[ativ] = {};
                     porAtivMes[ativ][mesNome] = (porAtivMes[ativ][mesNome] || 0) + valor;
@@ -599,6 +600,7 @@ async function dbCarregarTotaisAno(ano) {
             resultado.totalGeral += totalDia;
             if (lot === 'SEATE') resultado.seateTotal += totalDia;
             else if (lot === 'NAHORA') resultado.nahoraTotal += totalDia;
+            else if (lot === 'DIGITALIZAÇÃO') resultado.digitTotal += totalDia;
             if (mesNome) resultado.porMes[mesNome] += totalDia;
         });
 

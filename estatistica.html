@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=21">
-    <link rel="icon" href="icons/favicon-32.png?v=21">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=21">
+    <link rel="manifest" href="manifest.json?v=22">
+    <link rel="icon" href="icons/favicon-32.png?v=22">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=22">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=21').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=22').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Estatística</title>
-    <link rel="stylesheet" href="style.css?v=21">
+    <link rel="stylesheet" href="style.css?v=22">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=21"></script>
+    <script src="config.js?v=22"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=21"></script>
+    <script src="supabase-client.js?v=22"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=21"></script>
+    <script src="common.js?v=22"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=21"></script>
+    <script src="relatorio-estatistico.js?v=22"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -598,9 +598,10 @@
                             <div class="form-group">
                                 <label>Setor</label>
                                 <select id="selectSetorTop10Config">
-                                    <option value="ambos">Ambos</option>
+                                    <option value="ambos">Todos</option>
                                     <option value="SEATE">SEATE</option>
                                     <option value="NAHORA">NAHORA</option>
+                                    <option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex: 2; min-width: 220px;">
@@ -635,9 +636,10 @@
                             <div class="form-group">
                                 <label>Setor</label>
                                 <select id="selectSetorTop10MenosConfig">
-                                    <option value="ambos">Ambos</option>
+                                    <option value="ambos">Todos</option>
                                     <option value="SEATE">SEATE</option>
                                     <option value="NAHORA">NAHORA</option>
+                                    <option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex: 2; min-width: 220px;">
@@ -696,9 +698,10 @@
                     <div class="form-group">
                         <label>Setor</label>
                         <select id="selectSetorResultado">
-                            <option value="ambos">Ambos</option>
+                            <option value="ambos">Todos</option>
                             <option value="SEATE">SEATE</option>
                             <option value="NAHORA">NAHORA</option>
+                            <option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 220px;">
@@ -853,6 +856,7 @@
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
 async function calcularDadosMensaisAnoAtual() {
     var totais = await obterTotaisAnoAtual();
+    window._temDigitAnoAtual = !!(totais && totais.digitTotal); // rótulo do gráfico (os valores já incluem DIGITALIZAÇÃO)
     var dadosMensais = Object.assign({}, totais.porMes);
 
     // Soma tambem o que foi alimentado manualmente em "Dados Estatisticos"
@@ -934,6 +938,7 @@ async function renderizarIndicadores() {
     
     var totalSeateGeral = 0;
     var totalNahoraGeral = 0;
+    var totalDigitGeral = 0; // DIGITALIZAÇÃO (só registros, a partir de set/2026)
     
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
@@ -946,6 +951,7 @@ async function renderizarIndicadores() {
         
         totalSeateGeral += seateTotal;
         totalNahoraGeral += nahoraTotal;
+        totalDigitGeral += (totaisAno.digitTotal || 0);
     }
     
     for (var i = 0; i < anos.length; i++) {
@@ -958,21 +964,22 @@ async function renderizarIndicadores() {
         seateTotal = totaisAno2.seateTotal;
         nahoraTotal = totaisAno2.nahoraTotal;
         
-        var totalGeral = seateTotal + nahoraTotal;
+        var digitTotal = totaisAno2.digitTotal || 0;
+        var totalGeral = seateTotal + nahoraTotal + digitTotal;
         
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
         html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
-        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + (digitTotal ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(digitTotal) : '') + '</div>';
         html += '<div class="indicador-status">Clique para ver detalhes</div>';
         html += '</div>';
     }
     
-    var totalGeralFinal = totalSeateGeral + totalNahoraGeral;
+    var totalGeralFinal = totalSeateGeral + totalNahoraGeral + totalDigitGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
     html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
-    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + '</div>';
+    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + (totalDigitGeral ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(totalDigitGeral) : '') + '</div>';
     html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
     html += '</div>';
     
@@ -989,6 +996,8 @@ async function abrirModalIndicador(ano, setor) {
             título = ano + " - SEATE";
         } else if (setor === "NAHORA") {
             título = ano + " - NAHORA";
+        } else if (setor === "DIGITALIZAÇÃO") {
+            título = ano + " - DIGITALIZAÇÃO";
         } else {
             título = ano + " - SEATE + NAHORA";
         }
@@ -1003,6 +1012,7 @@ async function abrirModalIndicador(ano, setor) {
             var totaisAnoAtual = await obterTotaisAno(ano);
             var seateTotais = Object.assign({}, totaisAnoAtual.porAtividadeSeate);
             var nahoraTotais = Object.assign({}, totaisAnoAtual.porAtividadeNahora);
+            var digitTotais = Object.assign({}, totaisAnoAtual.porAtividadeDigit || {}); // DIGITALIZAÇÃO: só registros
 
             // Soma o que o gestor alimentou manualmente em "Dados Estatísticos"
             // (meses do ano corrente que ainda não têm registro dos
@@ -1027,6 +1037,8 @@ async function abrirModalIndicador(ano, setor) {
             
             var mostrarSeate = (setor === null || setor === "SEATE");
             var mostrarNahora = (setor === null || setor === "NAHORA");
+            var digitTotal = 0;
+            var mostrarDigit = (setor === null || setor === "DIGITALIZAÇÃO") && Object.keys(digitTotais).length > 0;
             
             if (mostrarSeate) {
                 html += '<div class="titulo-secao">SEATE</div>';
@@ -1077,11 +1089,26 @@ async function abrirModalIndicador(ano, setor) {
                 html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr>';
                 html += '</tbody></table></div>';
             }
+            if (mostrarDigit) {
+                html += '<div class="titulo-secao">DIGITALIZAÇÃO</div>';
+                html += '<div class="tabela-estatistica-container">';
+                html += '<table class="tabela-estatistica">';
+                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
+                var digitItems = [];
+                for (var ativD in digitTotais) { digitItems.push({ nome: ativD, total: digitTotais[ativD] }); digitTotal += digitTotais[ativD]; }
+                digitItems.sort(function(a, b) { return b.total - a.total; });
+                for (var iD = 0; iD < digitItems.length; iD++) {
+                    html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(digitItems[iD].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(digitItems[iD].total) + '</td></tr>';
+                }
+                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL DIGITALIZAÇÃO</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(digitTotal) + '</td></tr>';
+                html += '</tbody></table></div>';
+            }
+
             
             if (setor === null) {
-                var totalGeralAnoAtual = seateTotal + nahoraTotal;
+                var totalGeralAnoAtual = seateTotal + nahoraTotal + digitTotal;
                 html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar(totalGeralAnoAtual);
+                html += 'TOTAL GERAL ' + ano + (digitTotal ? ' (SEATE + NAHORA + DIGITALIZAÇÃO): ' : ' (SEATE + NAHORA): ') + formatarMilhar(totalGeralAnoAtual);
                 html += '</div>';
                 html += '<div style="margin-top:8px; text-align:right; font-size:0.75rem; color:#888;">Dados herdados automaticamente dos registros dos servidores.</div>';
             }
@@ -1186,12 +1213,13 @@ function criarGraficoEvolucao() {
     var ctx = document.getElementById('graficoEvolucaoAnual').getContext('2d');
     var anos = getAnosDisponiveis();
     var valoresTotais = [];
+    var temDigitEvolucao = false;
     
     async function montar() {
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
         var totaisAno = await obterSeateNahoraPorAno(ano);
-        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal);
+        valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal + (totaisAno.digitTotal || 0)); if (totaisAno.digitTotal) temDigitEvolucao = true;
     }
     
     var cores = ['#0F2D52', '#1A3D6B', '#264D84', '#315E9C', '#3D6EB5'];
@@ -1206,7 +1234,7 @@ function criarGraficoEvolucao() {
         data: {
             labels: anos,
             datasets: [{
-                label: 'TOTAL GERAL (SEATE + NAHORA)',
+                label: temDigitEvolucao ? 'TOTAL GERAL (SEATE + NAHORA + DIGITALIZAÇÃO)' : 'TOTAL GERAL (SEATE + NAHORA)',
                 data: valoresTotais,
                 backgroundColor: cores,
                 borderColor: cores.map(c => c),
@@ -1325,7 +1353,7 @@ async function criarGraficoMensalAnoAtual() {
         data: {
             labels: meses,
             datasets: [{
-                label: 'Atividades ' + ANO_ATUAL + ' (SEATE + NAHORA)',
+                label: 'Atividades ' + ANO_ATUAL + (window._temDigitAnoAtual ? ' (SEATE + NAHORA + DIGITALIZAÇÃO)' : ' (SEATE + NAHORA)'),
                 data: valores,
                 backgroundColor: coresMensal,
                 borderColor: coresMensal,
@@ -1508,25 +1536,27 @@ async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, 
     }
 
     var porAtividade = [];
-    var totalGeralGeral = 0, totalSeateGeralGeral = 0, totalNahoraGeralGeral = 0;
+    var totalGeralGeral = 0, totalSeateGeralGeral = 0, totalNahoraGeralGeral = 0, totalDigitGeralGeral = 0;
 
     for (var a = 0; a < listaAtividades.length; a++) {
         var atividade = listaAtividades[a];
         var linhas = [];
-        var totalSeateAtiv = 0, totalNahoraAtiv = 0;
+        var totalSeateAtiv = 0, totalNahoraAtiv = 0, totalDigitAtiv = 0;
 
         for (var p = 0; p < pontos.length; p++) {
             var ano = pontos[p].ano;
             var mesIndex = pontos[p].mes;
             var mesNome = MESES_NOMES_RELATORIO[mesIndex];
             var fonte = await obterFonteAno(ano);
-            var valorSeate = 0, valorNahora = 0;
+            var valorSeate = 0, valorNahora = 0, valorDigit = 0;
 
             if (fonte.isAnoAtual) {
                 var porMesSeate = fonte.totaisAnoAtual.porAtividadeMesSeate[atividade] || {};
                 var porMesNahora = fonte.totaisAnoAtual.porAtividadeMesNahora[atividade] || {};
                 valorSeate += porMesSeate[mesNome] || 0;
                 valorNahora += porMesNahora[mesNome] || 0;
+                var porMesDigit = (fonte.totaisAnoAtual.porAtividadeMesDigit || {})[atividade] || {}; // DIGITALIZAÇÃO: só registros
+                valorDigit += porMesDigit[mesNome] || 0;
             }
             if (fonte.dadosAno) {
                 var seateData = fonte.dadosAno["SEATE"] || {};
@@ -1535,24 +1565,27 @@ async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, 
                 valorNahora += (nahoraData[atividade] && nahoraData[atividade][mesNome]) || 0;
             }
 
-            if (setor === "SEATE") valorNahora = 0;
-            else if (setor === "NAHORA") valorSeate = 0;
+            if (setor === "SEATE") { valorNahora = 0; valorDigit = 0; }
+            else if (setor === "NAHORA") { valorSeate = 0; valorDigit = 0; }
+            else if (setor === "DIGITALIZAÇÃO") { valorSeate = 0; valorNahora = 0; }
 
-            var total = valorSeate + valorNahora;
+            var total = valorSeate + valorNahora + valorDigit;
             if (total > 0) {
-                linhas.push({ ano: ano, mesNome: mesNome, seate: valorSeate, nahora: valorNahora, total: total });
+                linhas.push({ ano: ano, mesNome: mesNome, seate: valorSeate, nahora: valorNahora, digit: valorDigit, total: total });
             }
             totalSeateAtiv += valorSeate;
             totalNahoraAtiv += valorNahora;
+            totalDigitAtiv += valorDigit;
         }
 
-        var totalAtiv = totalSeateAtiv + totalNahoraAtiv;
+        var totalAtiv = totalSeateAtiv + totalNahoraAtiv + totalDigitAtiv;
         if (totalAtiv > 0) {
-            porAtividade.push({ nome: atividade, linhas: linhas, totalSeate: totalSeateAtiv, totalNahora: totalNahoraAtiv, total: totalAtiv });
+            porAtividade.push({ nome: atividade, linhas: linhas, totalSeate: totalSeateAtiv, totalNahora: totalNahoraAtiv, totalDigit: totalDigitAtiv, total: totalAtiv });
         }
         totalGeralGeral += totalAtiv;
         totalSeateGeralGeral += totalSeateAtiv;
         totalNahoraGeralGeral += totalNahoraAtiv;
+        totalDigitGeralGeral += totalDigitAtiv;
     }
 
     porAtividade.sort(function(a, b) { return b.total - a.total; });
@@ -1561,7 +1594,8 @@ async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, 
         porAtividade: porAtividade,
         totalGeral: totalGeralGeral,
         totalSeate: totalSeateGeralGeral,
-        totalNahora: totalNahoraGeralGeral
+        totalNahora: totalNahoraGeralGeral,
+        totalDigit: totalDigitGeralGeral
     };
 }
 
@@ -1574,6 +1608,8 @@ function renderizarTabelaResultadosMulti(resultado, setor) {
         return;
     }
 
+    var comS = (setor === "ambos" || setor === "SEATE"), comN = (setor === "ambos" || setor === "NAHORA");
+    var comD = (setor === "DIGITALIZAÇÃO") || (setor === "ambos" && (resultado.totalDigit || 0) > 0); // coluna só quando houver dados
     var html = '';
     for (var a = 0; a < resultado.porAtividade.length; a++) {
         var bloco = resultado.porAtividade[a];
@@ -1581,18 +1617,21 @@ function renderizarTabelaResultadosMulti(resultado, setor) {
         html += '<h4>' + escapeHtml(bloco.nome) + '</h4>';
         html += '<table class="tabela-resultados"><thead><tr><th>Ano/Mês</th>';
         if (setor === "ambos" || setor === "SEATE") html += '<th>SEATE</th>';
-        if (setor === "ambos" || setor === "NAHORA") html += '<th>NAHORA</th>';
+        if (comN) html += '<th>NAHORA</th>';
+        if (comD) html += '<th>DIGITALIZAÇÃO</th>';
         html += '<th>TOTAL</th></tr></thead><tbody>';
         for (var i = 0; i < bloco.linhas.length; i++) {
             var item = bloco.linhas[i];
             html += '<tr><td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
             if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(item.seate) + '</td>';
             if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(item.nahora) + '</td>';
+            if (comD) html += '<td>' + formatarMilhar(item.digit || 0) + '</td>';
             html += '<td>' + formatarMilhar(item.total) + '</td></tr>';
         }
         html += '<tr class="total-row"><td><strong>SUBTOTAL</strong></td>';
         if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(bloco.totalSeate) + '</td>';
         if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(bloco.totalNahora) + '</td>';
+        if (comD) html += '<td>' + formatarMilhar(bloco.totalDigit || 0) + '</td>';
         html += '<td>' + formatarMilhar(bloco.total) + '</td></tr>';
         html += '</tbody></table></div>';
     }
@@ -1912,7 +1951,9 @@ function exportarCSV() {
 
     var csv = "Atividade;Ano/Mes";
     if (setor === "ambos" || setor === "SEATE") csv += ";SEATE";
+    var comD = (setor === "DIGITALIZAÇÃO") || (setor === "ambos" && (resultado.totalDigit || 0) > 0);
     if (setor === "ambos" || setor === "NAHORA") csv += ";NAHORA";
+    if (comD) csv += ";DIGITALIZAÇÃO";
     csv += ";TOTAL\n";
 
     for (var a = 0; a < resultado.porAtividade.length; a++) {
@@ -1922,17 +1963,20 @@ function exportarCSV() {
             csv += bloco.nome + ";" + item.ano + "-" + item.mesNome;
             if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
             if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
+            if (comD) csv += ";" + (item.digit || 0);
             csv += ";" + item.total + "\n";
         }
         csv += bloco.nome + ";SUBTOTAL";
         if (setor === "ambos" || setor === "SEATE") csv += ";" + bloco.totalSeate;
         if (setor === "ambos" || setor === "NAHORA") csv += ";" + bloco.totalNahora;
+        if (comD) csv += ";" + (bloco.totalDigit || 0);
         csv += ";" + bloco.total + "\n";
     }
 
     csv += "TOTAL GERAL;;";
     if (setor === "ambos" || setor === "SEATE") csv += ";" + resultado.totalSeate;
     if (setor === "ambos" || setor === "NAHORA") csv += ";" + resultado.totalNahora;
+    if (comD) csv += ";" + (resultado.totalDigit || 0);
     csv += ";" + resultado.totalGeral + "\n";
 
     var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -1962,7 +2006,7 @@ function exportarCSV() {
 async function iniciarPagina() {
     var sessao = await exigirAutenticacao();
     if (!sessao) return;
-    document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + " (SEATE + NAHORA)";
+    obterTotaisAnoAtual().then(function (t) { window._temDigitAnoAtual = !!(t && t.digitTotal); document.getElementById("tituloMensalAnoAtual").textContent = "Atividades Mensais - " + ANO_ATUAL + (window._temDigitAnoAtual ? " (SEATE + NAHORA + DIGITALIZAÇÃO)" : " (SEATE + NAHORA)"); });
     renderizarSelectsPeriodoResultado();
     await carregarDados();
     renderizarIndicadores();
