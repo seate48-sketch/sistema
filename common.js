@@ -955,6 +955,17 @@ function dialogoExclusaoAtividade(nome) {
     });
 }
 
+// Mostra ao gestor quando o banco recusou gravar um servidor (antes o erro ficava escondido
+// e o servidor "sumia" ao recarregar a página).
+function avisarFalhaGravacaoServidor(nome, lotacao, msg) {
+    var lot = /lotacao|check|enum|invalid input value/i.test(msg || '');
+    var texto = 'Não foi possível gravar "' + nome + '" no banco de dados.\n\n' +
+        (lot ? 'O banco não aceitou a lotação "' + lotacao + '". Para liberar a lotação DIGITALIZAÇÃO, rode no Supabase o arquivo 16_lotacao_digitalizacao.sql.'
+             : 'Detalhe: ' + (msg || 'erro desconhecido')) +
+        '\n\nO cadastro NÃO foi salvo — por isso ele sumiria ao recarregar a página.';
+    alert(texto);
+}
+
 async function salvarServidores() {
     var TABLES = getTables();
     
@@ -972,6 +983,7 @@ async function salvarServidores() {
         logDebug('📤 Enviando servidores para o Supabase...');
         let sucessos = 0;
         let erros = 0;
+        const falhas = []; // {nome, msg} — devolvido para a tela avisar o gestor
         
         for (let i = 0; i < servidores.length; i++) {
             const nome = servidores[i];
@@ -990,6 +1002,7 @@ async function salvarServidores() {
                 
                 if (error) {
                     erros++;
+                    falhas.push({ nome: nome, msg: error.message || '' });
                     console.error('❌ Erro ao salvar servidor "' + nome + '":', error.message);
                 } else {
                     sucessos++;
@@ -1001,6 +1014,7 @@ async function salvarServidores() {
         }
         
         logDebug('📊 Resumo: ' + sucessos + ' servidores salvos, ' + erros + ' erros.');
+        return { falhas: falhas };
         
     } catch (e) {
         console.error('❌ Erro CRÍTICO ao sincronizar servidores:', e.message);
