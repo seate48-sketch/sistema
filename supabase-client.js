@@ -128,6 +128,30 @@ const _cache = {
 // sem erro visível para quem estava usando o sistema. Esta função
 // resolve isso: usa o cache quando já existe, e só busca direto no
 // banco (e preenche o cache) se ainda não tinha carregado.
+// ============================================================
+// LEITURA COMPLETA (limite de 1000 linhas do Supabase)
+// ============================================================
+// O Supabase devolve no máximo 1000 linhas por consulta. Aqui a consulta
+// roda primeiro exatamente como antes; só se vierem 1000 linhas (sinal de
+// que houve corte) ela é refeita em páginas de 1000, com ordem estável,
+// até ler tudo. Abaixo de 1000 linhas nada muda no comportamento.
+// "montar(ordenar)" devolve a consulta já filtrada; com ordenar = true,
+// acrescenta a ordem estável usada na leitura em páginas.
+async function _lerTodasPaginas(montar) {
+    const TAM = 1000;
+    const primeira = await montar(false);
+    if (primeira.error || !Array.isArray(primeira.data) || primeira.data.length < TAM) return primeira;
+    let todas = [];
+    for (let pg = 0; pg < 500; pg++) {
+        const { data, error } = await montar(true).range(pg * TAM, pg * TAM + TAM - 1);
+        if (error) return { data: null, error };
+        const lote = data || [];
+        todas = todas.concat(lote);
+        if (lote.length < TAM) break;
+    }
+    return { data: todas, error: null };
+}
+
 async function obterServidorPorNome(nomeServidor) {
     if (_cache.servidores[nomeServidor]) return _cache.servidores[nomeServidor];
     if (!supabaseDisponivel || !db) return null;
@@ -470,10 +494,10 @@ async function dbCarregarRegistros(nomeServidor) {
         const serv = await obterServidorPorNome(nomeServidor);
         if (!serv) return null;
 
-        const { data, error } = await db
+        const { data, error } = await _lerTodasPaginas(ordenar => { const q = db
             .from(TABLES.REGISTROS)
             .select('data, atividades, ausencia')
-            .eq('servidor_id', serv.id);
+            .eq('servidor_id', serv.id); return ordenar ? q.order('data') : q; });
         if (error) { console.error('dbCarregarRegistros:', error); return null; }
 
         const result = {};
@@ -501,12 +525,12 @@ async function dbCarregarRegistrosServidoresPeriodo(nomesServidores, dataInicio,
         }
         if (ids.length === 0) return [];
 
-        const { data, error } = await db
+        const { data, error } = await _lerTodasPaginas(ordenar => { const q = db
             .from(TABLES.REGISTROS)
             .select('data, atividades, servidores(nome)')
             .in('servidor_id', ids)
             .gte('data', dataInicio)
-            .lte('data', dataFim);
+            .lte('data', dataFim); return ordenar ? q.order('data').order('servidor_id') : q; });
         if (error) { console.error('dbCarregarRegistrosServidoresPeriodo:', error); return null; }
 
         return data.map(r => ({
@@ -570,11 +594,11 @@ async function dbCarregarTotaisAno(ano) {
     if (!supabaseDisponivel || !db) return vazio;
 
     try {
-        const { data, error } = await db
+        const { data, error } = await _lerTodasPaginas(ordenar => { const q = db
             .from(TABLES.REGISTROS)
             .select('data, atividades, servidores(lotacao)')
             .gte('data', ano + '-01-01')
-            .lte('data', ano + '-12-31');
+            .lte('data', ano + '-12-31'); return ordenar ? q.order('data').order('servidor_id') : q; });
         if (error) { console.error('dbCarregarTotaisAno:', error); return vazio; }
 
         const resultado = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, digitTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porAtividadeDigit: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {}, porAtividadeMesDigit: {} };
@@ -983,7 +1007,7 @@ async function dbCarregarDadosAno(ano) {
     if (!supabaseDisponivel || !db) return null;
 
     try {
-        const { data, error } = await db.from(TABLES.DADOS_HISTORICOS).select('setor, atividade, mes, valor').eq('ano', String(ano));
+        const { data, error } = await _lerTodasPaginas(ordenar => { const q = db.from(TABLES.DADOS_HISTORICOS).select('setor, atividade, mes, valor').eq('ano', String(ano)); return ordenar ? q.order('setor').order('atividade').order('mes') : q; });
         if (error) { console.error('dbCarregarDadosAno:', error); return null; }
 
         const resultado = { SEATE: {}, NAHORA: {} };
@@ -1296,11 +1320,11 @@ async function dbCarregarPreenchimento(arrServidores, mesConfig, anoConfig) {
         const servIds = servIdsRaw.filter(Boolean);
         if (arrServidores.length > 0 && servIds.length === 0) return null;
 
-        const { data, error } = await db.from(TABLES.REGISTROS)
+        const { data, error } = await _lerTodasPaginas(ordenar => { const q = db.from(TABLES.REGISTROS)
             .select('servidor_id')
             .in('servidor_id', servIds.length > 0 ? servIds : [null])
             .gte('data', inicio)
-            .lte('data', fim);
+            .lte('data', fim); return ordenar ? q.order('data').order('servidor_id') : q; });
 
         if (error) { console.error('dbCarregarPreenchimento:', error); return null; }
         const preenchidos = new Set((data || []).map(r => r.servidor_id));
