@@ -121,6 +121,19 @@
         .desempenho-btn{background:var(--destaque);color:var(--azul-marinho);border:none;padding:6px 14px;border-radius:30px;cursor:pointer;font-weight:600;font-size:0.75rem;margin-left:10px;transition:0.2s;}
         .desempenho-btn:hover{opacity:0.9;transform:scale(1.02);}
         .version-tag{font-size:0.7rem;opacity:0.85;margin-left:6px;background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:16px;color:var(--branco);}
+        /* Cabeçalho no computador: mantém a faixa (Setor/Período/botões) na mesma linha do título,
+           mesmo com setor de nome longo (ex.: DIGITALIZAÇÃO) — o título quebra em linhas se faltar espaço */
+        @media (min-width:769px){
+            .logo-area{flex:1 1 0;min-width:400px}
+            .logo-placeholder{flex-shrink:0}
+            .header-titles{min-width:0}
+            .header-info{flex-shrink:0;flex-wrap:nowrap;white-space:nowrap}
+        }
+        @media (min-width:769px) and (max-width:1200px){
+            .header-info{gap:10px;padding:10px 14px}
+            .desempenho-btn,.header-info .entrega-btn{margin-left:0}
+            .version-tag{margin-left:0}
+        }
         
         .bloqueio-overlay {
             position: fixed;
@@ -293,8 +306,9 @@
         .modal-close{font-size:28px;cursor:pointer}
         .modal-body{padding:22px}
         .activities-list{display:flex;flex-direction:column;gap:14px;max-height:40vh;overflow-y:auto}
-        .activity-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--cinza-suave);border-radius:14px;gap:16px;flex-wrap:wrap}
-        .activity-name{font-weight:500;color:var(--azul-marinho);min-width:160px}
+        .activity-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--cinza-suave);border-radius:14px;gap:16px;flex-wrap:nowrap}
+        .activity-name{font-weight:500;color:var(--azul-marinho);min-width:0;flex:1 1 auto;overflow-wrap:anywhere}
+        .activity-row .activity-input{flex:0 0 110px}
         .activity-input{width:110px;padding:8px;border:1px solid var(--cinza-borda);border-radius:30px;text-align:center}
         .absence-select{width:100%;padding:10px;margin:15px 0;border-radius:12px;border:1px solid var(--cinza-borda)}
         .modal-actions{display:flex;justify-content:center;gap:12px;margin-top:20px}
