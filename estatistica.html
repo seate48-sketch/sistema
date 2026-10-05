@@ -742,12 +742,14 @@
             <!-- ===== FIM RESULTADOS POR ATIVIDADE ===== -->
             <!-- ============================================================ -->
             
-            <!-- ===== RELATÓRIO POR SERVIDOR ===== -->
-            <div class="card" id="cardRelatorioServidor">
-                <h3>Relatório por Servidor</h3>
+            <!-- ===== AMBIENTE DE PESQUISAS POR SERVIDOR (Relatório por Servidor + Servidores por Atividade) ===== -->
+            <div id="ambientePesquisasServidor" style="background:#FFEDD5; border:1px solid #FDBA74; border-radius:20px; padding:16px 14px 2px; margin-bottom:24px;">
                 <div style="background:#FFF3CD; border:1px solid var(--destaque); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#664d03;">
                     ⚠️ <strong>Atenção:</strong> <span id="textoAvisoInicioRegistros">Verificando a partir de quando existem registros de servidores...</span>
                 </div>
+            <!-- ===== RELATÓRIO POR SERVIDOR ===== -->
+            <div class="card" id="cardRelatorioServidor">
+                <h3>Relatório por Servidor</h3>
 
                 <div class="filtros-resultados">
                     <div class="form-group" style="flex: 2; min-width: 220px;">
@@ -806,10 +808,6 @@
             <!-- ===== SERVIDORES POR ATIVIDADE ===== -->
             <div class="card" id="cardServidoresAtividade">
                 <h3>Servidores por Atividade</h3>
-                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#1E3A5F;">
-                    ℹ️ Relaciona os servidores que alimentam cada atividade pelo registro, no período escolhido. Fonte: somente os registros dos servidores (anos com lançamento manual não têm servidor).
-                </div>
-
                 <div class="filtros-resultados">
                     <div class="form-group" style="flex: 2; min-width: 220px;">
                         <label>Atividade(s)</label>
@@ -852,6 +850,8 @@
                     <div style="text-align:center; padding:40px; color:#888;">Selecione a(s) atividade(s) e clique em Filtrar.</div>
                 </div>
             </div>
+            </div>
+            <!-- ===== FIM AMBIENTE DE PESQUISAS POR SERVIDOR ===== -->
         </div>
     </main>
     <div class="footer">SEATE - Sistema de Gestao de Atividades | Justica Federal - SJDF</div>
