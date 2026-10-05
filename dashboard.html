@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=23">
-    <link rel="icon" href="icons/favicon-32.png?v=23">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=23">
+    <link rel="manifest" href="manifest-dashboard.json?v=24">
+    <link rel="icon" href="icons/favicon-32.png?v=24">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=24">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=23').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=24').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=23">
+    <link rel="stylesheet" href="style.css?v=24">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=23"></script>
+    <script src="config.js?v=24"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=23"></script>
+    <script src="supabase-client.js?v=24"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=23"></script>
+    <script src="common.js?v=24"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=23"></script>
+    <script src="relatorio-estatistico.js?v=24"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -792,6 +792,55 @@
 
                 <div id="containerRelatorioServidor" style="margin-top:16px;">
                     <div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>
+                </div>
+            </div>
+            <!-- ===== SERVIDORES POR ATIVIDADE ===== -->
+            <div class="card" id="cardServidoresAtividade">
+                <h3>Servidores por Atividade</h3>
+                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.8rem; color:#1E3A5F;">
+                    ℹ️ Relaciona os servidores que alimentam cada atividade pelo registro, no período escolhido. Fonte: somente os registros dos servidores (anos com lançamento manual não têm servidor).
+                </div>
+
+                <div class="filtros-resultados">
+                    <div class="form-group" style="flex: 2; min-width: 220px;">
+                        <label>Atividade(s)</label>
+                        <div class="dropdown-select" id="dropdownAtividadesQuem" data-label-padrao="Selecione a atividade">
+                            <div class="dropdown-trigger" onclick="toggleDropdownSelect('dropdownAtividadesQuem')">
+                                <span id="dropdownAtividadesQuemLabel">Selecione a atividade</span>
+                                <span class="dropdown-arrow">▾</span>
+                            </div>
+                            <div class="dropdown-panel">
+                                <div class="pill-select-box" id="multiSelectAtividadesQuem"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano de</label>
+                        <select id="selectAnoDeQuem"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês de</label>
+                        <select id="selectMesDeQuem"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ano até</label>
+                        <select id="selectAnoAteQuem"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mês até</label>
+                        <select id="selectMesAteQuem"></select>
+                    </div>
+                </div>
+
+                <div class="grupo-botoes">
+                    <button class="btn-acao" onclick="filtrarServidoresPorAtividade()">Filtrar</button>
+                    <button class="btn-acao-exportar" onclick="exportarCSVServidoresAtividade()">Exportar Excel (CSV)</button>
+                    <button class="btn-acao-relatorio" onclick="gerarPDFServidoresAtividade()">Gerar Relatório PDF</button>
+                    <button class="btn-acao-limpar" onclick="limparFiltrosServidoresAtividade()">Limpar Filtros</button>
+                </div>
+
+                <div id="containerServidoresAtividade" style="margin-top:16px;">
+                    <div style="text-align:center; padding:40px; color:#888;">Selecione a(s) atividade(s) e clique em Filtrar.</div>
                 </div>
             </div>
         </div>
@@ -2009,6 +2058,7 @@ async function iniciarPagina() {
     renderizarMultiSelectServidoresRelatorio();
     renderizarMultiSelectAtividadesRelatorio();
     renderizarSelectsPeriodoServidorRelatorio();
+    if (typeof iniciarServidoresPorAtividade === 'function') iniciarServidoresPorAtividade();
     atualizarAvisoInicioRegistros();
     iniciarSincronizacaoTempoReal();
 }

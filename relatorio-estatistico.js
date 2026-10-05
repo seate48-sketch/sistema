@@ -773,9 +773,138 @@
         if (c) c.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Selecione ao menos um servidor e clique em Filtrar.</div>';
     }
 
+    // =====================================================================
+    // SERVIDORES POR ATIVIDADE
+    // =====================================================================
+    // Para cada atividade escolhida, lista os servidores que a alimentam pelo
+    // registro no período (só nomes e lotação, sem quantidades). Fonte:
+    // somente os registros dos servidores.
+    var ultimoQuem = null;
+
+    function iniciarServidoresPorAtividade() {
+        var box = document.getElementById('multiSelectAtividadesQuem');
+        if (box) {
+            var lista = (typeof atividades !== 'undefined' && Array.isArray(atividades)) ? atividades : [];
+            box.innerHTML = lista.length
+                ? lista.map(function (n) { return '<span class="pill-item" data-value="' + esc(n) + '" onclick="togglePill(this)">' + esc(n) + '</span>'; }).join('')
+                : '<span style="color:#888; font-size:0.8rem;">Nenhuma atividade cadastrada</span>';
+        }
+        var anos = (typeof getAnosDisponiveis === 'function') ? getAnosDisponiveis() : [String(new Date().getFullYear())];
+        var anoAtual = (typeof ANO_ATUAL !== 'undefined') ? ANO_ATUAL : String(new Date().getFullYear());
+        var optAnos = anos.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('');
+        var optMeses = MESES.map(function (m, i) { return '<option value="' + i + '">' + m + '</option>'; }).join('');
+        [['selectAnoDeQuem', optAnos, anoAtual], ['selectAnoAteQuem', optAnos, anoAtual], ['selectMesDeQuem', optMeses, 0], ['selectMesAteQuem', optMeses, 11]]
+            .forEach(function (c) { var e = document.getElementById(c[0]); if (e) { e.innerHTML = c[1]; e.value = c[2]; } });
+    }
+
+    async function filtrarServidoresPorAtividade() {
+        var container = document.getElementById('containerServidoresAtividade');
+        var filtroAtiv = selecionados('#multiSelectAtividadesQuem');
+        if (!filtroAtiv.length) { avisar('Selecione ao menos uma atividade!'); return; }
+        if (typeof supabaseDisponivel !== 'undefined' && !supabaseDisponivel) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Sem conexão com o servidor. Tente novamente.</div>';
+            return;
+        }
+        var nomes = (typeof servidores !== 'undefined' && Array.isArray(servidores)) ? servidores.slice() : [];
+        if (!nomes.length) { avisar('Nenhum servidor cadastrado.'); return; }
+        var g = function (id) { return parseInt(document.getElementById(id).value, 10); };
+        var anoDe = g('selectAnoDeQuem'), anoAte = g('selectAnoAteQuem');
+        var mesDe = g('selectMesDeQuem'), mesAte = g('selectMesAteQuem');
+        if (anoDe > anoAte) { var t = anoDe; anoDe = anoAte; anoAte = t; }
+        if (anoDe === anoAte && mesDe > mesAte) { var t2 = mesDe; mesDe = mesAte; mesAte = t2; }
+        var p2 = function (n) { return String(n).padStart(2, '0'); };
+        var dataIni = anoDe + '-' + p2(mesDe + 1) + '-01';
+        var dataFim = anoAte + '-' + p2(mesAte + 1) + '-' + p2(new Date(anoAte, mesAte + 1, 0).getDate());
+        var periodoTxt = (anoDe === anoAte)
+            ? (mesDe === mesAte ? MESES[mesDe] + ' de ' + anoDe : MESES[mesDe] + ' a ' + MESES[mesAte] + ' de ' + anoDe)
+            : (MESES[mesDe] + '/' + anoDe + ' a ' + MESES[mesAte] + '/' + anoAte);
+
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Carregando...</div>';
+        var regs = null;
+        try { regs = await dbCarregarRegistrosServidoresPeriodo(nomes, dataIni, dataFim); }
+        catch (e) { console.warn('Servidores por atividade:', e && e.message); }
+        if (regs === null) {
+            ultimoQuem = null;
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Não foi possível carregar os dados. Verifique sua conexão e tente novamente.</div>';
+            return;
+        }
+        var quem = {}; // atividade -> { servidor: true }
+        filtroAtiv.forEach(function (at) { quem[at] = {}; });
+        regs.forEach(function (reg) {
+            for (var at in (reg.atividades || {})) {
+                if (quem[at] && (+reg.atividades[at] || 0) > 0) quem[at][reg.servidor] = true;
+            }
+        });
+        ultimoQuem = {
+            periodo: periodoTxt,
+            itens: filtroAtiv.map(function (at) {
+                return { atividade: at, servidores: nomes.filter(function (n) { return quem[at][n]; }).map(function (n) { return { nome: n, lotacao: lotacaoDe(n) }; }) };
+            })
+        };
+        var h = '<div style="font-size:0.85rem; color:#555; margin-bottom:10px;">Período: <b>' + esc(periodoTxt) + '</b></div>';
+        ultimoQuem.itens.forEach(function (it) {
+            h += '<div class="relatorio-servidor-bloco"><h4>' + esc(it.atividade) + '</h4>' +
+                 '<div style="font-size:0.85rem; color:#1F2937;"><b>Servidores:</b> ' + textoServidoresQuem(it.servidores, true) + '</div></div>';
+        });
+        container.innerHTML = h;
+    }
+
+    function textoServidoresQuem(lista, html) {
+        if (!lista.length) return html ? '<span style="color:#888;">nenhum servidor lançou esta atividade no período</span>' : 'nenhum servidor lançou esta atividade no período';
+        return lista.map(function (s) { var t = s.nome + (s.lotacao ? ' (' + s.lotacao + ')' : ''); return html ? esc(t) : t; }).join(', ');
+    }
+
+    function exigeFiltroQuem() {
+        if (!ultimoQuem || !ultimoQuem.itens.length) { avisar('Escolha a(s) atividade(s) e clique em "Filtrar" primeiro.'); return false; }
+        return true;
+    }
+
+    function exportarCSVServidoresAtividade() {
+        if (!exigeFiltroQuem()) return;
+        var L = [['Servidores por Atividade'], ['Período', ultimoQuem.periodo], [], ['Atividade', 'Servidores']];
+        ultimoQuem.itens.forEach(function (it) { L.push([it.atividade, textoServidoresQuem(it.servidores, false)]); });
+        baixarCSV(L, 'servidores_por_atividade_' + new Date().toISOString().slice(0, 10) + '.csv');
+        avisar('Arquivo gerado.');
+    }
+
+    var gerandoQuem = false;
+    async function gerarPDFServidoresAtividade() {
+        if (gerandoQuem || !exigeFiltroQuem()) return;
+        if (typeof html2pdf === 'undefined') { avisar('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
+        gerandoQuem = true;
+        avisar('Gerando relatório...');
+        try {
+            var h = cabecalho('Servidores por Atividade', [['Período', ultimoQuem.periodo], ['Gerado em', agora()]]);
+            ultimoQuem.itens.forEach(function (it) {
+                h += '<div class="rel-bloco"><div class="rel-secao">' + esc(it.atividade) + '</div>' +
+                     '<p class="rel-resumo-txt" style="margin:4px 0 0;"><b>Servidores:</b> ' + textoServidoresQuem(it.servidores, true) + '</p></div>';
+            });
+            h += rodape();
+            await gerarPDF(h, 'Servidores_por_Atividade_' + new Date().toISOString().slice(0, 10) + '.pdf');
+            avisar('Relatório gerado com sucesso!');
+        } catch (e) {
+            console.error('Servidores por atividade:', e);
+            avisar('Erro ao gerar o relatório. Tente novamente.');
+        } finally {
+            gerandoQuem = false;
+        }
+    }
+
+    function limparFiltrosServidoresAtividade() {
+        document.querySelectorAll('#multiSelectAtividadesQuem .pill-item.selecionado').forEach(function (c) { c.classList.remove('selecionado'); });
+        var d = document.getElementById('dropdownAtividadesQuem');
+        if (d && typeof atualizarLabelDropdown === 'function') atualizarLabelDropdown(d);
+        var ano = (typeof ANO_ATUAL !== 'undefined') ? ANO_ATUAL : String(new Date().getFullYear());
+        var set = function (id, v) { var e = document.getElementById(id); if (e) e.value = v; };
+        set('selectAnoDeQuem', ano); set('selectAnoAteQuem', ano); set('selectMesDeQuem', 0); set('selectMesAteQuem', 11);
+        ultimoQuem = null;
+        var c = document.getElementById('containerServidoresAtividade');
+        if (c) c.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Selecione a(s) atividade(s) e clique em Filtrar.</div>';
+    }
+
     // ---------- estilo discreto das tabelas NA TELA (mesmo padrão dos PDFs) ----------
     (function estiloTelaDiscreto() {
-        var alvos = ['#containerTabelaResultados', '#containerRelatorioServidor'];
+        var alvos = ['#containerTabelaResultados', '#containerRelatorioServidor', '#containerServidoresAtividade'];
         var sel = function (suf) { return alvos.map(function (a) { return a + ' ' + suf; }).join(','); };
         var st = document.createElement('style');
         st.id = 'estilo-tabelas-discretas';
@@ -798,6 +927,11 @@
     window.renderizarResumoAnaliticoMulti = renderizarResumoAnaliticoMulti;
     window.gerarRelatorioAnalitico = gerarRelatorioAnalitico;
     window.filtrarRelatorioServidor = filtrarRelatorioServidor;
+    window.iniciarServidoresPorAtividade = iniciarServidoresPorAtividade;
+    window.filtrarServidoresPorAtividade = filtrarServidoresPorAtividade;
+    window.exportarCSVServidoresAtividade = exportarCSVServidoresAtividade;
+    window.gerarPDFServidoresAtividade = gerarPDFServidoresAtividade;
+    window.limparFiltrosServidoresAtividade = limparFiltrosServidoresAtividade;
     window.exportarCSVServidor = exportarCSVServidor;
     window.gerarRelatorioServidorPDF = gerarRelatorioServidorPDF;
     window.limparFiltrosRelatorioServidor = limparFiltrosRelatorioServidor;
