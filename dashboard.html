@@ -1927,7 +1927,7 @@ async function atualizarAvisoInicioRegistros() {
     var ano = partes[0];
     var mesIndex = parseInt(partes[1], 10) - 1;
     var mesNome = MESES_NOMES_RELATORIO[mesIndex] || partes[1];
-    span.innerHTML = 'os dados por servidor existem a partir de <strong>' + mesNome + '/' + ano + '</strong> — quando o registro diário de atividades começou a ser usado. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais não têm vínculo com nenhum servidor específico).';
+    span.innerHTML = 'os dados por servidor existem a partir de <strong>' + mesNome + '/' + ano + '</strong> — quando o registro diário de atividades começou a ser usado. Períodos anteriores a isso não terão resultado, mesmo que existam totais gerais alimentados manualmente em "Dados Estatísticos" (esses totais anteriores a ' + mesNome.toLowerCase() + '/' + ano + ' não têm vínculo com nenhum servidor específico).';
 }
 
 function renderizarMultiSelectServidoresRelatorio() {
