@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=24">
-    <link rel="icon" href="icons/favicon-32.png?v=24">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=24">
+    <link rel="manifest" href="manifest.json?v=25">
+    <link rel="icon" href="icons/favicon-32.png?v=25">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=25">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=24').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=25').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=25">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=24"></script>
-    <script src="supabase-client.js?v=24"></script>
+    <script src="config.js?v=25"></script>
+    <script src="supabase-client.js?v=25"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -862,7 +862,7 @@
     </div>
 </div>
 
-<script src="common.js?v=24"></script>
+<script src="common.js?v=25"></script>
 <script src="relatorio-servidor.js?v=30"></script>
 <script>
 
@@ -1954,10 +1954,42 @@ function atualizarSelectServidores() {
     select.innerHTML = html;
 }
 
+// ==================== AVISO: MÊS DE REFERÊNCIA AVANÇADO AUTOMATICAMENTE ====================
+// Quando o último servidor entrega o relatório, o banco avança o mês de
+// referência sozinho (script 18). Aqui o gestor vê um aviso discreto, no
+// quadro "Mês de Referência", até clicar em OK (ou por 30 dias).
+async function mostrarAvisoAvancoMes() {
+    try {
+        if (typeof dbUltimoAvancoMes !== 'function') return;
+        var av = await dbUltimoAvancoMes();
+        if (!av || !av.em) return;
+        if (Date.now() - new Date(av.em).getTime() > 30 * 24 * 3600 * 1000) return;
+        try { if (localStorage.getItem('seate_avanco_mes_visto') === String(av.id)) return; } catch (e) {}
+        var sel = document.getElementById('configMes');
+        var box = sel ? sel.closest('.card-metade') : null;
+        if (!box || document.getElementById('avisoAvancoMes')) return;
+        var nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        var quando = new Date(av.em);
+        var dataTxt = quando.toLocaleDateString('pt-BR') + ' às ' + quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        var div = document.createElement('div');
+        div.id = 'avisoAvancoMes';
+        div.style.cssText = 'margin-top:12px;padding:10px 12px;background:#ECFDF5;border:1px solid #6EE7B7;border-radius:10px;font-size:0.8rem;color:#065F46;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;';
+        div.innerHTML = '<span>🔄 Mês de referência avançado <b>automaticamente</b> para <b>' + nomes[av.para_mes - 1] + '/' + av.para_ano +
+            '</b> em ' + dataTxt + ' — todos os servidores entregaram o relatório de ' + nomes[av.de_mes - 1] + '/' + av.de_ano + '.</span>' +
+            '<button type="button" style="flex-shrink:0;background:#065F46;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">OK</button>';
+        div.querySelector('button').onclick = function () {
+            try { localStorage.setItem('seate_avanco_mes_visto', String(av.id)); } catch (e) {}
+            div.remove();
+        };
+        box.appendChild(div);
+    } catch (e) { console.warn('Aviso de avanço do mês:', e && e.message); }
+}
+
 // ==================== INICIALIZAÇÃO GERAL ====================
 async function iniciarPaginaPrincipal() {
     await carregarDados();
     await carregarConfiguracaoReal();
+    mostrarAvisoAvancoMes();
     if (supabaseDisponivel) { await dbCarregarServidores(); }
     atualizarListaFuncionariosPrincipal();
     atualizarDisplayMes();

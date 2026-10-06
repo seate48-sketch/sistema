@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="icon" href="icons/favicon-32.png?v=24">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=24">
+    <link rel="icon" href="icons/favicon-32.png?v=25">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=25">
     <script>
     // Manifest dinâmico: cada servidor tem seu próprio link
     // (registro.html?user=Nome) — o manifest precisa refletir ESSA
@@ -39,7 +39,7 @@
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=24').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=25').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
@@ -53,17 +53,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=24"></script>
+    <script src="config.js?v=25"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=24"></script>
+    <script src="supabase-client.js?v=25"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=24"></script>
+    <script src="common.js?v=25"></script>
     
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif}
@@ -1072,6 +1072,89 @@ function desempenho() {
     perfModal.style.display = "block";
 }
 
+// ==================== SETAS DE MÊS (SOMENTE PARA O GESTOR) ====================
+// Quando o gestor (logado na tela Principal, neste mesmo navegador) abre o
+// registro de um servidor pelo "Acessar Registro", aparecem setas para ver e
+// corrigir meses anteriores — sem mudar o mês de referência de ninguém.
+// Os servidores (link sem login) não veem as setas: tudo continua como antes.
+var MODO_GESTOR = false;
+var mesReferenciaGestor = null, anoReferenciaGestor = null;
+
+async function detectarGestor() {
+    try {
+        if (!USUARIO_LOGADO || !supabaseDisponivel || typeof db === 'undefined' || !db || !db.auth) return false;
+        if (typeof tempoRestanteSessao === 'function' && tempoRestanteSessao() <= 0) return false; // sessão de 2h expirada
+        var r = await db.auth.getSession();
+        return !!(r && r.data && r.data.session);
+    } catch (e) { return false; }
+}
+
+function nomeMesAno(m, a) {
+    var n = new Date(a, m, 1).toLocaleString("pt-BR", {month: "long"});
+    return n.charAt(0).toUpperCase() + n.slice(1) + "/" + a;
+}
+
+function atualizarNavegacaoGestor() {
+    var nav = document.getElementById("navGestor");
+    if (!nav) return;
+    var noRef = (mes === mesReferenciaGestor && ano === anoReferenciaGestor);
+    document.getElementById("btnMesProximoGestor").disabled = noRef; // não passa do mês de referência
+    var voltar = document.getElementById("btnMesReferenciaGestor");
+    voltar.style.display = noRef ? "none" : "";
+    voltar.textContent = "↺ Voltar a " + nomeMesAno(mesReferenciaGestor, anoReferenciaGestor);
+    document.getElementById("tagModoGestor").textContent = noRef ? "Modo gestor" : "Modo gestor · mês anterior";
+}
+
+async function irParaMesGestor(novoMes, novoAno) {
+    if (!MODO_GESTOR) return;
+    if (novoAno > anoReferenciaGestor || (novoAno === anoReferenciaGestor && novoMes > mesReferenciaGestor)) return;
+    mes = novoMes; ano = novoAno;
+    try {
+        var obs = await dbCarregarObsServidor(USUARIO_LOGADO, mes, ano);
+        obsFunc.value = (obs !== null) ? obs : "";
+    } catch (e) { obsFunc.value = ""; }
+    renderCalendario();
+    atualizarNavegacaoGestor();
+}
+
+function mudarMesGestor(delta) {
+    var d = new Date(ano, mes + delta, 1);
+    irParaMesGestor(d.getMonth(), d.getFullYear());
+}
+
+async function ativarNavegacaoGestor() {
+    if (!(await detectarGestor())) return;
+    MODO_GESTOR = true;
+    mesReferenciaGestor = mes; anoReferenciaGestor = ano;
+    if (!document.getElementById("estiloNavGestor")) {
+        var st = document.createElement("style");
+        st.id = "estiloNavGestor";
+        st.textContent = "#navGestor{display:flex;align-items:center;gap:8px;flex-wrap:wrap}" +
+            "#navGestor .btn-nav-gestor{background:var(--azul-institucional);color:#fff;border:none;border-radius:30px;width:32px;height:32px;font-size:0.9rem;cursor:pointer;line-height:1}" +
+            "#navGestor .btn-nav-gestor:disabled{opacity:.35;cursor:not-allowed}" +
+            "#navGestor .tag-gestor{background:#FFF7ED;color:#9A3412;border:1px solid #FDBA74;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:600}" +
+            "#navGestor .btn-ref-gestor{background:#fff;color:var(--azul-marinho);border:1px solid var(--azul-institucional);border-radius:30px;padding:4px 12px;font-size:0.72rem;font-weight:600;cursor:pointer}";
+        document.head.appendChild(st);
+    }
+    var h2 = document.getElementById("calendarTitle");
+    var nav = document.createElement("div");
+    nav.id = "navGestor";
+    h2.parentNode.insertBefore(nav, h2);
+    var prev = document.createElement("button");
+    prev.type = "button"; prev.className = "btn-nav-gestor"; prev.id = "btnMesAnteriorGestor"; prev.title = "Mês anterior"; prev.textContent = "◀";
+    prev.onclick = function () { mudarMesGestor(-1); };
+    var next = document.createElement("button");
+    next.type = "button"; next.className = "btn-nav-gestor"; next.id = "btnMesProximoGestor"; next.title = "Próximo mês"; next.textContent = "▶";
+    next.onclick = function () { mudarMesGestor(1); };
+    var tag = document.createElement("span");
+    tag.className = "tag-gestor"; tag.id = "tagModoGestor";
+    var voltar = document.createElement("button");
+    voltar.type = "button"; voltar.className = "btn-ref-gestor"; voltar.id = "btnMesReferenciaGestor";
+    voltar.onclick = function () { irParaMesGestor(mesReferenciaGestor, anoReferenciaGestor); };
+    nav.appendChild(prev); nav.appendChild(h2); nav.appendChild(next); nav.appendChild(tag); nav.appendChild(voltar);
+    atualizarNavegacaoGestor();
+}
+
 async function iniciarPagina() {
     await carregarPeriodoReal();
     if (USUARIO_LOGADO && supabaseDisponivel) {
@@ -1087,6 +1170,7 @@ async function iniciarPagina() {
     await carregarAtividadesPermitidas();
     await carregar();
     renderCalendario();
+    await ativarNavegacaoGestor();
     iniciarVerificacaoPeriodica();
 }
 iniciarPagina();
@@ -1115,6 +1199,6 @@ window.editarComunicadoSupervisor = function(t) {
 };
 window.onbeforeunload = function() { pararVerificacaoPeriodica(); };
 </script>
-<script src="entrega-relatorio.js?v=24"></script>
+<script src="entrega-relatorio.js?v=25"></script>
 </body>
 </html>

@@ -646,6 +646,14 @@ async function dbCarregarConfiguracao() {
         return { mes: now.getMonth(), ano: now.getFullYear(), suspenso: false };
     }
     
+    // Avanço automático do mês de referência (script 18): se todos os
+    // servidores ativos já entregaram o relatório do mês de referência e o
+    // mês seguinte já começou, o próprio banco avança o mês. Verificado no
+    // máximo a cada 5 minutos; se a função ainda não existir no banco, nada muda.
+    if (!_cache.avancoVerificadoEm || Date.now() - _cache.avancoVerificadoEm > 5 * 60 * 1000) {
+        _cache.avancoVerificadoEm = Date.now();
+        try { await db.rpc('verificar_avanco_mes'); } catch (eAv) { /* sem a função: segue como antes */ }
+    }
     try {
         const { data, error } = await db.from(TABLES.CONFIGURACAO).select('*').limit(1).maybeSingle();
         if (error) console.error('dbCarregarConfiguracao:', error);
@@ -664,6 +672,18 @@ async function dbCarregarConfiguracao() {
         const now = new Date();
         return { mes: now.getMonth(), ano: now.getFullYear(), suspenso: false };
     }
+}
+
+// Último avanço automático do mês de referência (script 18) — só o gestor lê.
+// Devolve null se não houver (ou se a tabela ainda não existir).
+async function dbUltimoAvancoMes() {
+    if (!supabaseDisponivel || !db) return null;
+    try {
+        const { data, error } = await db.from('avancos_mes_referencia')
+            .select('id, de_ano, de_mes, para_ano, para_mes, em').order('id', { ascending: false }).limit(1).maybeSingle();
+        if (error) return null;
+        return data || null;
+    } catch (e) { return null; }
 }
 
 async function dbSalvarConfiguracao(mes, ano) {
