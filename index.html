@@ -431,6 +431,10 @@
             font-weight: 700;
         }
         
+        .card-unico .card-metade:first-child { border-right: none !important; border-bottom: none !important; }
+        .btn-mes-referencia { position: relative; }
+        .ponto-aviso-mes { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #16A34A; border: 2px solid #fff; }
+        .info-mes-botao { text-align: center; margin-top: -4px; }
         .card-duplo {
             display: flex;
             flex-wrap: wrap;
@@ -683,31 +687,8 @@
         </div>
         
         <div class="tab-content active" id="tab-principal">
-            <!-- ===== CARD: MÊS DE REFERÊNCIA + DADOS ESTATÍSTICOS ===== -->
-            <div class="card card-duplo">
-                <div class="card-metade">
-                    <h3>Mês de Referência</h3>
-                    <div class="linha-mes-referencia">
-                        <div class="form-group">
-                            <label>Mês</label>
-                            <select id="configMes">
-                                <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
-                                <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
-                                <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
-                                <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Ano</label>
-                            <input type="number" id="configAno" value="2025">
-                        </div>
-                        <div>
-                            <button class="btn btn-primary" onclick="salvarConfigMes()">Salvar Configuração</button>
-                        </div>
-                    </div>
-                    <span class="info-mes-atual" id="mesConfiguradoDisplay">Mês atual: Janeiro/2025</span>
-                </div>
-                
+            <!-- ===== CARD: DADOS ESTATÍSTICOS (o Mês de Referência fica no botão do quadro Status) ===== -->
+            <div class="card card-duplo card-unico">
                 <div class="card-metade">
                     <h3>Dados Estatísticos</h3>
                     <div class="grupo-botoes-anos" id="grupoBotoesAnos" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; border-left: none; padding-left: 0;"></div>
@@ -727,6 +708,8 @@
                     <div class="botoes-status">
                         <button id="btnSuspenderRegistros" class="btn-suspender" onclick="alternarSuspensaoRegistros()">Suspender Registros</button>
                         <button id="btnRelatoriosEntregues" class="btn-relatorios-entregues" onclick="botaoRelatoriosEntregues()">Relatórios Entregues</button>
+                        <button id="btnMesReferencia" class="btn-relatorios-entregues btn-mes-referencia" onclick="abrirModalMesReferencia()">Mês de Referência<span class="ponto-aviso-mes" id="pontoAvisoMes" style="display:none;"></span></button>
+                        <span class="info-mes-atual info-mes-botao" id="mesReferenciaBotaoInfo"></span>
                     </div>
                 </div>
                 <div id="listaFuncionariosPrincipal" class="lista-funcionarios-principal"></div>
@@ -803,6 +786,31 @@
 </div>
 
 <!-- Modal Edição Servidor -->
+<!-- ===== MODAL: MÊS DE REFERÊNCIA ===== -->
+<div id="modalMesReferencia" class="modal-edicao"><div class="modal-edicao-content" style="max-width:480px;">
+    <div class="modal-edicao-header"><h3>Mês de Referência</h3><span class="modal-close" onclick="fecharModalMesReferencia()">&times;</span></div>
+    <div class="modal-edicao-body">
+        <div id="mesConfiguradoDisplay" style="font-weight:700;color:var(--azul-marinho);margin-bottom:12px;">Mês atual: </div>
+        <div class="linha-mes-referencia">
+            <div class="form-group">
+                <label>Mês</label>
+                <select id="configMes">
+                    <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+                    <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+                    <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+                    <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Ano</label>
+                <input type="number" id="configAno" value="2025">
+            </div>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;font-size:0.8rem;color:#92400E;">⚠️ A troca vale para <b>todos os servidores</b>: os registros passam a abrir no mês escolhido. Para corrigir um mês anterior de um servidor, prefira as setas ◀ ▶ no registro dele (Acessar Registro).</div>
+        <div id="caixaAvisoAvancoMes"></div>
+    </div>
+    <div class="modal-edicao-footer"><button class="btn btn-neutral" onclick="fecharModalMesReferencia()">Cancelar</button><button class="btn btn-primary" onclick="salvarMesReferenciaModal()">Salvar</button></div>
+</div></div>
 <div id="modalEdicaoServidor" class="modal-edicao-servidor"><div class="modal-edicao-servidor-content"><div class="modal-edicao-servidor-header"><h3>Editar Servidor</h3><span class="modal-close" onclick="fecharModalEdicaoServidor()">&times;</span></div><div class="modal-edicao-servidor-body"><div class="form-group"><label>Nome</label><input type="text" id="modalEditarNome"></div><div class="form-group"><label>Lotação</label><select id="modalEditarLotacao"><option value="SEATE">SEATE</option><option value="NAHORA">NAHORA</option><option value="DIGITALIZAÇÃO">DIGITALIZAÇÃO</option></select></div></div><div class="modal-edicao-servidor-footer"><button class="btn btn-neutral" onclick="fecharModalEdicaoServidor()">Cancelar</button><button class="btn btn-primary" onclick="confirmarEdicaoServidor()">Salvar</button></div></div></div>
 
 <!-- Modal Estatística -->
@@ -1965,8 +1973,7 @@ async function mostrarAvisoAvancoMes() {
         if (!av || !av.em) return;
         if (Date.now() - new Date(av.em).getTime() > 30 * 24 * 3600 * 1000) return;
         try { if (localStorage.getItem('seate_avanco_mes_visto') === String(av.id)) return; } catch (e) {}
-        var sel = document.getElementById('configMes');
-        var box = sel ? sel.closest('.card-metade') : null;
+        var box = document.getElementById('caixaAvisoAvancoMes'); // dentro da janela "Mês de Referência"
         if (!box || document.getElementById('avisoAvancoMes')) return;
         var nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
         var quando = new Date(av.em);
@@ -1977,12 +1984,40 @@ async function mostrarAvisoAvancoMes() {
         div.innerHTML = '<span>🔄 Mês de referência avançado <b>automaticamente</b> para <b>' + nomes[av.para_mes - 1] + '/' + av.para_ano +
             '</b> em ' + dataTxt + ' — todos os servidores entregaram o relatório de ' + nomes[av.de_mes - 1] + '/' + av.de_ano + '.</span>' +
             '<button type="button" style="flex-shrink:0;background:#065F46;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">OK</button>';
+        var ponto = document.getElementById('pontoAvisoMes');
         div.querySelector('button').onclick = function () {
             try { localStorage.setItem('seate_avanco_mes_visto', String(av.id)); } catch (e) {}
             div.remove();
+            if (ponto) ponto.style.display = 'none';
         };
         box.appendChild(div);
+        if (ponto) ponto.style.display = 'block'; // pontinho verde no botão enquanto houver aviso novo
     } catch (e) { console.warn('Aviso de avanço do mês:', e && e.message); }
+}
+
+// ==================== BOTÃO / JANELA "MÊS DE REFERÊNCIA" ====================
+function atualizarInfoBotaoMes() {
+    var el = document.getElementById('mesReferenciaBotaoInfo');
+    if (!el) return;
+    var nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    el.textContent = 'Atual: ' + nomes[mesConfigurado] + '/' + anoConfigurado;
+}
+(function () { // o texto ao lado do botão acompanha toda atualização do mês
+    if (typeof atualizarDisplayMes !== 'function' || atualizarDisplayMes._comBotao) return;
+    var original = atualizarDisplayMes;
+    atualizarDisplayMes = function () { original.apply(this, arguments); atualizarInfoBotaoMes(); };
+    atualizarDisplayMes._comBotao = true;
+})();
+function abrirModalMesReferencia() {
+    atualizarDisplayMes(); // campos sempre com o mês atual ao abrir
+    document.getElementById('modalMesReferencia').style.display = 'block';
+}
+function fecharModalMesReferencia() {
+    document.getElementById('modalMesReferencia').style.display = 'none';
+}
+async function salvarMesReferenciaModal() {
+    await salvarConfigMes();
+    fecharModalMesReferencia();
 }
 
 // ==================== INICIALIZAÇÃO GERAL ====================
