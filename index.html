@@ -431,7 +431,8 @@
             font-weight: 700;
         }
         
-        .card-unico .card-metade:first-child { border-right: none !important; border-bottom: none !important; }
+        .indicadores-dica { font-size: 0.75rem; color: #6B7280; margin: -12px 0 14px; }
+        .indicador-card.indicador-card-atual { border: 2px solid var(--destaque); box-shadow: 0 0 0 3px rgba(255,179,71,.18); }
         .btn-mes-referencia { position: relative; }
         .ponto-aviso-mes { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #16A34A; border: 2px solid #fff; }
         .info-mes-botao { text-align: center; margin-top: -4px; }
@@ -687,17 +688,12 @@
         </div>
         
         <div class="tab-content active" id="tab-principal">
-            <!-- ===== CARD: DADOS ESTATÍSTICOS (o Mês de Referência fica no botão do quadro Status) ===== -->
-            <div class="card card-duplo card-unico">
-                <div class="card-metade">
-                    <h3>Dados Estatísticos</h3>
-                    <div class="grupo-botoes-anos" id="grupoBotoesAnos" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; border-left: none; padding-left: 0;"></div>
-                </div>
-            </div>
-            
-            <!-- ===== CARD: INDICADORES GERAIS ===== -->
+            <!-- ===== CARD: DADOS ESTATÍSTICOS E INDICADORES =====
+                 (os cartões de cada ano abrem a tabela mensal para ver/alimentar;
+                  o Mês de Referência fica no botão do quadro Status) -->
             <div class="card">
-                <h3>Indicadores Gerais</h3>
+                <h3>Dados Estatísticos e Indicadores</h3>
+                <div class="indicadores-dica">Clique no cartão de um ano para ver ou alimentar os dados mensais. O cartão do ano atual fica em destaque.</div>
                 <div class="indicadores-grid" id="indicadoresGrid"></div>
             </div>
             
@@ -871,7 +867,7 @@
 </div>
 
 <script src="common.js?v=25"></script>
-<script src="relatorio-servidor.js?v=34"></script>
+<script src="relatorio-servidor.js?v=35"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -930,11 +926,11 @@ async function renderizarIndicadores() {
         var digitTotal = totaisAno2.digitTotal || 0;
         var totalGeral = seateTotal + nahoraTotal + digitTotal;
         
-        html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
+        html += '<div class="indicador-card' + (isAnoAtual ? ' indicador-card-atual' : '') + '" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
         html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
         html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + (digitTotal ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(digitTotal) : '') + '</div>';
-        html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        html += '<div class="indicador-status">' + (anoSoRegistros(ano) ? 'Clique para ver detalhes' : 'Clique para ver / alimentar') + '</div>';
         html += '</div>';
     }
     
@@ -1546,6 +1542,7 @@ function criarGraficoEvolucao() {
 // ==================== FUNÇÕES EXISTENTES ====================
 function renderizarBotoesAnos() {
     var container = document.getElementById("grupoBotoesAnos");
+    if (!container) return; // botões de ano retirados: os cartões de Dados Estatísticos e Indicadores fazem esse papel
     var anos = getAnosDisponiveis();
     // todos os anos sempre aparecem (nenhum é removido), no máximo 8 por linha
     var porLinha = Math.min(8, anos.length, (window.innerWidth && window.innerWidth < 600) ? 4 : 8);

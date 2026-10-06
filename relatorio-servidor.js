@@ -1270,7 +1270,7 @@
     }
     // espera o gestor entrar (login) e a lista de servidores carregar
     (function aguardarPrincipal() {
-        if (!document.getElementById('grupoBotoesAnos')) return; // só na tela Principal
+        if (!document.getElementById('acessoRapidoLista')) return; // só na tela Principal
         var tentativas = 0;
         var t = setInterval(function () {
             tentativas++;
