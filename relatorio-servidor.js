@@ -1364,7 +1364,7 @@
         fundo.id = 'stsFundo';
         fundo.innerHTML = '<div class="sts-caixa" role="dialog" aria-modal="true">' +
             '<h3>Status em lote — ' + esc(nome) + '</h3>' +
-            '<div class="sts-sub">Coloca um status nos dias úteis <b>vazios</b> do período. Dias com lançamentos ou com outro status não são alterados.</div>' +
+            '<div class="sts-sub">Coloca um status nos dias úteis do período que <b>não têm lançamentos</b> (vazios ou com outro status). Dias com lançamentos não são alterados. A entrega do relatório é opcional.</div>' +
             '<div class="sts-grade">' +
                 '<div><label>Mês</label><select id="stsMes">' + NOMES_MES_ST.map(function (m, i) { return '<option value="' + i + '">' + m + '</option>'; }).join('') + '</select></div>' +
                 '<div><label>Ano</label><input type="number" id="stsAno" min="2026" max="2100"></div>' +
@@ -1401,7 +1401,7 @@
             if (de > ate) { var t = de; de = ate; ate = t; }
             var status = $('stsStatus').value;
             var remover = document.querySelector('input[name="stsAcao"]:checked').value === 'remover';
-            var alvo = [], comLanc = 0, outroStatus = 0, jaTem = 0;
+            var alvo = [], comLanc = 0, outroStatus = 0, jaTem = 0, vazios = 0;
             for (var d = de; d <= ate; d++) {
                 var dt = new Date(a, m, d);
                 if (dt.getDay() === 0 || dt.getDay() === 6) continue;
@@ -1413,10 +1413,10 @@
                     if (aus === status && tot === 0) alvo.push(iso);
                 } else if (tot > 0) comLanc++;
                 else if (aus === status) jaTem++;
-                else if (aus) outroStatus++;
-                else alvo.push(iso);
+                else if (aus) { outroStatus++; alvo.push(iso); } // troca de status (sem lançamentos): nada é apagado
+                else { vazios++; alvo.push(iso); }
             }
-            return { m: m, a: a, de: de, ate: ate, status: status, remover: remover, alvo: alvo, comLanc: comLanc, outroStatus: outroStatus, jaTem: jaTem };
+            return { m: m, a: a, de: de, ate: ate, status: status, remover: remover, alvo: alvo, comLanc: comLanc, outroStatus: outroStatus, jaTem: jaTem, vazios: vazios };
         }
         function rotuloStatus(v) { var o = STATUS_LOTE.filter(function (x) { return x[0] === v; })[0]; return o ? o[1] : v; }
         function atualizarPrevia() {
@@ -1426,12 +1426,15 @@
             if (p.remover) {
                 h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) com o status <b>' + esc(rotuloStatus(p.status)) + '</b> (sem lançamentos) voltarão a ficar vazios — período ' + periodo + '.';
             } else {
-                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) vazio(s) receberão <b>' + esc(rotuloStatus(p.status)) + '</b> — período ' + periodo + '.';
+                var det = [];
+                if (p.vazios) det.push(p.vazios + ' vazio(s)');
+                if (p.outroStatus) det.push(p.outroStatus + ' trocando de outro status');
+                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) receberão <b>' + esc(rotuloStatus(p.status)) + '</b>' + (det.length ? ' (' + det.join(' + ') + ')' : '') + ' — período ' + periodo + '.';
                 var ex = [];
                 if (p.comLanc) ex.push(p.comLanc + ' com lançamentos');
-                if (p.outroStatus) ex.push(p.outroStatus + ' com outro status');
                 if (p.jaTem) ex.push(p.jaTem + ' já com ' + esc(rotuloStatus(p.status)));
                 if (ex.length) h += '<br>Não serão alterados: ' + ex.join(', ') + '.';
+                if (!p.alvo.length && !$('stsEntregar').checked) h += '<br><i>Nada a alterar neste período.</i>';
             }
             $('stsPrevia').innerHTML = h;
             $('stsEntregarBox').style.display = p.remover ? 'none' : '';
