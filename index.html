@@ -435,7 +435,10 @@
         .indicador-card.indicador-card-atual { border: 2px solid var(--destaque); box-shadow: 0 0 0 3px rgba(255,179,71,.18); }
         .btn-mes-referencia { position: relative; }
         .ponto-aviso-mes { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #16A34A; border: 2px solid #fff; }
-        .info-mes-botao { text-align: center; margin-top: -4px; }
+        .info-mes-botao { text-align: center; margin-top: 2px; }
+        .card-header-com-botao .botoes-status { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; }
+        .mes-ref-grupo { display: flex; flex-direction: column; align-items: center; }
+        @media (max-width: 768px) { .card-header-com-botao .botoes-status { justify-content: flex-start; } }
         .card-duplo {
             display: flex;
             flex-wrap: wrap;
@@ -704,8 +707,10 @@
                     <div class="botoes-status">
                         <button id="btnSuspenderRegistros" class="btn-suspender" onclick="alternarSuspensaoRegistros()">Suspender Registros</button>
                         <button id="btnRelatoriosEntregues" class="btn-relatorios-entregues" onclick="botaoRelatoriosEntregues()">Relatórios Entregues</button>
-                        <button id="btnMesReferencia" class="btn-relatorios-entregues btn-mes-referencia" onclick="abrirModalMesReferencia()">Mês de Referência<span class="ponto-aviso-mes" id="pontoAvisoMes" style="display:none;"></span></button>
-                        <span class="info-mes-atual info-mes-botao" id="mesReferenciaBotaoInfo"></span>
+                        <div class="mes-ref-grupo">
+                            <button id="btnMesReferencia" class="btn-relatorios-entregues btn-mes-referencia" onclick="abrirModalMesReferencia()">Mês de Referência<span class="ponto-aviso-mes" id="pontoAvisoMes" style="display:none;"></span></button>
+                            <span class="info-mes-atual info-mes-botao" id="mesReferenciaBotaoInfo"></span>
+                        </div>
                     </div>
                 </div>
                 <div id="listaFuncionariosPrincipal" class="lista-funcionarios-principal"></div>
