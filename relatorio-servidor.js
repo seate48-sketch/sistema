@@ -1437,7 +1437,11 @@
                 if (p.jaTem) ex.push(p.jaTem + ' já com ' + esc(rotuloStatus(p.status)));
                 if (ex.length) h += '<br>Não serão alterados: ' + ex.join(', ') + '.';
                 if (!p.status && p.alvo.length) h += '<br><i>Esses dias voltam a ficar em aberto para o servidor preencher.</i>';
-                if (!p.alvo.length && (!p.status || !$('stsEntregar').checked)) h += '<br><i>Nada a alterar neste período.</i>';
+                if (!p.alvo.length && (!p.status || !$('stsEntregar').checked)) {
+                    h += (p.jaTem && !p.comLanc)
+                        ? '<br><b>Todos os dias úteis do período já estão com ' + esc(rotuloStatus(p.status)) + ' — nada a alterar.</b>'
+                        : '<br><b>Nada a alterar: os dias úteis do período já têm lançamentos ou já estão com ' + esc(rotuloStatus(p.status)) + '.</b>';
+                }
             }
             $('stsPrevia').innerHTML = h;
             $('stsEntregarBox').style.display = (p.remover || !p.status) ? 'none' : ''; // "Ativo" deixa dias a preencher: não há o que entregar
