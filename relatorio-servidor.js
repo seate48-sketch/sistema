@@ -1303,11 +1303,205 @@
     window.botaoRelatoriosEntregues = botaoRelatoriosEntregues;
     window._atrasos = { calcular: calcularAtrasos, verificar: verificarAvisoAtraso, mostrar: mostrarAvisoAtraso }; // (testes)
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
+    // =====================================================================
+    // STATUS EM LOTE (botão "Status" na tabela de Status dos Servidores)
+    // =====================================================================
+    // Para servidores isentos de alimentar o registro: coloca um status
+    // (Folga, Férias, ...) em todos os dias úteis VAZIOS de um período do
+    // mês — dias com lançamentos ou com outro status ficam intactos — e,
+    // se marcado, entrega o relatório do mês em nome do servidor (conta para
+    // o avanço automático do mês de referência). Também permite remover o
+    // status aplicado, para corrigir um engano.
+    var STATUS_LOTE = [['Folga', 'Folga'], ['Ferias', 'Férias'], ['Atestado', 'Atestado'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado']];
+    var NOMES_MES_ST = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    function p2(n) { return String(n).padStart(2, '0'); }
+    function totalAtiv(reg) {
+        var t = 0;
+        Object.keys((reg && reg.atividades) || {}).forEach(function (k) { t += (+reg.atividades[k] || 0); });
+        return t;
+    }
+    function estiloStatusLote() {
+        if (document.getElementById('estilo-status-lote')) return;
+        var st = document.createElement('style');
+        st.id = 'estilo-status-lote';
+        st.textContent =
+            '.btn-status-lote{background:transparent;border:1px solid var(--azul-institucional);border-radius:20px;padding:4px 14px;color:#000;font-weight:600;font-size:.7rem;cursor:pointer;transition:.2s;margin:0 4px 0 0;white-space:nowrap;}' +
+            '.btn-status-lote:hover{background:var(--azul-institucional);color:var(--branco);}' +
+            '@media (max-width:768px){.acoes-cell .btn-status-lote{padding:3px 8px;font-size:.6rem;}}' +
+            '#stsFundo{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;}' +
+            '#stsFundo .sts-caixa{background:#fff;border-radius:16px;max-width:540px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);padding:20px 22px;font-size:14px;color:#1F2937;line-height:1.5;}' +
+            '#stsFundo h3{margin:0 0 2px;font-size:18px;color:#0B2A4A;}' +
+            '#stsFundo .sts-sub{color:#6B7280;font-size:13px;margin-bottom:14px;}' +
+            '#stsFundo .sts-grade{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;}' +
+            '#stsFundo label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:3px;}' +
+            '#stsFundo select,#stsFundo input[type=number]{width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:14px;background:#fff;}' +
+            '#stsFundo .sts-acao{display:flex;gap:16px;margin:12px 0 4px;flex-wrap:wrap;font-size:13px;}' +
+            '#stsFundo .sts-acao label{display:flex;gap:6px;align-items:center;font-weight:600;margin:0;cursor:pointer;}' +
+            '#stsFundo .sts-previa{background:#F3F6FA;border:1px solid #DDE4EE;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;}' +
+            '#stsFundo .sts-entregar{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13px;}' +
+            '#stsFundo .sts-entregar label{font-weight:500;font-size:13px;margin:0;cursor:pointer;}' +
+            '#stsFundo .sts-msg{margin-top:10px;font-size:13px;border-radius:10px;padding:8px 12px;display:none;}' +
+            '#stsFundo .sts-msg.ok{display:block;background:#ECFDF5;border:1px solid #6EE7B7;color:#065F46;}' +
+            '#stsFundo .sts-msg.erro{display:block;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;}' +
+            '#stsFundo .sts-botoes{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;}' +
+            '#stsFundo .sts-botoes button{border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;}' +
+            '#stsFundo .b-fechar{background:#E5E7EB;color:#374151;}' +
+            '#stsFundo .b-aplicar{background:#1D4ED8;color:#fff;}' +
+            '#stsFundo .b-aplicar.remover{background:#DC2626;}' +
+            '#stsFundo button:disabled{opacity:.45;cursor:not-allowed;}' +
+            '@media (max-width:480px){#stsFundo .sts-grade{grid-template-columns:1fr;}}';
+        document.head.appendChild(st);
+    }
+
+    async function abrirStatusServidor(nome) {
+        estiloStatusLote();
+        if (typeof supabaseDisponivel !== 'undefined' && !supabaseDisponivel) { if (typeof feedback === 'function') feedback('Sem conexão com o servidor.'); return; }
+        var antigo = document.getElementById('stsFundo'); if (antigo) antigo.remove();
+        var hoje = new Date();
+        var mesRef = (typeof mesConfigurado !== 'undefined' && !isNaN(parseInt(mesConfigurado, 10))) ? parseInt(mesConfigurado, 10) : hoje.getMonth();
+        var anoRef = (typeof anoConfigurado !== 'undefined' && !isNaN(parseInt(anoConfigurado, 10))) ? parseInt(anoConfigurado, 10) : hoje.getFullYear();
+        var fundo = document.createElement('div');
+        fundo.id = 'stsFundo';
+        fundo.innerHTML = '<div class="sts-caixa" role="dialog" aria-modal="true">' +
+            '<h3>Status em lote — ' + esc(nome) + '</h3>' +
+            '<div class="sts-sub">Coloca um status nos dias úteis <b>vazios</b> do período. Dias com lançamentos ou com outro status não são alterados.</div>' +
+            '<div class="sts-grade">' +
+                '<div><label>Mês</label><select id="stsMes">' + NOMES_MES_ST.map(function (m, i) { return '<option value="' + i + '">' + m + '</option>'; }).join('') + '</select></div>' +
+                '<div><label>Ano</label><input type="number" id="stsAno" min="2026" max="2100"></div>' +
+                '<div><label>Status</label><select id="stsStatus">' + STATUS_LOTE.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select></div>' +
+                '<div><label>Período (dias)</label><div style="display:flex;gap:6px;align-items:center;"><select id="stsDe"></select><span>a</span><select id="stsAte"></select></div></div>' +
+            '</div>' +
+            '<div class="sts-acao"><label><input type="radio" name="stsAcao" value="aplicar" checked> Aplicar status</label><label><input type="radio" name="stsAcao" value="remover"> Remover este status</label></div>' +
+            '<div class="sts-previa" id="stsPrevia">Calculando...</div>' +
+            '<div class="sts-entregar" id="stsEntregarBox"><input type="checkbox" id="stsEntregar" checked><label for="stsEntregar">Entregar o relatório do mês em nome do servidor (conta para o avanço automático do mês de referência)</label></div>' +
+            '<div class="sts-msg" id="stsMsg"></div>' +
+            '<div class="sts-botoes"><button type="button" class="b-fechar" id="stsFechar">Fechar</button><button type="button" class="b-aplicar" id="stsAplicar" disabled>Aplicar</button></div>' +
+            '</div>';
+        document.body.appendChild(fundo);
+        var $ = function (id) { return document.getElementById(id); };
+        $('stsMes').value = mesRef; $('stsAno').value = anoRef;
+        $('stsFechar').onclick = function () { fundo.remove(); };
+        fundo.addEventListener('click', function (e) { if (e.target === fundo) fundo.remove(); });
+
+        var registros = null;
+        try { registros = await dbCarregarRegistros(nome); } catch (e) { registros = null; }
+        if (registros === null) { $('stsPrevia').textContent = 'Não foi possível carregar os registros deste servidor. Verifique a conexão e tente novamente.'; return; }
+
+        function preencherDias() {
+            var m = +$('stsMes').value, a = +$('stsAno').value || anoRef;
+            var ult = new Date(a, m + 1, 0).getDate();
+            var de = +$('stsDe').value || 1, ate = +$('stsAte').value || ult;
+            var opts = ''; for (var d = 1; d <= ult; d++) opts += '<option value="' + d + '">' + d + '</option>';
+            $('stsDe').innerHTML = opts; $('stsAte').innerHTML = opts;
+            $('stsDe').value = Math.min(de, ult); $('stsAte').value = Math.min(ate, ult);
+        }
+        function plano() {
+            var m = +$('stsMes').value, a = +$('stsAno').value;
+            var de = +$('stsDe').value, ate = +$('stsAte').value;
+            if (de > ate) { var t = de; de = ate; ate = t; }
+            var status = $('stsStatus').value;
+            var remover = document.querySelector('input[name="stsAcao"]:checked').value === 'remover';
+            var alvo = [], comLanc = 0, outroStatus = 0, jaTem = 0;
+            for (var d = de; d <= ate; d++) {
+                var dt = new Date(a, m, d);
+                if (dt.getDay() === 0 || dt.getDay() === 6) continue;
+                var iso = a + '-' + p2(m + 1) + '-' + p2(d);
+                var reg = registros[iso];
+                var aus = reg ? String(reg.ausencia || '').trim() : '';
+                var tot = totalAtiv(reg);
+                if (remover) {
+                    if (aus === status && tot === 0) alvo.push(iso);
+                } else if (tot > 0) comLanc++;
+                else if (aus === status) jaTem++;
+                else if (aus) outroStatus++;
+                else alvo.push(iso);
+            }
+            return { m: m, a: a, de: de, ate: ate, status: status, remover: remover, alvo: alvo, comLanc: comLanc, outroStatus: outroStatus, jaTem: jaTem };
+        }
+        function rotuloStatus(v) { var o = STATUS_LOTE.filter(function (x) { return x[0] === v; })[0]; return o ? o[1] : v; }
+        function atualizarPrevia() {
+            var p = plano();
+            var periodo = p2(p.de) + ' a ' + p2(p.ate) + '/' + p2(p.m + 1) + '/' + p.a;
+            var h;
+            if (p.remover) {
+                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) com o status <b>' + esc(rotuloStatus(p.status)) + '</b> (sem lançamentos) voltarão a ficar vazios — período ' + periodo + '.';
+            } else {
+                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) vazio(s) receberão <b>' + esc(rotuloStatus(p.status)) + '</b> — período ' + periodo + '.';
+                var ex = [];
+                if (p.comLanc) ex.push(p.comLanc + ' com lançamentos');
+                if (p.outroStatus) ex.push(p.outroStatus + ' com outro status');
+                if (p.jaTem) ex.push(p.jaTem + ' já com ' + esc(rotuloStatus(p.status)));
+                if (ex.length) h += '<br>Não serão alterados: ' + ex.join(', ') + '.';
+            }
+            $('stsPrevia').innerHTML = h;
+            $('stsEntregarBox').style.display = p.remover ? 'none' : '';
+            var b = $('stsAplicar');
+            b.textContent = p.remover ? 'Remover status' : 'Aplicar';
+            b.classList.toggle('remover', p.remover);
+            b.disabled = !p.alvo.length && (p.remover || !$('stsEntregar').checked);
+        }
+        preencherDias(); $('stsDe').value = 1; $('stsAte').value = new Date(anoRef, mesRef + 1, 0).getDate();
+        ['stsMes', 'stsAno'].forEach(function (id) { $(id).onchange = function () { $('stsDe').value = 1; $('stsAte').value = 31; preencherDias(); $('stsAte').value = new Date(+$('stsAno').value, +$('stsMes').value + 1, 0).getDate(); atualizarPrevia(); }; });
+        ['stsStatus', 'stsDe', 'stsAte', 'stsEntregar'].forEach(function (id) { $(id).onchange = atualizarPrevia; });
+        document.querySelectorAll('input[name="stsAcao"]').forEach(function (r) { r.onchange = atualizarPrevia; });
+        atualizarPrevia();
+
+        $('stsAplicar').onclick = async function () {
+            var p = plano();
+            var b = this; b.disabled = true; $('stsFechar').disabled = true;
+            var msg = $('stsMsg'); msg.className = 'sts-msg'; msg.textContent = '';
+            var falhas = 0, feitos = 0;
+            for (var i = 0; i < p.alvo.length; i++) {
+                b.textContent = (p.remover ? 'Removendo ' : 'Aplicando ') + (i + 1) + '/' + p.alvo.length + '...';
+                var iso = p.alvo[i], ok = false;
+                try {
+                    if (p.remover) ok = await dbExcluirRegistroDia(nome, iso);
+                    else ok = await dbSalvarRegistroDia(nome, iso, (registros[iso] && registros[iso].atividades) || {}, p.status);
+                } catch (e) { ok = false; }
+                if (ok) {
+                    feitos++;
+                    if (p.remover) delete registros[iso];
+                    else registros[iso] = { atividades: (registros[iso] && registros[iso].atividades) || {}, ausencia: p.status };
+                } else falhas++;
+            }
+            var texto = (p.remover ? 'Status removido de ' : 'Status aplicado em ') + feitos + ' dia(s).';
+            var erro = falhas > 0;
+            if (falhas) texto += ' ' + falhas + ' dia(s) não puderam ser gravados (verifique a conexão ou se o script 18 foi executado no banco).';
+            if (!p.remover && !falhas && $('stsEntregar').checked) {
+                b.textContent = 'Entregando relatório...';
+                try {
+                    var r = await db.rpc('entregar_relatorio', { p_servidor: nome, p_ano: p.a, p_mes: p.m + 1 });
+                    if (r.error) throw r.error;
+                    var envios = r.data && r.data.envios ? r.data.envios : 1;
+                    texto += ' Relatório de ' + NOMES_MES_ST[p.m] + '/' + p.a + ' entregue em nome do servidor' + (envios > 1 ? ' (atualizado)' : '') + '.';
+                } catch (e) {
+                    erro = true;
+                    var em = (e && e.message) || '';
+                    var mp = /DIAS_PENDENTES:([0-9,\-]+)/.exec(em);
+                    if (mp) {
+                        var dias = mp[1].split(',').filter(Boolean).map(function (x) { return x.slice(8, 10) + '/' + x.slice(5, 7); });
+                        texto += ' O relatório NÃO foi entregue: ainda há dias úteis sem lançamento nem status (' + dias.join(', ') + ').';
+                    } else if (/futuro/i.test(em)) {
+                        texto += ' O relatório NÃO foi entregue: não é possível entregar relatório de mês futuro.';
+                    } else {
+                        texto += ' O relatório NÃO foi entregue (' + esc(em || 'erro desconhecido') + ').';
+                    }
+                }
+            }
+            msg.className = 'sts-msg ' + (erro ? 'erro' : 'ok');
+            msg.innerHTML = texto;
+            $('stsFechar').disabled = false;
+            atualizarPrevia();
+            try { if (typeof renderizarAcessoRapido === 'function') renderizarAcessoRapido(); } catch (e2) {}
+        };
+    }
+    window.abrirStatusServidor = abrirStatusServidor;
     window.abrirRelatorioServidor = abrirRelatorioServidor;
     // expostas para testes
     window._relatorioServidor = { montarMensal: montarMensal, montarAnual: montarAnual, htmlRelatorio: htmlRelatorio };
 
     injetarEstilos();
+    estiloStatusLote();
 
     // ---------------- PDF sem páginas em branco no final ----------------
     // A ferramenta de PDF fatia uma imagem longa do relatório em páginas A4;

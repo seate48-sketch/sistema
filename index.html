@@ -863,7 +863,7 @@
 </div>
 
 <script src="common.js?v=25"></script>
-<script src="relatorio-servidor.js?v=30"></script>
+<script src="relatorio-servidor.js?v=31"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -1619,7 +1619,7 @@ function atualizarListaFuncionariosPrincipal() {
         html += '<button type="button" class="btn-mover-serv" onclick="moverServidorPosicao(' + i + ', 1)"' + (i === filtrados.length - 1 ? ' disabled' : '') + '>▼</button>';
         html += '</span>';
         html += '</td>';
-        html += '<td class="c-nome">' + escapeHtml(nome) + '</td><td class="c-lotacao"><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="c-status ' + statusClass + '">' + statusText + '</td><td class="c-acoes acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button><button class="btn-relatorio" onclick="abrirRelatorioServidor(\'' + nome.replace(/'/g, "\\'") + '\')">Relatório</button></td></tr>';
+        html += '<td class="c-nome">' + escapeHtml(nome) + '</td><td class="c-lotacao"><span class="badge badge-lotacao">' + escapeHtml(lotacao) + '</span></td><td class="c-status ' + statusClass + '">' + statusText + '</td><td class="c-acoes acoes-cell"><button class="btn-bloquear" onclick="toggleBloqueio(\'' + nome.replace(/'/g, "\\'") + '\')">' + acaoTexto + '</button><button class="btn-editar" onclick="abrirModalEdicaoServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Editar</button><button class="btn-excluir-circular" onclick="excluirServidorPorNome(\'' + nome.replace(/'/g, "\\'") + '\')">Excluir</button><button class="btn-relatorio" onclick="abrirRelatorioServidor(\'' + nome.replace(/'/g, "\\'") + '\')">Relatório</button><button class="btn-status-lote" onclick="abrirStatusServidor(\'' + nome.replace(/'/g, "\\'") + '\')" title="Colocar um status (Folga, Férias...) nos dias vazios do mês">Status</button></td></tr>';
     }
     html += '</tbody></table>';
     container.innerHTML = html;
