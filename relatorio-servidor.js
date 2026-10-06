@@ -1312,7 +1312,7 @@
     // se marcado, entrega o relatório do mês em nome do servidor (conta para
     // o avanço automático do mês de referência). Também permite remover o
     // status aplicado, para corrigir um engano.
-    var STATUS_LOTE = [['Folga', 'Folga'], ['Ferias', 'Férias'], ['Atestado', 'Atestado'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado']];
+    var STATUS_LOTE = [['', 'Ativo'], ['Folga', 'Folga'], ['Ferias', 'Férias'], ['Atestado', 'Atestado'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado']];
     var NOMES_MES_ST = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     function p2(n) { return String(n).padStart(2, '0'); }
     function totalAtiv(reg) {
@@ -1379,7 +1379,7 @@
             '</div>';
         document.body.appendChild(fundo);
         var $ = function (id) { return document.getElementById(id); };
-        $('stsMes').value = mesRef; $('stsAno').value = anoRef;
+        $('stsMes').value = mesRef; $('stsAno').value = anoRef; $('stsStatus').value = 'Folga';
         $('stsFechar').onclick = function () { fundo.remove(); };
         fundo.addEventListener('click', function (e) { if (e.target === fundo) fundo.remove(); });
 
@@ -1410,8 +1410,9 @@
                 var aus = reg ? String(reg.ausencia || '').trim() : '';
                 var tot = totalAtiv(reg);
                 if (remover) {
-                    if (aus === status && tot === 0) alvo.push(iso);
+                    if (status && aus === status && tot === 0) alvo.push(iso); // (com "Ativo" não há o que remover)
                 } else if (tot > 0) comLanc++;
+                else if (!status) { if (aus) { outroStatus++; alvo.push(iso); } else jaTem++; } // "Ativo": tira o status
                 else if (aus === status) jaTem++;
                 else if (aus) { outroStatus++; alvo.push(iso); } // troca de status (sem lançamentos): nada é apagado
                 else { vazios++; alvo.push(iso); }
@@ -1428,20 +1429,22 @@
             } else {
                 var det = [];
                 if (p.vazios) det.push(p.vazios + ' vazio(s)');
-                if (p.outroStatus) det.push(p.outroStatus + ' trocando de outro status');
+                if (!p.status) { det = []; if (p.outroStatus) det.push(p.outroStatus + ' saindo de outro status'); }
+                if (p.outroStatus && p.status) det.push(p.outroStatus + ' trocando de outro status');
                 h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) receberão <b>' + esc(rotuloStatus(p.status)) + '</b>' + (det.length ? ' (' + det.join(' + ') + ')' : '') + ' — período ' + periodo + '.';
                 var ex = [];
                 if (p.comLanc) ex.push(p.comLanc + ' com lançamentos');
                 if (p.jaTem) ex.push(p.jaTem + ' já com ' + esc(rotuloStatus(p.status)));
                 if (ex.length) h += '<br>Não serão alterados: ' + ex.join(', ') + '.';
-                if (!p.alvo.length && !$('stsEntregar').checked) h += '<br><i>Nada a alterar neste período.</i>';
+                if (!p.status && p.alvo.length) h += '<br><i>Esses dias voltam a ficar em aberto para o servidor preencher.</i>';
+                if (!p.alvo.length && (!p.status || !$('stsEntregar').checked)) h += '<br><i>Nada a alterar neste período.</i>';
             }
             $('stsPrevia').innerHTML = h;
-            $('stsEntregarBox').style.display = p.remover ? 'none' : '';
+            $('stsEntregarBox').style.display = (p.remover || !p.status) ? 'none' : ''; // "Ativo" deixa dias a preencher: não há o que entregar
             var b = $('stsAplicar');
             b.textContent = p.remover ? 'Remover status' : 'Aplicar';
             b.classList.toggle('remover', p.remover);
-            b.disabled = !p.alvo.length && (p.remover || !$('stsEntregar').checked);
+            b.disabled = !p.alvo.length && (p.remover || !p.status || !$('stsEntregar').checked);
         }
         preencherDias(); $('stsDe').value = 1; $('stsAte').value = new Date(anoRef, mesRef + 1, 0).getDate();
         ['stsMes', 'stsAno'].forEach(function (id) { $(id).onchange = function () { $('stsDe').value = 1; $('stsAte').value = 31; preencherDias(); $('stsAte').value = new Date(+$('stsAno').value, +$('stsMes').value + 1, 0).getDate(); atualizarPrevia(); }; });
@@ -1458,19 +1461,21 @@
                 b.textContent = (p.remover ? 'Removendo ' : 'Aplicando ') + (i + 1) + '/' + p.alvo.length + '...';
                 var iso = p.alvo[i], ok = false;
                 try {
-                    if (p.remover) ok = await dbExcluirRegistroDia(nome, iso);
-                    else ok = await dbSalvarRegistroDia(nome, iso, (registros[iso] && registros[iso].atividades) || {}, p.status);
+                    var ativExist = (registros[iso] && registros[iso].atividades) || {};
+                    var ficaVazio = p.remover || (!p.status && !Object.keys(ativExist).length);
+                    if (ficaVazio) ok = await dbExcluirRegistroDia(nome, iso);
+                    else ok = await dbSalvarRegistroDia(nome, iso, ativExist, p.status);
                 } catch (e) { ok = false; }
                 if (ok) {
                     feitos++;
-                    if (p.remover) delete registros[iso];
-                    else registros[iso] = { atividades: (registros[iso] && registros[iso].atividades) || {}, ausencia: p.status };
+                    if (ficaVazio) delete registros[iso];
+                    else registros[iso] = { atividades: ativExist, ausencia: p.status };
                 } else falhas++;
             }
             var texto = (p.remover ? 'Status removido de ' : 'Status aplicado em ') + feitos + ' dia(s).';
             var erro = falhas > 0;
             if (falhas) texto += ' ' + falhas + ' dia(s) não puderam ser gravados (verifique a conexão ou se o script 18 foi executado no banco).';
-            if (!p.remover && !falhas && $('stsEntregar').checked) {
+            if (!p.remover && p.status && !falhas && $('stsEntregar').checked) {
                 b.textContent = 'Entregando relatório...';
                 try {
                     var r = await db.rpc('entregar_relatorio', { p_servidor: nome, p_ano: p.a, p_mes: p.m + 1 });
