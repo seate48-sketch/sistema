@@ -872,7 +872,7 @@
 </div>
 
 <script src="common.js?v=26"></script>
-<script src="relatorio-servidor.js?v=36"></script>
+<script src="relatorio-servidor.js?v=37"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -1170,6 +1170,16 @@ async function abrirModalIndicador(ano, setor) {
 
         container.innerHTML = html;
         atualizarLinhaVariacaoMensal();
+        // janeiro: compara com dezembro do ano anterior (busca em segundo plano)
+        (async function () {
+            var linhaVar = container.querySelector('.linha-variacao-combinado');
+            if (!linhaVar) return;
+            var dez = null;
+            try { dez = await totalDezembroDoAno(parseInt(ano, 10) - 1); } catch (eDez) { dez = null; }
+            if (dez === null || anoEstatisticaSelecionado !== ano || !linhaVar.isConnected) return;
+            linhaVar.setAttribute('data-dez-anterior', String(dez));
+            atualizarLinhaVariacaoMensal();
+        })();
 
         // ============================================================
         // RESTAURAR ESTADO DE TRAVAMENTO PARA O ANO (SALVO NO BANCO)
@@ -1283,6 +1293,35 @@ function recalcularTotalLinha(inputEl) {
     atualizarLinhaVariacaoMensal();
 }
 
+// Total de dezembro de um ano, somando os setores, pela mesma regra do modal
+// do ano: dezembro vindo dos registros dos servidores quando o ano já usa
+// registros (e eles já existiam em dezembro); senão, o lançamento manual.
+// Devolve null se o ano não estiver entre os anos do sistema.
+async function totalDezembroDoAno(a) {
+    var anos = getAnosDisponiveis().map(String);
+    if (anos.indexOf(String(a)) === -1) return null;
+    var tot = 0;
+    if (anoUsaRegistros(String(a))) {
+        var dm = null;
+        try { dm = await dbCarregarDataMaisAntigaRegistro(); } catch (e) { dm = null; }
+        if (anoSoRegistros(String(a)) || (dm && dm.slice(0, 4) <= String(a))) {
+            var t = await obterTotaisAno(String(a));
+            ['porAtividadeMesSeate', 'porAtividadeMesNahora', 'porAtividadeMesDigit'].forEach(function (k) {
+                var o = (t && t[k]) || {};
+                for (var at in o) tot += +((o[at] || {}).Dezembro) || 0;
+            });
+            return tot;
+        }
+    }
+    var d = await obterDadosAno(String(a));
+    if (d === null) return null;
+    ['SEATE', 'NAHORA'].forEach(function (s) {
+        var o = (d && d[s]) || {};
+        for (var at in o) tot += +((o[at] || {}).Dezembro) || 0;
+    });
+    return tot;
+}
+
 // Linha "Variação vs mês anterior" do modal de Dados Estatísticos: compara o total
 // combinado de cada mês com o do mês anterior (janeiro não tem base no próprio ano).
 function atualizarLinhaVariacaoMensal() {
@@ -1295,8 +1334,10 @@ function atualizarLinhaVariacaoMensal() {
     for (var k = 0; k < 12; k++) {
         var cel = linha.querySelector('[data-var-mes="' + k + '"]');
         if (!cel) continue;
-        if (k === 0 || (!tot[k] && !tot[k - 1])) { cel.textContent = '–'; cel.style.color = ''; continue; }
-        var t = variacaoMesAnterior(tot[k], tot[k - 1]);
+        var anterior = k > 0 ? tot[k - 1] : (linha.hasAttribute('data-dez-anterior') ? (parseInt(linha.getAttribute('data-dez-anterior'), 10) || 0) : null);
+        if (anterior === null || (!tot[k] && !anterior)) { cel.textContent = '–'; cel.style.color = ''; continue; }
+        var t = variacaoMesAnterior(tot[k], anterior);
+        cel.title = k === 0 ? 'Em relação a dezembro do ano anterior (' + formatarMilhar(anterior) + ')' : '';
         cel.textContent = (t === 'sem base de comparação' || t === 'sem dados no mês') ? '–' : t;
         cel.style.color = t.charAt(0) === '▲' ? '#15803D' : (t.charAt(0) === '▼' ? '#B91C1C' : '');
     }

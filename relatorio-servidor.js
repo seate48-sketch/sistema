@@ -786,7 +786,10 @@
                   : (typeof anoUsaRegistros === 'function' && anoUsaRegistros(ano)) ? 'Registros dos servidores + dados digitados'
                   : 'Dados digitados (Dados Estatísticos)';
         // variação de cada mês em relação ao anterior (sobre o total combinado; janeiro não tem base no próprio ano)
-        var variacoes = comb.map(function (v, i) { return i === 0 ? 'sem base de comparação' : varMes(v, comb[i - 1]); });
+        // janeiro: dezembro do ano anterior, quando o modal já o buscou
+        var linhaVar = lista.querySelector('.linha-variacao-combinado');
+        var dezAnt = (linhaVar && linhaVar.hasAttribute('data-dez-anterior')) ? (parseInt(linhaVar.getAttribute('data-dez-anterior'), 10) || 0) : null;
+        var variacoes = comb.map(function (v, i) { return i === 0 ? (dezAnt === null ? 'sem base de comparação' : varMes(v, dezAnt)) : varMes(v, comb[i - 1]); });
         return { ano: ano, titulo: tituloModal, fonte: fonte, setores: setores, comb: comb, variacoes: variacoes, total: comb.reduce(function (s, v) { return s + v; }, 0) };
     }
 
@@ -873,8 +876,12 @@
                 r.push('Meses com registros: ' + comDados.length + ' · média mensal: <b>' + num(d.total / comDados.length) + '</b>.');
                 var iUlt = comDados[comDados.length - 1].i;
                 if (iUlt > 0) r.push(MESES[iUlt] + ' em relação a ' + MESES[iUlt - 1] + ': <b>' + d.variacoes[iUlt] + '</b>.');
+                else if (/[▲▼=]/.test(d.variacoes[0])) r.push('Janeiro em relação a dezembro de ' + (parseInt(d.ano, 10) - 1) + ': <b>' + d.variacoes[0] + '</b>.');
                 var partesVar = [];
-                for (var iv = 1; iv <= iUlt; iv++) partesVar.push(MESES_ABREV[iv] + ' ' + d.variacoes[iv]);
+                for (var iv = 0; iv <= iUlt; iv++) {
+                    if (iv === 0 && !/[▲▼=]/.test(d.variacoes[0])) continue; // janeiro só com base em dezembro do ano anterior
+                    partesVar.push(MESES_ABREV[iv] + ' ' + d.variacoes[iv]);
+                }
                 if (partesVar.length) r.push('Variação mês a mês (total): ' + partesVar.join(' · ') + '.');
             }
             d.setores.forEach(function (s) {
