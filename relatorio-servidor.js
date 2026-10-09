@@ -298,6 +298,22 @@
         return x || 'Ativo';
     }
 
+    // variação em relação ao mês anterior (▲ crescimento · ▼ queda · = igual)
+    function varMes(atual, anterior) {
+        if (typeof variacaoMesAnterior === 'function') return variacaoMesAnterior(atual, anterior);
+        if (!atual) return 'sem dados no mês';
+        if (!anterior) return 'sem base de comparação';
+        var v = (atual - anterior) * 100 / anterior;
+        var t = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+        return v > 0.049 ? '▲ ' + t : (v < -0.049 ? '▼ ' + t : '= 0,0%');
+    }
+    function totalDoMes(regs, ano, mes) { // mes de 0 a 11 (aceita -1 = dezembro do ano anterior)
+        if (mes < 0) { ano = +ano - 1; mes = 11; }
+        var prefixo = ano + '-' + pad2(mes + 1) + '-', t = 0;
+        Object.keys(regs || {}).forEach(function (d) { if (d.indexOf(prefixo) === 0) itensDoDia(regs[d]).forEach(function (it) { t += it.qtd; }); });
+        return t;
+    }
+
     function montarMensal(regs, ano, mes) {
         var prefixo = ano + '-' + pad2(mes + 1) + '-';
         var datas = Object.keys(regs).filter(function (d) { return d.indexOf(prefixo) === 0; }).sort();
@@ -321,6 +337,8 @@
         return {
             tipo: 'mes', ano: ano, mes: mes,
             periodo: MESES[mes] + ' de ' + ano,
+            totalMesAnterior: totalDoMes(regs, ano, mes - 1),
+            nomeMesAnterior: mes > 0 ? MESES[mes - 1] + '/' + ano : MESES[11] + '/' + (+ano - 1),
             dias: dias, resumo: resumo, total: total, diasComAtividade: diasComAtividade, status: status
         };
     }
@@ -345,6 +363,7 @@
         return {
             tipo: 'ano', ano: ano,
             periodo: 'Ano de ' + ano,
+            totalDezAnterior: totalDoMes(regs, ano, -1),
             linhas: linhas, totMes: totMes, total: total, diasComAtividade: Object.keys(dias).length
         };
     }
@@ -372,6 +391,17 @@
         var h = '<div class="rel-resumo" style="flex-wrap:wrap;row-gap:4px;">' +
             '<div>Dias com atividade: <b>' + num(m.diasComAtividade) + '</b></div>' +
             '<div>Total geral do período: <b>' + num(m.total) + '</b></div>';
+        if (m.tipo === 'mes' && estado.origem !== 'entregues') { // a cópia entregue só tem o próprio mês
+            h += '<div>Em relação a ' + esc(m.nomeMesAnterior) + ': <b>' + varMes(m.total, m.totalMesAnterior) + '</b></div>';
+        }
+        if (m.tipo === 'ano') {
+            var ultimo = -1;
+            m.totMes.forEach(function (v, i) { if (v > 0) ultimo = i; });
+            if (ultimo >= 0) {
+                var antUlt = ultimo > 0 ? m.totMes[ultimo - 1] : m.totalDezAnterior;
+                h += '<div>' + MESES[ultimo] + ' em relação ao mês anterior: <b>' + varMes(m.totMes[ultimo], antUlt) + '</b></div>';
+            }
+        }
         if (m.tipo === 'mes' && m.status) {
             h += '<div style="flex-basis:100%;border-top:1px solid #E5E7EB;padding-top:4px;">Dias por status no mês: ' +
                  Object.keys(m.status).map(function (k) { return k + ' <b>' + num(m.status[k]) + '</b>'; }).join(' · ') + '</div>';
@@ -439,6 +469,12 @@
         h += '<tr class="rel-total"><td>TOTAL GERAL</td>';
         m.totMes.forEach(function (v) { h += '<td class="c">' + num(v) + '</td>'; });
         h += '<td class="n">' + num(m.total) + '</td></tr>';
+        h += '<tr><td style="font-size:8.5px;color:#475569;">Variação vs mês anterior</td>';
+        m.totMes.forEach(function (v, i) {
+            var ant = i > 0 ? m.totMes[i - 1] : m.totalDezAnterior;
+            h += '<td class="c" style="font-size:8px;color:#475569;">' + (v || ant ? varMes(v, ant).replace('sem base de comparação', '–').replace('sem dados no mês', '–') : '–') + '</td>';
+        });
+        h += '<td></td></tr>';
         h += '</tbody></table>';
         h += htmlResumoGeral(m) + '</div>' + htmlRodape();
         return h;
@@ -493,6 +529,7 @@
             L.push(['Atividade', 'Quantidade']);
             m.resumo.forEach(function (r) { L.push([r.ativ, r.qtd]); });
             L.push(['TOTAL GERAL', m.total]);
+            if (estado.origem !== 'entregues') L.push(['Variação em relação a ' + m.nomeMesAnterior, varMes(m.total, m.totalMesAnterior)]);
             L.push([]);
             L.push(['Status do dia', 'Quantidade de dias']);
             Object.keys(m.status || {}).forEach(function (k) { L.push([k, m.status[k]]); });
@@ -500,6 +537,7 @@
             L.push(['Atividade'].concat(MESES, ['Total']));
             m.linhas.forEach(function (l) { L.push([l.ativ].concat(l.meses, [l.total])); });
             L.push(['TOTAL GERAL'].concat(m.totMes, [m.total]));
+            L.push(['Variação vs mês anterior'].concat(m.totMes.map(function (v, i) { return varMes(v, i > 0 ? m.totMes[i - 1] : m.totalDezAnterior); }), ['']));
         }
         var csv = L.map(function (row) { return row.map(csvCampo).join(';'); }).join('\r\n');
         var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -747,7 +785,9 @@
         var fonte = (typeof anoSoRegistros === 'function' && anoSoRegistros(ano)) ? 'Registros dos servidores'
                   : (typeof anoUsaRegistros === 'function' && anoUsaRegistros(ano)) ? 'Registros dos servidores + dados digitados'
                   : 'Dados digitados (Dados Estatísticos)';
-        return { ano: ano, titulo: tituloModal, fonte: fonte, setores: setores, comb: comb, total: comb.reduce(function (s, v) { return s + v; }, 0) };
+        // variação de cada mês em relação ao anterior (sobre o total combinado; janeiro não tem base no próprio ano)
+        var variacoes = comb.map(function (v, i) { return i === 0 ? 'sem base de comparação' : varMes(v, comb[i - 1]); });
+        return { ano: ano, titulo: tituloModal, fonte: fonte, setores: setores, comb: comb, variacoes: variacoes, total: comb.reduce(function (s, v) { return s + v; }, 0) };
     }
 
     function exportarDadosAnoExcel() {
@@ -762,6 +802,7 @@
         });
         if (d.setores.length > 1) L.push([d.setores.map(function (x) { return x.nome; }).join(' + '), 'Total mensal combinado'].concat(d.comb, [d.total]));
         L.push(['TOTAL GERAL ' + d.ano, '', '', '', '', '', '', '', '', '', '', '', '', '', d.total]);
+        L.push(['Variação vs mês anterior', ''].concat(d.variacoes, ['']));
         var csv = L.map(function (row) { return row.map(csvCampo).join(';'); }).join('\r\n');
         var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
         var a = document.createElement('a');
@@ -810,7 +851,10 @@
                 MESES_ABREV.forEach(function (m) { h += '<th class="c">' + m + '</th>'; });
                 h += '<th class="n">Total</th></tr></thead><tbody><tr class="rel-total"><td>Total mensal combinado</td>';
                 d.comb.forEach(function (v) { h += '<td class="c">' + num(v) + '</td>'; });
-                h += '<td class="n">' + num(d.total) + '</td></tr></tbody></table></div>';
+                h += '<td class="n">' + num(d.total) + '</td></tr>';
+                h += '<tr><td style="font-size:8.5px;color:#475569;">Variação vs mês anterior</td>';
+                d.comb.forEach(function (v, i) { h += '<td class="c" style="font-size:8px;color:#475569;">' + ((v || (i && d.comb[i - 1])) ? d.variacoes[i].replace('sem base de comparação', '–').replace('sem dados no mês', '–') : '–') + '</td>'; });
+                h += '<td></td></tr></tbody></table></div>';
             }
             // resumo curto
             var r = [];
@@ -827,6 +871,11 @@
                 var mn = comDados.reduce(function (a, b) { return b.v < a.v ? b : a; });
                 r.push('Mês de maior volume: <b>' + MESES[mx.i] + '</b> (' + num(mx.v) + '); menor: ' + MESES[mn.i] + ' (' + num(mn.v) + ').');
                 r.push('Meses com registros: ' + comDados.length + ' · média mensal: <b>' + num(d.total / comDados.length) + '</b>.');
+                var iUlt = comDados[comDados.length - 1].i;
+                if (iUlt > 0) r.push(MESES[iUlt] + ' em relação a ' + MESES[iUlt - 1] + ': <b>' + d.variacoes[iUlt] + '</b>.');
+                var partesVar = [];
+                for (var iv = 1; iv <= iUlt; iv++) partesVar.push(MESES_ABREV[iv] + ' ' + d.variacoes[iv]);
+                if (partesVar.length) r.push('Variação mês a mês (total): ' + partesVar.join(' · ') + '.');
             }
             d.setores.forEach(function (s) {
                 var top = s.linhas.slice().sort(function (a, b) { return b.total - a.total; })[0];
@@ -1520,10 +1569,22 @@
     // quando a imagem passa um pouquinho da última página, sobra uma página
     // só com espaço em branco. Aqui, antes de salvar, conferimos as últimas
     // páginas pixel a pixel e removemos as que estão totalmente brancas.
+    // Página "em branco" = sem nada impresso, ou só com um resto finíssimo do
+    // fatiamento (a borda de uma tabela ou uma sombra que passou da página
+    // anterior: no máximo 8 linhas de pixels com alguma marca, menos que uma
+    // linha de texto). Página com qualquer texto nunca é considerada em branco.
     function fatiaEmBranco(ctx, largura, y0, altura) {
         var dados = ctx.getImageData(0, y0, largura, altura).data;
-        for (var i = 0; i < dados.length; i += 12) {
-            if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) return false;
+        var linhasComMarca = 0;
+        for (var y = 0; y < altura; y++) {
+            var base = y * largura * 4;
+            for (var x = 0; x < largura; x += 3) {
+                var i = base + x * 4;
+                if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) {
+                    if (++linhasComMarca > 8) return false;
+                    break;
+                }
+            }
         }
         return true;
     }

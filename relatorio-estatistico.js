@@ -277,6 +277,11 @@
                     r.push('De ' + a.mes + ' para ' + u.mes + ': variação de <b>' + (v > 0 ? '+' : '') + v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%</b>.');
                 }
             }
+            var ultI = comDados[comDados.length - 1].i;
+            if (ultI >= 1) {
+                var seqM = itens.slice(0, ultI + 1).map(function (it, i) { return { rotulo: (MESES[i] || it.nome).slice(0, 3), total: it.total }; });
+                r.push('Variação mês a mês: ' + textoVariacoes(seqM) + '.');
+            }
         }
         h += linhas(r) + '</div>';
         return h;
@@ -354,6 +359,31 @@
     }
     function nomeMesBonito(m) { return m === 'Marco' ? 'Março' : m; }
     function setorTexto(setor, comDigit) { return setor === 'SEATE' ? 'SEATE' : setor === 'NAHORA' ? 'NAHORA' : setor === 'DIGITALIZAÇÃO' ? 'DIGITALIZAÇÃO' : (comDigit ? 'SEATE, NAHORA e DIGITALIZAÇÃO' : 'SEATE e NAHORA'); }
+    // ---- variação em relação ao mês anterior ----
+    // ▲ crescimento · ▼ queda · = sem mudança; sem o mês anterior (ou com 0) não há base.
+    function varMes(atual, anterior) {
+        if (!atual) return 'sem dados no mês';
+        if (!anterior) return 'sem base de comparação';
+        var v = (atual - anterior) * 100 / anterior;
+        var t = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+        return v > 0.049 ? '▲ ' + t : (v < -0.049 ? '▼ ' + t : '= 0,0%');
+    }
+    // meses consecutivos do calendário entre (anoDe, mesDe) e (anoAte, mesAte); mesDe/mesAte de 0 a 11
+    function mesesDoPeriodo(anoDe, mesDe, anoAte, mesAte) {
+        var out = [];
+        for (var a = anoDe, m = mesDe; a < anoAte || (a === anoAte && m <= mesAte); ) {
+            out.push({ ano: a, mes: m, chave: a + '-' + String(m + 1).padStart(2, '0'), rotulo: MESES[m].slice(0, 3) + '/' + a });
+            if (++m > 11) { m = 0; a++; }
+        }
+        return out;
+    }
+    // "Fev/2026 ▲ 5,2% · Mar/2026 ▼ 1,0% · …" — cada mês em relação ao anterior (a partir do 2º mês)
+    function textoVariacoes(lista) { // lista: [{ rotulo, total }] em meses consecutivos
+        var partes = [];
+        for (var i = 1; i < lista.length; i++) partes.push(lista[i].rotulo + ' ' + varMes(lista[i].total, lista[i - 1].total));
+        if (partes.length > 12) partes = partes.slice(-12);
+        return partes.join(' · ');
+    }
     function variacaoTxt(de, para) {
         if (!de) return '';
         var v = (para - de) * 100 / de;
@@ -450,6 +480,14 @@
                 var vt = variacaoTxt(pr.total, ul.total);
                 if (vt) r.push('Do primeiro (' + pr.rotulo + ') ao último mês (' + ul.rotulo + '): variação de <b>' + vt + '</b>.');
             }
+            if (f.nMeses >= 2 && !isNaN(f.anoDe)) {
+                var mapaM = {};
+                meses.forEach(function (mm) { mapaM[mm.ano + '-' + String(mm.idx + 1).padStart(2, '0')] = mm.total; });
+                var seq = mesesDoPeriodo(f.anoDe, f.mesDe, f.anoAte, f.mesAte).map(function (x) { return { rotulo: x.rotulo, total: mapaM[x.chave] || 0 }; });
+                var ult = seq[seq.length - 1], ant = seq[seq.length - 2];
+                r.push('Último mês (' + ult.rotulo + ') em relação ao anterior (' + ant.rotulo + '): <b>' + varMes(ult.total, ant.total) + '</b>.');
+                r.push('Variação mês a mês: ' + textoVariacoes(seq) + '.');
+            }
         }
         return r;
     }
@@ -503,17 +541,22 @@
             h += linhas(resumoResultados(resultado, f)) + '</div>';
 
             // detalhamento
-            h += '<div class="rel-secao" style="margin-top:4px;">Detalhamento por atividade</div>';
+            h += '<div class="rel-secao" style="margin-top:4px;">Detalhamento por atividade</div>' +
+                 '<div class="rel-subtitulo">Var. mês ant.: crescimento (▲) ou queda (▼) em relação ao mês anterior; "–" = sem base de comparação.</div>';
             resultado.porAtividade.forEach(function (b) {
                 h += '<div class="rel-bloco" style="margin-top:8px;"><div class="rel-subtitulo" style="color:#0F2D52;font-weight:600;font-size:10.5px;">' + esc(b.nome) + '</div>' +
                      '<table class="rel-tab"><thead><tr><th>Mês</th>' + (comS ? '<th class="n">SEATE</th>' : '') +
-                     (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th></tr></thead><tbody>';
+                     (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th><th class="n">Var. mês ant.</th></tr></thead><tbody>';
+                var porChave = {};
+                b.linhas.forEach(function (l) { porChave[l.ano + '-' + MESES_IDX(l.mesNome)] = l.total; });
                 b.linhas.forEach(function (l) {
+                    var iM = MESES_IDX(l.mesNome), antChave = iM === 0 ? (l.ano - 1) + '-11' : l.ano + '-' + (iM - 1);
                     h += '<tr><td>' + nomeMesBonito(l.mesNome) + '/' + l.ano + '</td>' + (comS ? '<td class="n">' + num(l.seate) + '</td>' : '') +
-                         (comN ? '<td class="n">' + num(l.nahora) + '</td>' : '') + (comD ? '<td class="n">' + num(l.digit || 0) + '</td>' : '') + '<td class="n">' + num(l.total) + '</td></tr>';
+                         (comN ? '<td class="n">' + num(l.nahora) + '</td>' : '') + (comD ? '<td class="n">' + num(l.digit || 0) + '</td>' : '') + '<td class="n">' + num(l.total) + '</td>' +
+                         '<td class="n">' + varMes(l.total, porChave[antChave] || 0).replace('sem base de comparação', '–').replace('sem dados no mês', '–') + '</td></tr>';
                 });
                 h += '<tr class="rel-total"><td>SUBTOTAL</td>' + (comS ? '<td class="n">' + num(b.totalSeate) + '</td>' : '') +
-                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') + (comD ? '<td class="n">' + num(b.totalDigit || 0) + '</td>' : '') + '<td class="n">' + num(b.total) + '</td></tr></tbody></table>';
+                     (comN ? '<td class="n">' + num(b.totalNahora) + '</td>' : '') + (comD ? '<td class="n">' + num(b.totalDigit || 0) + '</td>' : '') + '<td class="n">' + num(b.total) + '</td><td></td></tr></tbody></table>';
                 var r = [];
                 r.push('Total no período: <b>' + num(b.total) + '</b> (' + pct(b.total, tot) + ' do total geral)' +
                        (ambos ? ' · SEATE ' + pct(b.totalSeate, b.total) + ' | NAHORA ' + pct(b.totalNahora, b.total) + (comD ? ' | DIGITALIZAÇÃO ' + pct(b.totalDigit || 0, b.total) : '') : '') + '.');
@@ -616,13 +659,16 @@
             ? (mesDe === mesAte ? MESES[mesDe] + ' de ' + anoDe : MESES[mesDe] + ' a ' + MESES[mesAte] + ' de ' + anoDe)
             : (MESES[mesDe] + '/' + anoDe + ' a ' + MESES[mesAte] + '/' + anoAte);
 
+        var chaveMesAntRef = mesRef > 0 ? anoRef + '-' + String(mesRef).padStart(2, '0') : null; // mês anterior ao de referência (no mesmo ano)
         ultimoServidor = {
             periodo: periodoTxt, nMeses: nMeses, anoRef: anoRef, mesRef: mesRef, filtroAtiv: filtroAtiv,
+            anoDe: anoDe, mesDe: mesDe, anoAte: anoAte, mesAte: mesAte,
             servidores: nomes.map(function (n) {
                 var itens = Object.keys(periodo[n].atividades).map(function (a) { return { nome: a, total: periodo[n].atividades[a] }; })
                     .sort(function (a, b) { return b.total - a.total; });
                 return { nome: n, lotacao: lotacaoDe(n), itens: itens, total: periodo[n].total, meses: periodo[n].meses,
-                         totalAnoRef: ref[n].total, totalMesRef: ref[n].totalMes };
+                         totalAnoRef: ref[n].total, totalMesRef: ref[n].totalMes,
+                         totalMesAntRef: chaveMesAntRef ? (ref[n].meses[chaveMesAntRef] || 0) : 0 };
             })
         };
 
@@ -638,7 +684,7 @@
                 html += '<table class="tabela-resultados"><thead><tr><th>Atividade</th><th>Total</th></tr></thead><tbody>';
                 s.itens.forEach(function (it) { html += '<tr><td>' + esc(it.nome) + '</td><td>' + num(it.total) + '</td></tr>'; });
             }
-            html += '<tr class="total-row"><td><strong>' + rotMes + '</strong></td><td>' + num(s.totalMesRef) + '</td></tr>';
+            html += '<tr class="total-row"><td><strong>' + rotMes + '</strong></td><td>' + num(s.totalMesRef) + ' <span style="font-weight:600;color:#475569;">(' + varMes(s.totalMesRef, s.totalMesAntRef) + ' vs mês anterior)</span></td></tr>';
             html += '<tr class="total-row"><td><strong>' + rotAno + '</strong></td><td>' + num(s.totalAnoRef) + '</td></tr>';
             html += '</tbody></table></div>';
         });
@@ -672,6 +718,7 @@
         u.servidores.forEach(function (s) {
             s.itens.forEach(function (it) { L.push([s.nome, s.lotacao, it.nome, it.total]); });
             L.push([s.nome, s.lotacao, 'TOTAL GERAL DO MÊS DE REFERÊNCIA (' + MESES[u.mesRef] + '/' + u.anoRef + ')', s.totalMesRef]);
+            L.push([s.nome, s.lotacao, 'VARIAÇÃO DO MÊS DE REFERÊNCIA EM RELAÇÃO AO MÊS ANTERIOR', varMes(s.totalMesRef, s.totalMesAntRef)]);
             L.push([s.nome, s.lotacao, 'TOTAL GERAL DO ANO DE REFERÊNCIA (' + u.anoRef + ')', s.totalAnoRef]);
         });
         if (u.servidores.length > 1) {
@@ -731,6 +778,11 @@
                      '</tbody></table>';
                 var r = [];
                 r.push('Mês de referência (' + esc(refTxt) + '): <b>' + num(s.totalMesRef) + '</b> · ano de referência (' + u.anoRef + '): <b>' + num(s.totalAnoRef) + '</b> atividades.');
+                r.push('Mês de referência em relação ao mês anterior: <b>' + varMes(s.totalMesRef, s.totalMesAntRef) + '</b>.');
+                if (u.nMeses >= 2) {
+                    var seqS = mesesDoPeriodo(u.anoDe, u.mesDe, u.anoAte, u.mesAte).map(function (x) { return { rotulo: x.rotulo, total: s.meses[x.chave] || 0 }; });
+                    r.push('Variação mês a mês no período: ' + textoVariacoes(seqS) + '.');
+                }
                 r.push(s.itens.length + ' tipo(s) de atividade no período filtrado (' + esc(u.periodo) + ').');
                 if (s.itens.length) {
                     r.push('Principal atividade: <b>' + esc(s.itens[0].nome) + '</b> (' + num(s.itens[0].total) + ', ' + pct(s.itens[0].total, s.total) + ').');
@@ -1137,10 +1189,22 @@
     // quando a imagem passa um pouquinho da última página, sobra uma página
     // só com espaço em branco. Aqui, antes de salvar, conferimos as últimas
     // páginas pixel a pixel e removemos as que estão totalmente brancas.
+    // Página "em branco" = sem nada impresso, ou só com um resto finíssimo do
+    // fatiamento (a borda de uma tabela ou uma sombra que passou da página
+    // anterior: no máximo 8 linhas de pixels com alguma marca, menos que uma
+    // linha de texto). Página com qualquer texto nunca é considerada em branco.
     function fatiaEmBranco(ctx, largura, y0, altura) {
         var dados = ctx.getImageData(0, y0, largura, altura).data;
-        for (var i = 0; i < dados.length; i += 12) {
-            if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) return false;
+        var linhasComMarca = 0;
+        for (var y = 0; y < altura; y++) {
+            var base = y * largura * 4;
+            for (var x = 0; x < largura; x += 3) {
+                var i = base + x * 4;
+                if (dados[i] < 245 || dados[i + 1] < 245 || dados[i + 2] < 245) {
+                    if (++linhasComMarca > 8) return false;
+                    break;
+                }
+            }
         }
         return true;
     }

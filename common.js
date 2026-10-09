@@ -460,6 +460,15 @@ function obterAtividadesPorSetor(setor) {
 }
 
 // ==================== FORMATAÇÃO DE NÚMEROS (PADRÃO 000.000) ====================
+// Variação em relação ao mês anterior: "▲ 5,2%" (crescimento), "▼ 4,3%" (queda),
+// "= 0,0%" (igual) ou "sem base de comparação" (mês anterior sem dados).
+function variacaoMesAnterior(atual, anterior) {
+    if (!atual) return 'sem dados no mês';
+    if (!anterior) return 'sem base de comparação';
+    var v = (atual - anterior) * 100 / anterior;
+    var t = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    return v > 0.049 ? '▲ ' + t : (v < -0.049 ? '▼ ' + t : '= 0,0%');
+}
 function formatarMilhar(valor) {
     return (valor || 0).toLocaleString('pt-BR');
 }

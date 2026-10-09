@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=25">
-    <link rel="icon" href="icons/favicon-32.png?v=25">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=25">
+    <link rel="manifest" href="manifest-dashboard.json?v=26">
+    <link rel="icon" href="icons/favicon-32.png?v=26">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=26">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=25').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=26').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="style.css?v=26">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=25"></script>
+    <script src="config.js?v=26"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=25"></script>
+    <script src="supabase-client.js?v=26"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=25"></script>
+    <script src="common.js?v=26"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=25"></script>
+    <script src="relatorio-estatistico.js?v=26"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -941,6 +941,7 @@ const valorTopoPlugin = {
         var isHorizontal = chart.config.options.indexAxis === 'y';
         
         chart.data.datasets.forEach(function(dataset, datasetIndex) {
+            if (!chart.isDatasetVisible(datasetIndex)) return; // setor escondido na legenda: sem rótulo
             var meta = chart.getDatasetMeta(datasetIndex);
             meta.data.forEach(function(bar, index) {
                 var data = dataset.data[index];
@@ -1411,6 +1412,11 @@ async function criarGraficoMensalAnoAtual() {
                     callbacks: {
                         label: function(context) {
                             return 'Total: ' + formatarMilhar(context.parsed.y);
+                        },
+                        afterLabel: function(context) {
+                            var k = context.dataIndex;
+                            if (k === 0) return 'Mês anterior: sem base de comparação';
+                            return 'Em relação ao mês anterior: ' + variacaoMesAnterior(context.parsed.y, context.dataset.data[k - 1] || 0);
                         }
                     }
                 }
@@ -1659,20 +1665,24 @@ function renderizarTabelaResultadosMulti(resultado, setor) {
         if (setor === "ambos" || setor === "SEATE") html += '<th>SEATE</th>';
         if (comN) html += '<th>NAHORA</th>';
         if (comD) html += '<th>DIGITALIZAÇÃO</th>';
-        html += '<th>TOTAL</th></tr></thead><tbody>';
+        html += '<th>TOTAL</th><th>VAR. MÊS ANT.</th></tr></thead><tbody>';
+        var porMesAtiv = {};
+        bloco.linhas.forEach(function (l) { porMesAtiv[l.ano + '-' + MESES_NOMES_RELATORIO.indexOf(l.mesNome)] = l.total; });
         for (var i = 0; i < bloco.linhas.length; i++) {
             var item = bloco.linhas[i];
+            var iMes = MESES_NOMES_RELATORIO.indexOf(item.mesNome);
+            var chaveAnt = iMes === 0 ? (item.ano - 1) + '-11' : item.ano + '-' + (iMes - 1);
             html += '<tr><td><strong>' + item.ano + '-' + item.mesNome + '</strong></td>';
             if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(item.seate) + '</td>';
             if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(item.nahora) + '</td>';
             if (comD) html += '<td>' + formatarMilhar(item.digit || 0) + '</td>';
-            html += '<td>' + formatarMilhar(item.total) + '</td></tr>';
+            html += '<td>' + formatarMilhar(item.total) + '</td><td>' + variacaoMesAnterior(item.total, porMesAtiv[chaveAnt] || 0).replace('sem base de comparação', '–').replace('sem dados no mês', '–') + '</td></tr>';
         }
         html += '<tr class="total-row"><td><strong>SUBTOTAL</strong></td>';
         if (setor === "ambos" || setor === "SEATE") html += '<td>' + formatarMilhar(bloco.totalSeate) + '</td>';
         if (setor === "ambos" || setor === "NAHORA") html += '<td>' + formatarMilhar(bloco.totalNahora) + '</td>';
         if (comD) html += '<td>' + formatarMilhar(bloco.totalDigit || 0) + '</td>';
-        html += '<td>' + formatarMilhar(bloco.total) + '</td></tr>';
+        html += '<td>' + formatarMilhar(bloco.total) + '</td><td></td></tr>';
         html += '</tbody></table></div>';
     }
 
@@ -1994,17 +2004,21 @@ function exportarCSV() {
     var comD = (setor === "DIGITALIZAÇÃO") || (setor === "ambos" && (resultado.totalDigit || 0) > 0);
     if (setor === "ambos" || setor === "NAHORA") csv += ";NAHORA";
     if (comD) csv += ";DIGITALIZAÇÃO";
-    csv += ";TOTAL\n";
+    csv += ";TOTAL;VARIAÇÃO MÊS ANTERIOR\n";
 
     for (var a = 0; a < resultado.porAtividade.length; a++) {
         var bloco = resultado.porAtividade[a];
+        var porMesCsv = {};
+        bloco.linhas.forEach(function (l) { porMesCsv[l.ano + '-' + MESES_NOMES_RELATORIO.indexOf(l.mesNome)] = l.total; });
         for (var i = 0; i < bloco.linhas.length; i++) {
             var item = bloco.linhas[i];
+            var iMesCsv = MESES_NOMES_RELATORIO.indexOf(item.mesNome);
+            var antCsv = porMesCsv[iMesCsv === 0 ? (item.ano - 1) + '-11' : item.ano + '-' + (iMesCsv - 1)] || 0;
             csv += bloco.nome + ";" + item.ano + "-" + item.mesNome;
             if (setor === "ambos" || setor === "SEATE") csv += ";" + item.seate;
             if (setor === "ambos" || setor === "NAHORA") csv += ";" + item.nahora;
             if (comD) csv += ";" + (item.digit || 0);
-            csv += ";" + item.total + "\n";
+            csv += ";" + item.total + ";" + variacaoMesAnterior(item.total, antCsv) + "\n";
         }
         csv += bloco.nome + ";SUBTOTAL";
         if (setor === "ambos" || setor === "SEATE") csv += ";" + bloco.totalSeate;

@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest.json?v=25">
-    <link rel="icon" href="icons/favicon-32.png?v=25">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=25">
+    <link rel="manifest" href="manifest.json?v=26">
+    <link rel="icon" href="icons/favicon-32.png?v=26">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=26">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=25').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=26').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Painel Principal</title>
-    <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="style.css?v=26">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=25"></script>
-    <script src="supabase-client.js?v=25"></script>
+    <script src="config.js?v=26"></script>
+    <script src="supabase-client.js?v=26"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
@@ -871,8 +871,8 @@
     </div>
 </div>
 
-<script src="common.js?v=25"></script>
-<script src="relatorio-servidor.js?v=35"></script>
+<script src="common.js?v=26"></script>
+<script src="relatorio-servidor.js?v=36"></script>
 <script>
 
 // ==================== CALCULAR DADOS MENSAIS DO ANO ATUAL ====================
@@ -1144,6 +1144,10 @@ async function abrirModalIndicador(ano, setor) {
                 html += '<td style="text-align:center;" data-total-mes-combinado="' + meses[jc] + '">' + formatarMilhar(somaMesCombinado) + '</td>';
             }
             html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);" data-total-geral-combinado>' + formatarMilhar(totalCombinadoGeral) + '</td></tr>';
+            // variação de cada mês em relação ao anterior (recalculada ao digitar)
+            html += '<tr class="linha-variacao-combinado" style="font-size:0.7rem; color:#475569;"><td style="text-align:left;">Variação vs mês anterior</td>';
+            for (var jv = 0; jv < meses.length; jv++) html += '<td style="text-align:center;" data-var-mes="' + jv + '">–</td>';
+            html += '<td></td></tr>';
             html += '</tbody></table></div>';
         }
 
@@ -1165,6 +1169,7 @@ async function abrirModalIndicador(ano, setor) {
         }
 
         container.innerHTML = html;
+        atualizarLinhaVariacaoMensal();
 
         // ============================================================
         // RESTAURAR ESTADO DE TRAVAMENTO PARA O ANO (SALVO NO BANCO)
@@ -1274,6 +1279,26 @@ function recalcularTotalLinha(inputEl) {
         }
         var celulaGeralCombinada = linhaCombinada.querySelector('[data-total-geral-combinado]');
         if (celulaGeralCombinada) celulaGeralCombinada.innerText = formatarMilhar(totalGeralCombinadoRecalc);
+    }
+    atualizarLinhaVariacaoMensal();
+}
+
+// Linha "Variação vs mês anterior" do modal de Dados Estatísticos: compara o total
+// combinado de cada mês com o do mês anterior (janeiro não tem base no próprio ano).
+function atualizarLinhaVariacaoMensal() {
+    var cont = document.getElementById("listaAtividadesEstatistica");
+    var linha = cont ? cont.querySelector('.linha-variacao-combinado') : null;
+    if (!linha) return;
+    var tot = Array.prototype.map.call(cont.querySelectorAll('[data-total-mes-combinado]'), function (c) {
+        return parseInt(c.innerText.replace(/\D/g, ''), 10) || 0;
+    });
+    for (var k = 0; k < 12; k++) {
+        var cel = linha.querySelector('[data-var-mes="' + k + '"]');
+        if (!cel) continue;
+        if (k === 0 || (!tot[k] && !tot[k - 1])) { cel.textContent = '–'; cel.style.color = ''; continue; }
+        var t = variacaoMesAnterior(tot[k], tot[k - 1]);
+        cel.textContent = (t === 'sem base de comparação' || t === 'sem dados no mês') ? '–' : t;
+        cel.style.color = t.charAt(0) === '▲' ? '#15803D' : (t.charAt(0) === '▼' ? '#B91C1C' : '');
     }
 }
 
@@ -1465,7 +1490,7 @@ function criarGraficoEvolucao() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 28 } },
+            layout: { padding: { top: 70 } },
             plugins: {
                 legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } },
                 tooltip: {
@@ -1490,13 +1515,13 @@ function criarGraficoEvolucao() {
                     ticks: { font: { size: 10 } }
                 }
             },
-            onClick: function(event, elements) {
+            onClick: function(event, elements, graf) {
                 if (elements.length > 0) {
                     var index = elements[0].index;
                     var datasetIndex = elements[0].datasetIndex;
                     var anos = getAnosDisponiveis();
                     var ano = anos[index];
-                    var setor = datasetIndex === 0 ? "SEATE" : (datasetIndex === 1 ? "NAHORA" : "DIGITALIZAÇÃO");
+                    var setor = (graf && graf.data.datasets[datasetIndex] && graf.data.datasets[datasetIndex].label) || (datasetIndex === 0 ? "SEATE" : (datasetIndex === 1 ? "NAHORA" : "DIGITALIZAÇÃO"));
                     fecharModalGraficoEvolucao();
                     abrirModalIndicador(ano, setor);
                 }
@@ -1504,33 +1529,45 @@ function criarGraficoEvolucao() {
         },
         plugins: [{
             afterDraw: function(chart) {
+                // Só os setores visíveis (o gestor pode esconder um setor clicando na legenda):
+                // rótulos das barras e "Total" do ano consideram apenas o que está selecionado.
                 var ctx = chart.ctx;
+                function rotulo(texto, x, yBase, larguraBarra, tamanho) {
+                    ctx.font = 'bold ' + tamanho + 'px Arial';
+                    var w = ctx.measureText(texto).width;
+                    if (w > larguraBarra + 8 && tamanho > 8) { tamanho = Math.max(8, Math.floor(tamanho * (larguraBarra + 8) / w)); ctx.font = 'bold ' + tamanho + 'px Arial'; w = ctx.measureText(texto).width; }
+                    if (w > larguraBarra + 10) { // ainda não cabe: escreve na vertical, sem encostar no vizinho
+                        ctx.save(); ctx.translate(x, yBase); ctx.rotate(-Math.PI / 2);
+                        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(texto, 2, 0); ctx.restore();
+                        return yBase - w - 4;
+                    }
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(texto, x, yBase);
+                    return yBase - tamanho - 2;
+                }
+                var topoPorAno = {};
                 chart.data.datasets.forEach(function(dataset, datasetIndex) {
+                    if (!chart.isDatasetVisible(datasetIndex)) return;
                     var meta = chart.getDatasetMeta(datasetIndex);
                     meta.data.forEach(function(bar, index) {
                         var data = dataset.data[index];
-                        if (data !== undefined && data !== null) {
-                            ctx.fillStyle = '#0F2D52';
-                            ctx.font = 'bold 11px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'bottom';
-                            var x = bar.x;
-                            var y = bar.y - 4;
-                            ctx.fillText(formatarMilhar(data), x, y);
-                        }
+                        if (data === undefined || data === null || !isFinite(bar.y)) return;
+                        ctx.fillStyle = '#0F2D52';
+                        var topo = rotulo(formatarMilhar(data), bar.x, bar.y - 4, bar.width || 30, 11);
+                        topoPorAno[index] = Math.min(topoPorAno[index] === undefined ? Infinity : topoPorAno[index], topo);
                     });
                 });
 
-                // Total combinado (SEATE + NAHORA + DIGITALIZAÇÃO, quando houver) de cada ano,
-                // centralizado acima das barras do ano.
-                var metas = chart.data.datasets.map(function (d, k) { return chart.getDatasetMeta(k); });
-                var metaSeate = metas[0];
-                for (var i = 0; i < metaSeate.data.length; i++) {
-                    var barras = metas.map(function (m) { return m.data[i]; }).filter(function (b) { return b && isFinite(b.y); });
+                // Total dos setores visíveis de cada ano, centralizado acima das barras do ano
+                // (só quando há 2 ou mais setores visíveis com barra naquele ano).
+                var visiveis = chart.data.datasets.map(function (d, k) { return k; }).filter(function (k) { return chart.isDatasetVisible(k); });
+                var nAnos = (chart.data.labels || []).length;
+                for (var i = 0; i < nAnos; i++) {
+                    var barras = visiveis.map(function (k) { return { b: chart.getDatasetMeta(k).data[i], v: chart.data.datasets[k].data[i] }; })
+                        .filter(function (o) { return o.b && isFinite(o.b.y) && o.v !== null && o.v !== undefined; });
                     if (barras.length < 2) continue;
-                    var total = chart.data.datasets.reduce(function (soma, d) { return soma + (d.data[i] || 0); }, 0);
-                    var xCentro = (barras[0].x + barras[barras.length - 1].x) / 2;
-                    var yTopo = Math.min.apply(null, barras.map(function (b) { return b.y; })) - 18;
+                    var total = barras.reduce(function (soma, o) { return soma + (o.v || 0); }, 0);
+                    var xCentro = (barras[0].b.x + barras[barras.length - 1].b.x) / 2;
+                    var yTopo = (topoPorAno[i] !== undefined ? topoPorAno[i] : Math.min.apply(null, barras.map(function (o) { return o.b.y; }))) - 4;
                     ctx.fillStyle = '#8A5A00';
                     ctx.font = 'bold 12px Arial';
                     ctx.textAlign = 'center';
