@@ -164,13 +164,15 @@
 
         var h = '<div class="rel-bloco"><div class="rel-secao">Resumo Geral</div>' +
                 '<div class="rel-subtitulo">Total de atividades por ano e por setor</div>' +
-                '<table class="rel-tab"><thead><tr><th>Ano</th><th class="n">SEATE</th><th class="n">NAHORA</th>' + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th><th class="n">% do total</th></tr></thead><tbody>';
-        dados.forEach(function (d) {
+                '<table class="rel-tab"><thead><tr><th>Ano</th><th class="n">SEATE</th><th class="n">NAHORA</th>' + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th><th class="n">% do total</th><th class="n">Var. ano ant.</th></tr></thead><tbody>';
+        dados.forEach(function (d, i) {
+            var vAno = i === 0 ? '–' : varMes(d.total, dados[i - 1].total).replace('sem base de comparação', '–').replace('sem dados no mês', '–');
+            if (d.ano === anoAtual() && vAno !== '–') vAno += '*';
             h += '<tr><td>' + esc(d.ano) + (d.ano === anoAtual() ? ' <span style="color:#6B7280">(em andamento)</span>' : '') + '</td>' +
                  '<td class="n">' + num(d.seate) + '</td><td class="n">' + num(d.nahora) + '</td>' + (comD ? '<td class="n">' + num(d.digit) + '</td>' : '') + '<td class="n"><b>' + num(d.total) + '</b></td>' +
-                 '<td class="n">' + pct(d.total, tot) + '</td></tr>';
+                 '<td class="n">' + pct(d.total, tot) + '</td><td class="n">' + vAno + '</td></tr>';
         });
-        h += '<tr class="rel-total"><td>TOTAL GERAL</td><td class="n">' + num(totS) + '</td><td class="n">' + num(totN) + '</td>' + (comD ? '<td class="n">' + num(totD) + '</td>' : '') + '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td></tr>';
+        h += '<tr class="rel-total"><td>TOTAL GERAL</td><td class="n">' + num(totS) + '</td><td class="n">' + num(totN) + '</td>' + (comD ? '<td class="n">' + num(totD) + '</td>' : '') + '<td class="n">' + num(tot) + '</td><td class="n">100,0%</td><td></td></tr>';
         h += '</tbody></table>';
 
         var completos = dados.filter(function (d) { return d.ano !== anoAtual(); });
@@ -188,16 +190,56 @@
             r.push('Média anual dos anos completos: <b>' + num(media) + '</b> atividades.');
             if (completos.length >= 2) {
                 var ult = completos[completos.length - 1], pen = completos[completos.length - 2];
-                if (pen.total > 0) {
-                    var v = (ult.total - pen.total) * 100 / pen.total;
-                    r.push('De ' + pen.ano + ' para ' + ult.ano + ': variação de <b>' + (v > 0 ? '+' : '') + v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%</b>.');
-                }
+                if (pen.total > 0) r.push('De ' + pen.ano + ' para ' + ult.ano + ': <b>' + varMes(ult.total, pen.total) + '</b>.');
             }
         }
         var atual = dados.filter(function (d) { return d.ano === anoAtual(); })[0];
         if (atual) r.push(atual.ano + ' (em andamento): <b>' + num(atual.total) + '</b> atividades até o momento.');
+        // variação ano a ano em todo o período
+        if (dados.length >= 2) {
+            var partesAno = [];
+            for (var ia = 1; ia < dados.length; ia++) {
+                partesAno.push(dados[ia].ano + (dados[ia].ano === anoAtual() ? '*' : '') + ' ' + varMes(dados[ia].total, dados[ia - 1].total));
+            }
+            r.push('Variação ano a ano: ' + partesAno.join(' · ') + (atual ? ' (*ano em andamento, comparado com o ano anterior completo)' : '') + '.');
+        }
+        if (completos.length >= 2) {
+            var prim = completos[0], ultC = completos[completos.length - 1];
+            r.push('De ' + prim.ano + ' a ' + ultC.ano + ' (anos completos): <b>' + varMes(ultC.total, prim.total) + '</b>.');
+        }
+        // ano em andamento x mesmo período do ano anterior
+        if (atual) {
+            try {
+                var comp = await mesmoPeriodoAnoAnterior(atual.ano);
+                if (comp) r.push(atual.ano + ' até ' + comp.mesNome + ' em relação ao mesmo período de ' + comp.anoAnt + ' (' + num(comp.anterior) + '): <b>' + varMes(comp.atual, comp.anterior) + '</b>.');
+            } catch (eMP) { console.warn('Mesmo período do ano anterior:', eMP && eMP.message); }
+        }
         h += linhas(r) + '</div>';
         return h;
+    }
+
+    // total de janeiro até o último mês com dados no ano em andamento, e o mesmo intervalo do ano anterior
+    async function mesmoPeriodoAnoAnterior(ano) {
+        var MESES_DB = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        async function porMes(a) {
+            var out = MESES_DB.map(function () { return 0; });
+            var manual = (typeof obterDadosAno === 'function') ? await obterDadosAno(String(a)) : null;
+            ['SEATE', 'NAHORA'].forEach(function (st) {
+                var o = (manual && manual[st]) || {};
+                Object.keys(o).forEach(function (at) { MESES_DB.forEach(function (m, i) { out[i] += +((o[at] || {})[m]) || 0; }); });
+            });
+            if (typeof anoUsaRegistros === 'function' && anoUsaRegistros(String(a))) {
+                var t = await obterTotaisAno(String(a));
+                MESES_DB.forEach(function (m, i) { out[i] += +((t && t.porMes || {})[m]) || 0; });
+            }
+            return out;
+        }
+        var atualM = await porMes(ano), antM = await porMes(+ano - 1);
+        var ult = -1;
+        atualM.forEach(function (v, i) { if (v > 0) ult = i; });
+        if (ult < 0) return null;
+        var soma = function (arr) { return arr.slice(0, ult + 1).reduce(function (x, y) { return x + y; }, 0); };
+        return { mesNome: MESES[ult], anoAnt: +ano - 1, atual: soma(atualM), anterior: soma(antM) };
     }
 
     async function secaoTop10Mais() {
