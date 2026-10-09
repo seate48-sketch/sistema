@@ -152,9 +152,16 @@ async function _lerTodasPaginas(montar) {
     return { data: todas, error: null };
 }
 
+const _servidorEmAndamento = {};
 async function obterServidorPorNome(nomeServidor) {
     if (_cache.servidores[nomeServidor]) return _cache.servidores[nomeServidor];
     if (!supabaseDisponivel || !db) return null;
+    // várias buscas do mesmo servidor ao mesmo tempo usam uma só consulta
+    if (_servidorEmAndamento[nomeServidor]) return _servidorEmAndamento[nomeServidor];
+    _servidorEmAndamento[nomeServidor] = _buscarServidorPorNome(nomeServidor);
+    try { return await _servidorEmAndamento[nomeServidor]; } finally { delete _servidorEmAndamento[nomeServidor]; }
+}
+async function _buscarServidorPorNome(nomeServidor) {
     try {
         const { data, error } = await db.from(TABLES.SERVIDORES)
             .select('id, lotacao, bloqueado').eq('nome', nomeServidor).maybeSingle();
@@ -646,16 +653,33 @@ async function dbCarregarConfiguracao() {
         return { mes: now.getMonth(), ano: now.getFullYear(), suspenso: false };
     }
     
+    // Se outra parte da página já está buscando a configuração neste
+    // instante, aproveita a mesma resposta (evita idas repetidas ao servidor).
+    if (_configEmAndamento) return _configEmAndamento.then(c => (c ? Object.assign({}, c) : c));
+    _configEmAndamento = _dbBuscarConfiguracao();
+    try { return await _configEmAndamento; } finally { _configEmAndamento = null; }
+}
+let _configEmAndamento = null;
+async function _dbBuscarConfiguracao() {
     // Avanço automático do mês de referência (script 18): se todos os
     // servidores ativos já entregaram o relatório do mês de referência e o
     // mês seguinte já começou, o próprio banco avança o mês. Verificado no
     // máximo a cada 5 minutos; se a função ainda não existir no banco, nada muda.
+    // A verificação e a leitura da configuração vão ao servidor ao mesmo
+    // tempo; só se o mês tiver acabado de avançar a configuração é lida de novo.
+    let verificacao = null;
     if (!_cache.avancoVerificadoEm || Date.now() - _cache.avancoVerificadoEm > 5 * 60 * 1000) {
         _cache.avancoVerificadoEm = Date.now();
-        try { await db.rpc('verificar_avanco_mes'); } catch (eAv) { /* sem a função: segue como antes */ }
+        try { verificacao = Promise.resolve(db.rpc('verificar_avanco_mes')).catch(() => null); }
+        catch (eAv) { verificacao = null; /* sem a função: segue como antes */ }
     }
+    const lerConfig = () => db.from(TABLES.CONFIGURACAO).select('*').limit(1).maybeSingle();
     try {
-        const { data, error } = await db.from(TABLES.CONFIGURACAO).select('*').limit(1).maybeSingle();
+        let leitura = Promise.resolve(lerConfig());
+        leitura.catch(() => {});
+        const av = verificacao ? await verificacao : null;
+        let { data, error } = await leitura;
+        if (av && av.data && av.data.avancou) ({ data, error } = await lerConfig());
         if (error) console.error('dbCarregarConfiguracao:', error);
 
         if (data) { _cache.configId = data.id; return data; }

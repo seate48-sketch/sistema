@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="icon" href="icons/favicon-32.png?v=28">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=28">
+    <link rel="icon" href="icons/favicon-32.png?v=29">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=29">
     <script>
     // Manifest dinâmico: cada servidor tem seu próprio link
     // (registro.html?user=Nome) — o manifest precisa refletir ESSA
@@ -39,7 +39,7 @@
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=28').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=29').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
@@ -53,17 +53,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=28"></script>
+    <script src="config.js?v=29"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=28"></script>
+    <script src="supabase-client.js?v=29"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=28"></script>
+    <script src="common.js?v=29"></script>
     
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif}
@@ -811,6 +811,11 @@ async function carregar() {
         feedback("Sem conexão com o servidor. Seus registros não podem ser exibidos agora.");
         return;
     }
+    // registros, observação e comunicados: buscados ao mesmo tempo
+    var pObs = Promise.resolve(dbCarregarObsServidor(USUARIO_LOGADO, mes, ano));
+    pObs.catch(function () {});
+    var pComunicados = Promise.resolve(carregarComunicadosMultiplos());
+    pComunicados.catch(function () {});
     var dadosRemotos = null;
     try {
         dadosRemotos = await dbCarregarRegistros(USUARIO_LOGADO);
@@ -824,10 +829,10 @@ async function carregar() {
         registros = dadosRemotos; // pode ser {} de verdade — e está correto mostrar assim
     }
 
-    var obsRemota = await dbCarregarObsServidor(USUARIO_LOGADO, mes, ano);
+    var obsRemota = await pObs;
     obsFunc.value = (obsRemota !== null) ? obsRemota : "";
 
-    await carregarComunicadosMultiplos();
+    await pComunicados;
 }
 
 async function salvarObservacao() {
@@ -1156,18 +1161,28 @@ async function ativarNavegacaoGestor() {
 }
 
 async function iniciarPagina() {
-    await carregarPeriodoReal();
-    if (USUARIO_LOGADO && supabaseDisponivel) {
+    // As buscas iniciais vão ao servidor AO MESMO TEMPO (antes era uma
+    // resposta de cada vez); o resultado de cada uma é aplicado na mesma
+    // ordem de antes.
+    var _iniciar = function (p) { p = Promise.resolve(p); p.catch(function () {}); return p; };
+    var pPeriodo = _iniciar(carregarPeriodoReal());
+    var pServ = (USUARIO_LOGADO && supabaseDisponivel) ? _iniciar(dbCarregarServidores()) : null;
+    var pSuspenso = _iniciar(isSistemaSuspenso());
+    var pAtividades = _iniciar(carregarAtividadesPermitidas());
+    var pMsgIndividual = _iniciar(verificarMensagemIndividual());
+    var pMsgEmergente = _iniciar(verificarMensagemEmergente());
+    await pPeriodo;
+    if (pServ) {
         try {
-            var dadosServ = await dbCarregarServidores();
+            var dadosServ = await pServ;
             bloqueiosServidor = dadosServ.bloqueios || {};
         } catch(e) { console.warn('Erro ao carregar servidores:', e.message); }
     }
-    await verificarMensagemIndividual();
-    await verificarMensagemEmergente();
-    var suspenso = await isSistemaSuspenso();
+    await pMsgIndividual;
+    await pMsgEmergente;
+    var suspenso = await pSuspenso;
     if (suspenso) { exibirModalSuspensao(); }
-    await carregarAtividadesPermitidas();
+    await pAtividades;
     await carregar();
     renderCalendario();
     await ativarNavegacaoGestor();
@@ -1199,6 +1214,6 @@ window.editarComunicadoSupervisor = function(t) {
 };
 window.onbeforeunload = function() { pararVerificacaoPeriodica(); };
 </script>
-<script src="entrega-relatorio.js?v=28"></script>
+<script src="entrega-relatorio.js?v=29"></script>
 </body>
 </html>

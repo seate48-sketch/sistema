@@ -151,6 +151,7 @@
     async function secaoResumoGeral() {
         var anos = (typeof getAnosDisponiveis === 'function') ? getAnosDisponiveis() : [anoAtual()];
         var dados = [];
+        await Promise.all(anos.map(function (a) { return obterSeateNahoraPorAno(a); })); // todos os anos ao mesmo tempo
         for (var i = 0; i < anos.length; i++) {
             var t = await obterSeateNahoraPorAno(anos[i]);
             var s = (t && t.seateTotal) || 0, n = (t && t.nahoraTotal) || 0, dg = (t && t.digitTotal) || 0;

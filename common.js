@@ -312,15 +312,25 @@ function _anoValido(a) {
 }
 async function atualizarAnoMaximo() {
     var maior = 0;
+    // as duas consultas vão ao servidor ao mesmo tempo
+    var pCfg = null, pReg = null;
     try {
-        if (typeof dbCarregarConfiguracao === 'function') {
-            var cfg = await dbCarregarConfiguracao();
+        if (typeof dbCarregarConfiguracao === 'function') pCfg = Promise.resolve(dbCarregarConfiguracao());
+    } catch (e) { console.warn('Anos exibidos (configuração):', e.message); }
+    try {
+        if (typeof db !== 'undefined' && db && typeof db.from === 'function') pReg = Promise.resolve(db.from(getTables().REGISTROS).select('data').order('data', { ascending: false }).limit(1));
+    } catch (e) { console.warn('Anos exibidos (registros):', e.message); }
+    if (pCfg) pCfg.catch(function () {});
+    if (pReg) pReg.catch(function () {});
+    try {
+        if (pCfg) {
+            var cfg = await pCfg;
             if (cfg) maior = Math.max(maior, _anoValido(cfg.ano));
         }
     } catch (e) { console.warn('Anos exibidos (configuração):', e.message); }
     try {
-        if (typeof db !== 'undefined' && db && typeof db.from === 'function') {
-            var r = await db.from(getTables().REGISTROS).select('data').order('data', { ascending: false }).limit(1);
+        if (pReg) {
+            var r = await pReg;
             if (r && !r.error && r.data && r.data[0] && r.data[0].data) maior = Math.max(maior, _anoValido(String(r.data[0].data).slice(0, 4)));
         }
     } catch (e) { console.warn('Anos exibidos (registros):', e.message); }
@@ -434,8 +444,9 @@ async function obterSeateNahoraPorAno(ano) {
         // manualmente em "Dados Estatísticos" para os meses ainda sem
         // registro — os dois nunca se sobrepõem porque tratam de meses
         // diferentes, então somar é seguro.
-        var t = await obterTotaisAno(ano);
-        var manual = await obterDadosAno(ano);
+        var ambos = await Promise.all([obterTotaisAno(ano), obterDadosAno(ano)]); // ao mesmo tempo
+        var t = ambos[0];
+        var manual = ambos[1];
         var seateManual = 0, nahoraManual = 0;
         if (manual) {
             for (var ativ in manual.SEATE) { for (var m in manual.SEATE[ativ]) seateManual += manual.SEATE[ativ][m] || 0; }
@@ -1212,17 +1223,26 @@ async function carregarDados() {
         if (!usarSupabase || !supabaseClient) {
             initSupabase();
         }
-        await atualizarAnoMaximo();
+        // Todas as consultas iniciais vão ao servidor AO MESMO TEMPO (antes
+        // era uma de cada vez, e a espera se somava). As respostas continuam
+        // sendo tratadas na mesma ordem e com as mesmas regras de antes.
+        var _iniciar = function (consulta) { var p = Promise.resolve(consulta); p.catch(function () {}); return p; };
+        var pAnoMaximo = _iniciar(atualizarAnoMaximo());
+        var pServidores = null, pAtividades = null, pAtribuicoes = null;
+        if (usarSupabase && supabaseClient) {
+            try {
+                pServidores = _iniciar(supabaseClient.from(TABLES.SERVIDORES).select('*').eq('ativo', true).order('ordem'));
+                pAtividades = _iniciar(supabaseClient.from(TABLES.ATIVIDADES).select('*').order('ordem'));
+                pAtribuicoes = _iniciar(supabaseClient.from(TABLES.ATRIBUICOES).select('servidores(nome), atividades(nome), criado_em').order('criado_em', { ascending: true }));
+            } catch (eIni) { /* tratado abaixo, consulta a consulta */ }
+        }
+        await pAnoMaximo;
         
         if (usarSupabase && supabaseClient) {
             logDebug('📊 Buscando dados do Supabase...');
             
             try {
-                const { data: servidoresData, error: servError } = await supabaseClient
-                    .from(TABLES.SERVIDORES)
-                    .select('*')
-                    .eq('ativo', true)
-                    .order('ordem');
+                const { data: servidoresData, error: servError } = await pServidores;
                 
                 if (!servError && servidoresData && servidoresData.length > 0) {
                     servidores = servidoresData.map(s => s.nome);
@@ -1244,10 +1264,7 @@ async function carregarDados() {
             }
             
             try {
-                const { data: atividadesData, error: ativError } = await supabaseClient
-                    .from(TABLES.ATIVIDADES)
-                    .select('*')
-                    .order('ordem');
+                const { data: atividadesData, error: ativError } = await pAtividades;
                 
                 if (!ativError && atividadesData && atividadesData.length > 0) {
                     atividades = atividadesData.map(a => a.nome);
@@ -1264,10 +1281,7 @@ async function carregarDados() {
             }
             
             try {
-                const { data: atribData, error: atribError } = await supabaseClient
-                    .from(TABLES.ATRIBUICOES)
-                    .select('servidores(nome), atividades(nome), criado_em')
-                    .order('criado_em', { ascending: true });
+                const { data: atribData, error: atribError } = await pAtribuicoes;
                 
                 if (!atribError && atribData) {
                     atribuicoes = {};
@@ -1518,10 +1532,12 @@ async function salvarConfigMes() {
 // navegador — cada servidor/computador podia "achar" que o período era um
 // mês diferente. Esta função busca o valor real, compartilhado, salvo na
 // tabela "configuracao", e mantém o localStorage como reserva (offline).
-async function carregarConfiguracaoReal() {
+async function carregarConfiguracaoReal(configJaBuscada) {
     if (!supabaseDisponivel) return;
     try {
-        var config = await dbCarregarConfiguracao();
+        // configJaBuscada: promessa da mesma busca, já disparada pela página
+        // junto com as outras (evita esperar uma resposta de cada vez)
+        var config = await (configJaBuscada || dbCarregarConfiguracao());
         if (config && typeof config.mes === 'number' && typeof config.ano === 'number') {
             mesConfigurado = config.mes;
             anoConfigurado = config.ano;
