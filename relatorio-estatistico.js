@@ -1152,10 +1152,15 @@
         var canvas = document.getElementById(c.canvas);
         if (!canvas) return;
         if (window[c.chart]) { window[c.chart].destroy(); window[c.chart] = null; }
-        var pai = canvas.parentElement;
+        // No celular o gráfico ganha uma área com altura própria (uma faixa
+        // por atividade), para que o nome de TODAS as barras apareça.
+        var mobile = (window.innerWidth || 1200) <= 768;
+        var wrap = canvas.parentElement.classList.contains('top10-area-mobile') ? canvas.parentElement : null;
+        var pai = wrap ? wrap.parentElement : canvas.parentElement;
         pai.querySelectorAll('.sem-dados-top10').forEach(function (e) { e.remove(); });
         if (!top.length) {
             canvas.style.display = 'none';
+            if (wrap) wrap.style.display = 'none';
             var aviso = document.createElement('div');
             aviso.className = 'sem-dados-top10';
             aviso.style.cssText = 'text-align:center; padding:30px; color:#888;';
@@ -1164,6 +1169,20 @@
             return;
         }
         canvas.style.display = '';
+        if (mobile) {
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'top10-area-mobile';
+                canvas.parentNode.insertBefore(wrap, canvas);
+                wrap.appendChild(canvas);
+            }
+            wrap.style.cssText = 'position:relative; width:100%; height:' + (top.length * 38 + 40) + 'px;';
+            canvas.style.maxHeight = 'none';
+        } else if (wrap) {
+            wrap.parentNode.insertBefore(canvas, wrap);
+            wrap.remove();
+            canvas.style.maxHeight = '300px';
+        }
         var cores = (typeof gerarCoresDegrade === 'function')
             ? (c.menos ? gerarCoresDegrade({ r: 34, g: 139, b: 87 }, { r: 8, g: 61, b: 119 }, top.length)
                        : gerarCoresDegrade({ r: 220, g: 38, b: 38 }, { r: 123, g: 31, b: 162 }, top.length))
@@ -1174,13 +1193,30 @@
                     datasets: [{ label: 'Total no período', data: top.map(function (i) { return i.total; }), backgroundColor: cores, borderColor: cores, borderWidth: 1 }] },
             plugins: (typeof valorTopoPlugin !== 'undefined') ? [valorTopoPlugin] : [],
             options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+                indexAxis: 'y', responsive: true, maintainAspectRatio: !mobile,
                 plugins: { legend: { display: false },
                            tooltip: { callbacks: { label: function (ctx) { return 'Total: ' + num(ctx.parsed.x); } } } },
-                scales: { y: { ticks: { font: { size: 9 } } },
+                scales: { y: { ticks: mobile
+                                 ? { autoSkip: false, font: { size: 9 }, callback: function (v) { return quebrarRotuloTop(this.getLabelForValue(v)); } }
+                                 : { font: { size: 9 } } },
                           x: { beginAtZero: true, ticks: { callback: function (v) { return num(v); }, font: { size: 9 } } } }
             }
         });
+    }
+
+    // Nome da atividade em até 2 linhas curtas (celular); o nome completo
+    // continua aparecendo ao tocar na barra.
+    function quebrarRotuloTop(txt) {
+        var LIM = 20, linhas = [], atual = '';
+        String(txt || '').split(/\s+/).forEach(function (p) {
+            if (!atual) atual = p;
+            else if ((atual + ' ' + p).length <= LIM) atual += ' ' + p;
+            else { linhas.push(atual); atual = p; }
+        });
+        if (atual) linhas.push(atual);
+        linhas = linhas.map(function (l) { return l.length > LIM ? l.slice(0, LIM - 1) + '…' : l; });
+        if (linhas.length > 2) linhas = [linhas[0], linhas[1].slice(0, LIM - 1) + '…'];
+        return linhas.length > 1 ? linhas : linhas[0];
     }
 
     function exportarCSVTop10(t) {
