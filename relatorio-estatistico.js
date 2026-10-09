@@ -1327,5 +1327,234 @@
         pdf.save((worker.opt && worker.opt.filename) || 'relatorio.pdf');
     }
 
+
+    // =====================================================================
+    // RESUMO DO MÊS — aberto ao clicar numa barra do gráfico "Atividades
+    // Mensais". Mesmos números do gráfico (registros dos servidores +
+    // o que foi digitado em Dados Estatísticos para aquele mês).
+    // =====================================================================
+    var ultimoResumoMes = null;
+
+    // total de um mês somado do mesmo jeito que o gráfico mensal
+    async function totalMesComoGrafico(ano, m) {
+        var chave = MESES_CHAVE[m];
+        var r = await Promise.all([obterTotaisAno(String(ano)), obterDadosAno(String(ano))]);
+        var t = r[0] || {}, manual = r[1] || {};
+        var soma = +((t.porMes || {})[chave]) || 0;
+        ['SEATE', 'NAHORA'].forEach(function (s) {
+            var d = manual[s] || {};
+            Object.keys(d).forEach(function (a) { soma += +((d[a] || {})[chave]) || 0; });
+        });
+        return soma;
+    }
+
+    async function montarResumoMes(ano, m) {
+        var chave = MESES_CHAVE[m];
+        var ini = ano + '-' + String(m + 1).padStart(2, '0') + '-01';
+        var fim = ano + '-' + String(m + 1).padStart(2, '0') + '-' + String(new Date(ano, m + 1, 0).getDate()).padStart(2, '0');
+        var base = await Promise.all([
+            obterTotaisAno(String(ano)),
+            obterDadosAno(String(ano)),
+            m > 0 ? totalMesComoGrafico(ano, m - 1)
+                  : ((typeof totalDezembroDoAno === 'function') ? totalDezembroDoAno(ano - 1) : Promise.resolve(null)),
+            ano - 1 >= 2022 ? totalMesComoGrafico(ano - 1, m) : Promise.resolve(null),
+            (typeof _lerTodasPaginas === 'function' && typeof db !== 'undefined' && db)
+                ? _lerTodasPaginas(function (ordenar) {
+                      var q = db.from(getTables().REGISTROS).select('data, atividades, servidores(nome, lotacao)').gte('data', ini).lte('data', fim);
+                      return ordenar ? q.order('data').order('servidor_id') : q;
+                  })
+                : Promise.resolve({ data: null })
+        ]);
+        var t = base[0] || {}, manual = base[1] || {};
+        var ativ = {};   // nome -> { seate, nahora, digit, total }
+        function soma(nome, campo, v) {
+            v = +v || 0; if (!v) return;
+            if (!ativ[nome]) ativ[nome] = { nome: nome, seate: 0, nahora: 0, digit: 0, total: 0 };
+            ativ[nome][campo] += v; ativ[nome].total += v;
+        }
+        [['porAtividadeMesSeate', 'seate'], ['porAtividadeMesNahora', 'nahora'], ['porAtividadeMesDigit', 'digit']].forEach(function (p) {
+            var d = t[p[0]] || {};
+            Object.keys(d).forEach(function (a) { soma(a, p[1], (d[a] || {})[chave]); });
+        });
+        var digitado = 0;
+        [['SEATE', 'seate'], ['NAHORA', 'nahora']].forEach(function (p) {
+            var d = manual[p[0]] || {};
+            Object.keys(d).forEach(function (a) { var v = +((d[a] || {})[chave]) || 0; digitado += v; soma(a, p[1], v); });
+        });
+        var atividadesLista = Object.keys(ativ).map(function (k) { return ativ[k]; }).sort(function (a, b) { return b.total - a.total || a.nome.localeCompare(b.nome); });
+        var tot = { seate: 0, nahora: 0, digit: 0 };
+        atividadesLista.forEach(function (a) { tot.seate += a.seate; tot.nahora += a.nahora; tot.digit += a.digit; });
+        var total = (+((t.porMes || {})[chave]) || 0) + digitado; // = valor da barra do gráfico
+        var outros = Math.max(0, total - tot.seate - tot.nahora - tot.digit); // lotação fora dos 3 setores
+
+        // por servidor (só o que veio dos registros diários)
+        var porServ = {}, regs = (base[4] && base[4].data) || null;
+        (regs || []).forEach(function (r) {
+            var nome = r.servidores ? r.servidores.nome : '(servidor removido)';
+            var lot = r.servidores ? (r.servidores.lotacao || '') : '';
+            var dia = 0, at = r.atividades || {};
+            Object.keys(at).forEach(function (a) { dia += +at[a] || 0; });
+            if (!porServ[nome]) porServ[nome] = { nome: nome, lotacao: lot, total: 0, dias: 0 };
+            porServ[nome].total += dia;
+            if (dia > 0) porServ[nome].dias++;
+        });
+        var servidoresLista = Object.keys(porServ).map(function (k) { return porServ[k]; })
+            .filter(function (s) { return s.total > 0; })
+            .sort(function (a, b) { return b.total - a.total || a.nome.localeCompare(b.nome); });
+
+        return {
+            ano: ano, m: m, rotulo: MESES[m] + '/' + ano, total: total,
+            anterior: base[2], rotuloAnterior: m > 0 ? MESES[m - 1] + '/' + ano : 'Dezembro/' + (ano - 1),
+            anoAnterior: base[3], rotuloAnoAnterior: MESES[m] + '/' + (ano - 1),
+            setores: tot, outros: outros, digitado: digitado, comD: tot.digit > 0,
+            atividades: atividadesLista, servidores: servidoresLista, semServidores: regs === null
+        };
+    }
+
+    function textoVar(atual, anterior) {
+        if (anterior === null || anterior === undefined) return 'sem base de comparação';
+        return varMes(atual, anterior);
+    }
+
+    function htmlResumoMes(u, paraPdf) {
+        var comD = u.comD, h = '';
+        var linhaSetores = 'SEATE: ' + num(u.setores.seate) + ' · NAHORA: ' + num(u.setores.nahora) +
+            (comD ? ' · DIGITALIZAÇÃO: ' + num(u.setores.digit) : '') + (u.outros ? ' · Outros: ' + num(u.outros) : '');
+        h += '<div class="rel-bloco"><div class="rel-secao">Resumo</div>' +
+             '<div class="rel-resumo-txt">' +
+             '<div><b>Total do mês:</b> ' + num(u.total) + '</div>' +
+             '<div><b>Por setor:</b> ' + linhaSetores + '</div>' +
+             '<div><b>Em relação a ' + esc(u.rotuloAnterior) + ':</b> ' + textoVar(u.total, u.anterior) +
+                 (u.anterior ? ' (' + num(u.anterior) + ')' : '') + '</div>' +
+             '<div><b>Em relação a ' + esc(u.rotuloAnoAnterior) + ':</b> ' + textoVar(u.total, u.anoAnterior) +
+                 (u.anoAnterior ? ' (' + num(u.anoAnterior) + ')' : '') + '</div>' +
+             (u.digitado ? '<div>Inclui ' + num(u.digitado) + ' digitado(s) em Dados Estatísticos (sem divisão por servidor).</div>' : '') +
+             '</div></div>';
+        if (!u.total) {
+            h += '<div class="rel-vazio">Sem dados lançados neste mês.</div>';
+            return h;
+        }
+        var rolar = function (tab) { return paraPdf ? tab : '<div style="overflow-x:auto;">' + tab + '</div>'; };
+        h += '<div class="rel-bloco"><div class="rel-secao">Por atividade</div>' + rolar(
+             '<table class="rel-tab"><thead><tr><th style="width:' + (comD ? 34 : 40) + '%">Atividade</th><th class="n">SEATE</th><th class="n">NAHORA</th>' +
+             (comD ? '<th class="n">DIGITALIZ.</th>' : '') + '<th class="n">Total</th><th class="n">% do mês</th></tr></thead><tbody>' +
+             u.atividades.map(function (a) {
+                 return '<tr><td>' + esc(a.nome) + '</td><td class="n">' + num(a.seate) + '</td><td class="n">' + num(a.nahora) + '</td>' +
+                        (comD ? '<td class="n">' + num(a.digit) + '</td>' : '') + '<td class="n">' + num(a.total) + '</td><td class="n">' + pct(a.total, u.total) + '</td></tr>';
+             }).join('') +
+             '<tr class="rel-total"><td>TOTAL</td><td class="n">' + num(u.setores.seate) + '</td><td class="n">' + num(u.setores.nahora) + '</td>' +
+             (comD ? '<td class="n">' + num(u.setores.digit) + '</td>' : '') + '<td class="n">' + num(u.setores.seate + u.setores.nahora + u.setores.digit) + '</td><td class="n"></td></tr>' +
+             '</tbody></table>') + '</div>';
+        h += '<div class="rel-bloco"><div class="rel-secao">Por servidor / colaborador</div>';
+        if (u.semServidores) h += '<div class="rel-vazio">Não foi possível carregar os lançamentos por servidor agora.</div>';
+        else if (!u.servidores.length) h += '<div class="rel-vazio">Neste mês os dados foram digitados em Dados Estatísticos, sem divisão por servidor.</div>';
+        else h += rolar('<table class="rel-tab"><thead><tr><th style="width:40%">Servidor / Colaborador</th><th>Lotação</th><th class="n">Total</th><th class="n">% do mês</th><th class="n">Dias c/ lançamento</th></tr></thead><tbody>' +
+             u.servidores.map(function (s) {
+                 return '<tr><td>' + esc(s.nome) + '</td><td>' + esc(s.lotacao) + '</td><td class="n">' + num(s.total) + '</td><td class="n">' + pct(s.total, u.total) + '</td><td class="n">' + s.dias + '</td></tr>';
+             }).join('') + '</tbody></table>');
+        h += '</div>';
+        return h;
+    }
+
+    function garantirModalResumoMes() {
+        var mod = document.getElementById('modalResumoMes');
+        if (mod) return mod;
+        if (!document.getElementById('estilo-resumo-mes')) {
+            var st = document.createElement('style');
+            st.id = 'estilo-resumo-mes';
+            st.textContent = CSS.replace(/\.rel-doc/g, '#corpoResumoMes') .replace(/(^|\n|\})\.rel-/g, '$1#corpoResumoMes .rel-') +
+                '\n#corpoResumoMes{font-size:0.85rem;}#corpoResumoMes .rel-tab{table-layout:auto;font-size:0.8rem;}' +
+                '#corpoResumoMes .rel-secao{font-size:0.95rem;margin-top:4px;}#corpoResumoMes .rel-resumo-txt{font-size:0.85rem;}' +
+                '#corpoResumoMes .rel-bloco{margin-bottom:14px;}';
+            document.head.appendChild(st);
+        }
+        mod = document.createElement('div');
+        mod.id = 'modalResumoMes';
+        mod.className = 'modal-estatistica';
+        mod.innerHTML = '<div class="modal-estatistica-content">' +
+            '<div class="modal-estatistica-header"><h3 id="tituloResumoMes">Resumo do mês</h3>' +
+            '<span class="modal-close" onclick="fecharResumoMes()">&times;</span></div>' +
+            '<div class="modal-estatistica-body"><div id="corpoResumoMes"></div></div>' +
+            '<div class="modal-estatistica-footer">' +
+            '<button class="btn-acao-relatorio" onclick="gerarPDFResumoMes()">Gerar Relatório PDF</button> ' +
+            '<button class="btn-acao-exportar" onclick="exportarCSVResumoMes()">Exportar Excel (CSV)</button> ' +
+            '<button class="btn btn-neutral" onclick="fecharResumoMes()">Fechar</button></div></div>';
+        mod.addEventListener('click', function (e) { if (e.target === mod) fecharResumoMes(); });
+        document.body.appendChild(mod);
+        return mod;
+    }
+
+    async function abrirResumoMes(ano, m) {
+        ano = parseInt(ano, 10); m = parseInt(m, 10);
+        if (isNaN(ano) || isNaN(m) || m < 0 || m > 11) return;
+        var mod = garantirModalResumoMes();
+        document.getElementById('tituloResumoMes').textContent = 'Resumo do mês — ' + MESES[m] + '/' + ano;
+        var corpo = document.getElementById('corpoResumoMes');
+        corpo.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Carregando...</p>';
+        mod.style.display = 'block';
+        ultimoResumoMes = null;
+        try {
+            var u = await montarResumoMes(ano, m);
+            if (mod.style.display === 'none') return;
+            ultimoResumoMes = u;
+            corpo.innerHTML = htmlResumoMes(u, false);
+        } catch (e) {
+            console.error('Resumo do mês:', e);
+            corpo.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar o resumo agora. Tente novamente.</p>';
+        }
+    }
+    function fecharResumoMes() {
+        var mod = document.getElementById('modalResumoMes');
+        if (mod) mod.style.display = 'none';
+    }
+
+    var gerandoResumoMes = false;
+    async function gerarPDFResumoMes() {
+        var u = ultimoResumoMes;
+        if (!u) { avisar('Aguarde o resumo carregar.'); return; }
+        if (gerandoResumoMes) return;
+        if (typeof html2pdf === 'undefined') { avisar('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
+        gerandoResumoMes = true;
+        avisar('Gerando relatório...');
+        try {
+            var h = cabecalho('Resumo do Mês — ' + u.rotulo, [['Mês', u.rotulo], ['Setores', setorTexto('ambos', u.comD)], ['Gerado em', agora()]]) +
+                    htmlResumoMes(u, true) + rodape();
+            await gerarPDF(h, 'Resumo_' + MESES[u.m] + '_' + u.ano + '.pdf');
+            avisar('Relatório gerado com sucesso!');
+        } catch (e) {
+            console.error('Resumo do mês (PDF):', e);
+            avisar('Erro ao gerar o relatório. Tente novamente.');
+        } finally {
+            gerandoResumoMes = false;
+        }
+    }
+
+    function exportarCSVResumoMes() {
+        var u = ultimoResumoMes;
+        if (!u) { avisar('Aguarde o resumo carregar.'); return; }
+        var comD = u.comD;
+        var L = [['Resumo do Mês', u.rotulo], [],
+                 ['Total do mês', u.total],
+                 ['SEATE', u.setores.seate], ['NAHORA', u.setores.nahora]];
+        if (comD) L.push(['DIGITALIZAÇÃO', u.setores.digit]);
+        if (u.outros) L.push(['Outros', u.outros]);
+        L.push(['Em relação a ' + u.rotuloAnterior, textoVar(u.total, u.anterior)]);
+        L.push(['Em relação a ' + u.rotuloAnoAnterior, textoVar(u.total, u.anoAnterior)]);
+        if (u.digitado) L.push(['Digitado em Dados Estatísticos', u.digitado]);
+        L.push([], ['Atividade', 'SEATE', 'NAHORA'].concat(comD ? ['DIGITALIZAÇÃO'] : []).concat(['Total', '% do mês']));
+        u.atividades.forEach(function (a) { L.push([a.nome, a.seate, a.nahora].concat(comD ? [a.digit] : []).concat([a.total, pct(a.total, u.total)])); });
+        if (u.servidores.length) {
+            L.push([], ['Servidor / Colaborador', 'Lotação', 'Total', '% do mês', 'Dias com lançamento']);
+            u.servidores.forEach(function (s) { L.push([s.nome, s.lotacao, s.total, pct(s.total, u.total), s.dias]); });
+        }
+        baixarCSV(L, 'resumo_' + MESES[u.m].toLowerCase() + '_' + u.ano + '.csv');
+        avisar('Arquivo gerado.');
+    }
+
+    window.abrirResumoMes = abrirResumoMes;
+    window.fecharResumoMes = fecharResumoMes;
+    window.gerarPDFResumoMes = gerarPDFResumoMes;
+    window.exportarCSVResumoMes = exportarCSVResumoMes;
+
     window._salvarPdfSemBranco = salvarPdfSemBranco; // (usado nos testes)
 })();

@@ -667,6 +667,7 @@
                     <div class="grafico-card grafico-full" id="graficoMensalAnoAtualCard">
                         <h4 id="tituloMensalAnoAtual">Atividades Mensais - 2026 (SEATE + NAHORA)</h4>
                         <canvas id="graficoMensalAnoAtual" style="max-height:300px;"></canvas>
+                        <div style="margin-top:8px; text-align:center; font-size:0.75rem; color:#888;">Clique em uma barra para ver o resumo do mês</div>
                     </div>
                 </div>
             </div>
@@ -1420,6 +1421,14 @@ async function criarGraficoMensalAnoAtual() {
             responsive: true,
             maintainAspectRatio: true,
             layout: { padding: { top: 22 } },
+            // clique numa barra: abre o resumo daquele mês
+            onClick: function (evento, elementos) {
+                if (elementos && elementos.length && typeof abrirResumoMes === 'function') abrirResumoMes(ANO_ATUAL, elementos[0].index);
+            },
+            onHover: function (evento, elementos) {
+                var alvo = evento && evento.native && evento.native.target;
+                if (alvo) alvo.style.cursor = (elementos && elementos.length) ? 'pointer' : 'default';
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
