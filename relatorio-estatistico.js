@@ -278,10 +278,10 @@
                 }
             }
             var ultI = comDados[comDados.length - 1].i;
-            if (ultI >= 1) {
-                var seqM = itens.slice(0, ultI + 1).map(function (it, i) { return { rotulo: (MESES[i] || it.nome).slice(0, 3), total: it.total }; });
-                r.push('Variação mês a mês: ' + textoVariacoes(seqM) + '.');
-            }
+            var dezAnt = (typeof window._dezAnteriorMensal === 'number') ? window._dezAnteriorMensal : null;
+            var seqM = itens.slice(0, ultI + 1).map(function (it, i) { return { rotulo: (MESES[i] || it.nome).slice(0, 3), total: it.total }; });
+            if (dezAnt !== null) seqM.unshift({ rotulo: 'Dez/' + (parseInt(anoAtual(), 10) - 1), total: dezAnt });
+            if (seqM.length >= 2) r.push('Variação mês a mês: ' + textoVariacoes(seqM) + '.');
         }
         h += linhas(r) + '</div>';
         return h;
@@ -480,10 +480,12 @@
                 var vt = variacaoTxt(pr.total, ul.total);
                 if (vt) r.push('Do primeiro (' + pr.rotulo + ') ao último mês (' + ul.rotulo + '): variação de <b>' + vt + '</b>.');
             }
-            if (f.nMeses >= 2 && !isNaN(f.anoDe)) {
+            var mAnt = resultado.mesAnterior; // mês anterior ao início do período (quando existe)
+            if ((f.nMeses >= 2 || mAnt) && !isNaN(f.anoDe)) {
                 var mapaM = {};
                 meses.forEach(function (mm) { mapaM[mm.ano + '-' + String(mm.idx + 1).padStart(2, '0')] = mm.total; });
                 var seq = mesesDoPeriodo(f.anoDe, f.mesDe, f.anoAte, f.mesAte).map(function (x) { return { rotulo: x.rotulo, total: mapaM[x.chave] || 0 }; });
+                if (mAnt) seq.unshift({ rotulo: MESES[mAnt.mes].slice(0, 3) + '/' + mAnt.ano, total: mAnt.total });
                 var ult = seq[seq.length - 1], ant = seq[seq.length - 2];
                 r.push('Último mês (' + ult.rotulo + ') em relação ao anterior (' + ant.rotulo + '): <b>' + varMes(ult.total, ant.total) + '</b>.');
                 r.push('Variação mês a mês: ' + textoVariacoes(seq) + '.');
@@ -549,6 +551,7 @@
                      (comN ? '<th class="n">NAHORA</th>' : '') + (comD ? '<th class="n">DIGITALIZAÇÃO</th>' : '') + '<th class="n">Total</th><th class="n">Var. mês ant.</th></tr></thead><tbody>';
                 var porChave = {};
                 b.linhas.forEach(function (l) { porChave[l.ano + '-' + MESES_IDX(l.mesNome)] = l.total; });
+                if (resultado.mesAnterior) porChave[resultado.mesAnterior.ano + '-' + resultado.mesAnterior.mes] = resultado.mesAnterior.porAtividade[b.nome] || 0;
                 b.linhas.forEach(function (l) {
                     var iM = MESES_IDX(l.mesNome), antChave = iM === 0 ? (l.ano - 1) + '-11' : l.ano + '-' + (iM - 1);
                     h += '<tr><td>' + nomeMesBonito(l.mesNome) + '/' + l.ano + '</td>' + (comS ? '<td class="n">' + num(l.seate) + '</td>' : '') +
@@ -654,6 +657,23 @@
         }
         var periodo = somarPorServidor(regPeriodo, nomes, filtroAtiv);
         var ref = somarPorServidor(regAnoRef, nomes, filtroAtiv, mesRef);
+        // meses anteriores para a variação: o mês antes do início do período e, se o
+        // mês de referência for janeiro, dezembro do ano anterior
+        var p2a = function (n) { return String(n).padStart(2, '0'); };
+        var antPerAno = mesDe === 0 ? anoDe - 1 : anoDe, antPerMes = mesDe === 0 ? 11 : mesDe - 1;
+        var chaveAntPer = antPerAno + '-' + p2a(antPerMes + 1);
+        var chaveDezRef = (anoRef - 1) + '-12';
+        var extras = {};
+        try {
+            var buscar = [chaveAntPer];
+            if (mesRef === 0 && buscar.indexOf(chaveDezRef) === -1) buscar.push(chaveDezRef);
+            for (var bq = 0; bq < buscar.length; bq++) {
+                var cy = parseInt(buscar[bq].slice(0, 4), 10), cm = parseInt(buscar[bq].slice(5, 7), 10);
+                if (cy < 2022) continue;
+                var regsExtra = await dbCarregarRegistrosServidoresPeriodo(nomes, buscar[bq] + '-01', buscar[bq] + '-' + p2a(new Date(cy, cm, 0).getDate()));
+                extras[buscar[bq]] = somarPorServidor(regsExtra || [], nomes, filtroAtiv);
+            }
+        } catch (eExtra) { console.warn('Relatório por servidor (meses anteriores):', eExtra && eExtra.message); }
         var nMeses = (anoAte - anoDe) * 12 + (mesAte - mesDe) + 1;
         var periodoTxt = (anoDe === anoAte)
             ? (mesDe === mesAte ? MESES[mesDe] + ' de ' + anoDe : MESES[mesDe] + ' a ' + MESES[mesAte] + ' de ' + anoDe)
@@ -663,12 +683,14 @@
         ultimoServidor = {
             periodo: periodoTxt, nMeses: nMeses, anoRef: anoRef, mesRef: mesRef, filtroAtiv: filtroAtiv,
             anoDe: anoDe, mesDe: mesDe, anoAte: anoAte, mesAte: mesAte,
+            rotuloAntPeriodo: MESES[antPerMes].slice(0, 3) + '/' + antPerAno, temAntPeriodo: antPerAno >= 2022,
             servidores: nomes.map(function (n) {
                 var itens = Object.keys(periodo[n].atividades).map(function (a) { return { nome: a, total: periodo[n].atividades[a] }; })
                     .sort(function (a, b) { return b.total - a.total; });
                 return { nome: n, lotacao: lotacaoDe(n), itens: itens, total: periodo[n].total, meses: periodo[n].meses,
                          totalAnoRef: ref[n].total, totalMesRef: ref[n].totalMes,
-                         totalMesAntRef: chaveMesAntRef ? (ref[n].meses[chaveMesAntRef] || 0) : 0 };
+                         totalMesAntRef: chaveMesAntRef ? (ref[n].meses[chaveMesAntRef] || 0) : ((extras[chaveDezRef] && extras[chaveDezRef][n].total) || 0),
+                         totalMesAntPeriodo: (extras[chaveAntPer] && extras[chaveAntPer][n].total) || 0 };
             })
         };
 
@@ -779,8 +801,9 @@
                 var r = [];
                 r.push('Mês de referência (' + esc(refTxt) + '): <b>' + num(s.totalMesRef) + '</b> · ano de referência (' + u.anoRef + '): <b>' + num(s.totalAnoRef) + '</b> atividades.');
                 r.push('Mês de referência em relação ao mês anterior: <b>' + varMes(s.totalMesRef, s.totalMesAntRef) + '</b>.');
-                if (u.nMeses >= 2) {
+                if (u.nMeses >= 2 || u.temAntPeriodo) {
                     var seqS = mesesDoPeriodo(u.anoDe, u.mesDe, u.anoAte, u.mesAte).map(function (x) { return { rotulo: x.rotulo, total: s.meses[x.chave] || 0 }; });
+                    if (u.temAntPeriodo) seqS.unshift({ rotulo: u.rotuloAntPeriodo, total: s.totalMesAntPeriodo });
                     r.push('Variação mês a mês no período: ' + textoVariacoes(seqS) + '.');
                 }
                 r.push(s.itens.length + ' tipo(s) de atividade no período filtrado (' + esc(u.periodo) + ').');

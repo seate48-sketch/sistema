@@ -452,6 +452,38 @@ async function obterSeateNahoraPorAno(ano) {
     return { seateTotal: seateTotal, nahoraTotal: nahoraTotal, digitTotal: 0 };
 }
 
+// ==================== TOTAL DE DEZEMBRO DE UM ANO (para a variação de janeiro) ====================
+// Mesmo número que aparece no "Total mensal combinado" de dezembro no modal de
+// Dados Estatísticos daquele ano: digitado (SEATE + NAHORA) e, nos anos com
+// registros, os meses já herdados dos registros substituem o digitado das
+// atividades que têm registro (DIGITALIZAÇÃO vem só dos registros).
+// Devolve null quando o ano não existe no sistema (antes de 2022).
+async function totalDezembroDoAno(ano) {
+    ano = parseInt(ano, 10);
+    if (isNaN(ano) || ano < 2022) return null;
+    var MES = 'Dezembro';
+    var manual = (await obterDadosAno(String(ano))) || { SEATE: {}, NAHORA: {} };
+    var herdado = false, t = null;
+    if (anoUsaRegistros(ano)) {
+        if (anoSoRegistros(ano)) herdado = true;
+        else {
+            var dataMaisAntiga = null;
+            try { dataMaisAntiga = await dbCarregarDataMaisAntigaRegistro(); } catch (e) {}
+            if (dataMaisAntiga) herdado = parseInt(dataMaisAntiga.slice(0, 4), 10) <= ano; // dezembro já é mês herdado
+        }
+        if (herdado) t = await obterTotaisAno(String(ano));
+    }
+    function setor(dadosManual, porAtivMes) {
+        var soma = 0, regs = (herdado && porAtivMes) || {};
+        Object.keys(dadosManual || {}).forEach(function (at) { if (!regs[at]) soma += +((dadosManual[at] || {})[MES]) || 0; });
+        Object.keys(regs).forEach(function (at) { soma += +((regs[at] || {})[MES]) || 0; });
+        return soma;
+    }
+    var total = setor(manual.SEATE, t && t.porAtividadeMesSeate) + setor(manual.NAHORA, t && t.porAtividadeMesNahora);
+    if (herdado && t) Object.keys(t.porAtividadeMesDigit || {}).forEach(function (at) { total += +((t.porAtividadeMesDigit[at] || {})[MES]) || 0; });
+    return total;
+}
+
 // ==================== ATIVIDADES POR SETOR (MESMA LISTA DE "ADICIONAR/ATIVIDADES") ====================
 var _atividadesPorSetorCache = {};
 function obterAtividadesPorSetor(setor) {

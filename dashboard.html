@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=26">
-    <link rel="icon" href="icons/favicon-32.png?v=26">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=26">
+    <link rel="manifest" href="manifest-dashboard.json?v=27">
+    <link rel="icon" href="icons/favicon-32.png?v=27">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=27">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=26').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=27').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=26"></script>
+    <script src="config.js?v=27"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=26"></script>
+    <script src="supabase-client.js?v=27"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=26"></script>
+    <script src="common.js?v=27"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=26"></script>
+    <script src="relatorio-estatistico.js?v=27"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -1379,6 +1379,9 @@ async function criarGraficoMensalAnoAtual() {
     var mesesCompletos = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     
     var dadosMensais = await calcularDadosMensaisAnoAtual();
+    var dezAnteriorMensal = null; // dezembro do ano anterior, para a variação de janeiro
+    try { dezAnteriorMensal = await totalDezembroDoAno(parseInt(ANO_ATUAL, 10) - 1); } catch (eDez) { dezAnteriorMensal = null; }
+    window._dezAnteriorMensal = dezAnteriorMensal;
     var valores = [];
     
     for (var i = 0; i < mesesCompletos.length; i++) {
@@ -1415,7 +1418,7 @@ async function criarGraficoMensalAnoAtual() {
                         },
                         afterLabel: function(context) {
                             var k = context.dataIndex;
-                            if (k === 0) return 'Mês anterior: sem base de comparação';
+                            if (k === 0) return dezAnteriorMensal === null ? 'Mês anterior: sem base de comparação' : 'Em relação a dezembro/' + (parseInt(ANO_ATUAL, 10) - 1) + ': ' + variacaoMesAnterior(context.parsed.y, dezAnteriorMensal);
                             return 'Em relação ao mês anterior: ' + variacaoMesAnterior(context.parsed.y, context.dataset.data[k - 1] || 0);
                         }
                     }
@@ -1636,7 +1639,36 @@ async function buscarDadosMultiAtividade(listaAtividades, anoDe, anoAte, mesDe, 
 
     porAtividade.sort(function(a, b) { return b.total - a.total; });
 
+    // Mês anterior ao início do período (para a variação do 1º mês): mesmos filtros de setor
+    var mesAnterior = null;
+    var antAno = mesDe === 0 ? anoDe - 1 : anoDe, antMes = mesDe === 0 ? 11 : mesDe - 1;
+    if (antAno >= 2022) {
+        try {
+            var fonteAnt = await obterFonteAno(antAno), nomeAnt = MESES_NOMES_RELATORIO[antMes];
+            mesAnterior = { ano: antAno, mes: antMes, total: 0, porAtividade: {} };
+            listaAtividades.forEach(function (atividade) {
+                var vS = 0, vN = 0, vD = 0;
+                if (fonteAnt.isAnoAtual) {
+                    vS += ((fonteAnt.totaisAnoAtual.porAtividadeMesSeate[atividade] || {})[nomeAnt]) || 0;
+                    vN += ((fonteAnt.totaisAnoAtual.porAtividadeMesNahora[atividade] || {})[nomeAnt]) || 0;
+                    vD += (((fonteAnt.totaisAnoAtual.porAtividadeMesDigit || {})[atividade] || {})[nomeAnt]) || 0;
+                }
+                if (fonteAnt.dadosAno) {
+                    vS += (((fonteAnt.dadosAno["SEATE"] || {})[atividade] || {})[nomeAnt]) || 0;
+                    vN += (((fonteAnt.dadosAno["NAHORA"] || {})[atividade] || {})[nomeAnt]) || 0;
+                }
+                if (setor === "SEATE") { vN = 0; vD = 0; }
+                else if (setor === "NAHORA") { vS = 0; vD = 0; }
+                else if (setor === "DIGITALIZAÇÃO") { vS = 0; vN = 0; }
+                var vt = vS + vN + vD;
+                mesAnterior.porAtividade[atividade] = vt;
+                mesAnterior.total += vt;
+            });
+        } catch (eAnt) { mesAnterior = null; }
+    }
+
     return {
+        mesAnterior: mesAnterior,
         porAtividade: porAtividade,
         totalGeral: totalGeralGeral,
         totalSeate: totalSeateGeralGeral,
@@ -1668,6 +1700,7 @@ function renderizarTabelaResultadosMulti(resultado, setor) {
         html += '<th>TOTAL</th><th>VAR. MÊS ANT.</th></tr></thead><tbody>';
         var porMesAtiv = {};
         bloco.linhas.forEach(function (l) { porMesAtiv[l.ano + '-' + MESES_NOMES_RELATORIO.indexOf(l.mesNome)] = l.total; });
+        if (resultado.mesAnterior) porMesAtiv[resultado.mesAnterior.ano + '-' + resultado.mesAnterior.mes] = resultado.mesAnterior.porAtividade[bloco.nome] || 0;
         for (var i = 0; i < bloco.linhas.length; i++) {
             var item = bloco.linhas[i];
             var iMes = MESES_NOMES_RELATORIO.indexOf(item.mesNome);
@@ -2010,6 +2043,7 @@ function exportarCSV() {
         var bloco = resultado.porAtividade[a];
         var porMesCsv = {};
         bloco.linhas.forEach(function (l) { porMesCsv[l.ano + '-' + MESES_NOMES_RELATORIO.indexOf(l.mesNome)] = l.total; });
+        if (resultado.mesAnterior) porMesCsv[resultado.mesAnterior.ano + '-' + resultado.mesAnterior.mes] = resultado.mesAnterior.porAtividade[bloco.nome] || 0;
         for (var i = 0; i < bloco.linhas.length; i++) {
             var item = bloco.linhas[i];
             var iMesCsv = MESES_NOMES_RELATORIO.indexOf(item.mesNome);
