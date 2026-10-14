@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="icon" href="icons/favicon-32.png?v=32">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=32">
+    <link rel="icon" href="icons/favicon-32.png?v=33">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=33">
     <script>
     // Manifest dinâmico: cada servidor tem seu próprio link
     // (registro.html?user=Nome) — o manifest precisa refletir ESSA
@@ -39,7 +39,7 @@
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=32').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=33').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
@@ -53,17 +53,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=32"></script>
+    <script src="config.js?v=33"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=32"></script>
+    <script src="supabase-client.js?v=33"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=32"></script>
+    <script src="common.js?v=33"></script>
     
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif}
@@ -375,6 +375,7 @@
                 <option value="Folga">Folga</option>
                 <option value="Atestado">Atestado</option>
                 <option value="Ferias">Ferias</option>
+                <option value="Feriado">Feriado</option>
             </select>
             <div class="modal-actions"><button id="saveActivitiesBtn" class="btn btn-primary">Salvar</button><button id="deleteDayBtn" class="btn btn-danger">Excluir Registro</button><button id="cancelModalBtn" class="btn btn-neutral">Cancelar</button></div></div></div></div>
 
@@ -1214,6 +1215,6 @@ window.editarComunicadoSupervisor = function(t) {
 };
 window.onbeforeunload = function() { pararVerificacaoPeriodica(); };
 </script>
-<script src="entrega-relatorio.js?v=32"></script>
+<script src="entrega-relatorio.js?v=33"></script>
 </body>
 </html>

@@ -293,7 +293,7 @@
             '<h4>Antes de gerar o relatório de ' + nomeMes(p.ano, p.mes) + ', ' + (um ? 'falta preencher 1 dia' : 'faltam ' + p.dias.length + ' dias') + '</h4>' +
             '<p><b>' + (um ? 'Dia pendente: ' : 'Dias pendentes: ') + esc(lista) + '.</b></p>' +
             '<p>Clique no dia destacado em laranja e lance as atividades. Se não houve atividade nesse dia, ' +
-            'altere o status para Folga, Férias, Atestado, Ausente ou Liberado.</p>' +
+            'altere o status para Folga, Férias, Feriado, Atestado, Ausente ou Liberado.</p>' +
             '<p>Depois, clique em <b>Gerar relatório</b>.</p>' +
             '<div class="entrega-acoes">' +
                 (p.bloqueado ? '' : '<button type="button" class="entrega-secundario" id="entregaFaixaCancelar">Cancelar</button>') +

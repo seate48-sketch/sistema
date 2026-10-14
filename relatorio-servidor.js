@@ -289,7 +289,7 @@
     }
 
     // status possíveis do dia (valor gravado → rótulo exibido)
-    var STATUS_DIA = [['', 'Ativo'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado'], ['Folga', 'Folga'], ['Atestado', 'Atestado'], ['Ferias', 'Férias']];
+    var STATUS_DIA = [['', 'Ativo'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado'], ['Folga', 'Folga'], ['Atestado', 'Atestado'], ['Ferias', 'Férias'], ['Feriado', 'Feriado']];
     function nomeStatus(v) {
         var x = String(v || '').trim();
         for (var i = 0; i < STATUS_DIA.length; i++) {
@@ -1368,7 +1368,7 @@
     // se marcado, entrega o relatório do mês em nome do servidor (conta para
     // o avanço automático do mês de referência). Também permite remover o
     // status aplicado, para corrigir um engano.
-    var STATUS_LOTE = [['', 'Ativo'], ['Folga', 'Folga'], ['Ferias', 'Férias'], ['Atestado', 'Atestado'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado']];
+    var STATUS_LOTE = [['', 'Ativo'], ['Ausente', 'Ausente'], ['Liberado', 'Liberado'], ['Folga', 'Folga'], ['Atestado', 'Atestado'], ['Ferias', 'Férias'], ['Feriado', 'Feriado']];
     var NOMES_MES_ST = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     function p2(n) { return String(n).padStart(2, '0'); }
     function totalAtiv(reg) {
