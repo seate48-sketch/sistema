@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=30">
-    <link rel="icon" href="icons/favicon-32.png?v=30">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=30">
+    <link rel="manifest" href="manifest-dashboard.json?v=31">
+    <link rel="icon" href="icons/favicon-32.png?v=31">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=31">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=30').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=31').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=30">
+    <link rel="stylesheet" href="style.css?v=31">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=30"></script>
+    <script src="config.js?v=31"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=30"></script>
+    <script src="supabase-client.js?v=31"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=30"></script>
+    <script src="common.js?v=31"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=30"></script>
+    <script src="relatorio-estatistico.js?v=31"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -898,13 +898,15 @@
 async function calcularDadosMensaisAnoAtual() {
     var totais = await obterTotaisAnoAtual();
     window._temDigitAnoAtual = !!(totais && totais.digitTotal); // rótulo do gráfico (os valores já incluem DIGITALIZAÇÃO)
-    var dadosMensais = Object.assign({}, totais.porMes);
+    var dadosMensais = Object.assign({}, (totais && totais.porMes) || {});
 
     // Soma tambem o que foi alimentado manualmente em "Dados Estatisticos"
     // para o ano corrente (ex.: Janeiro-Agosto/2026, antes dos registros
     // diarios existirem) -- sem isso, esses meses ficavam sempre com 0
     // neste grafico, mesmo tendo dado real alimentado manualmente.
     var manualAno = await obterDadosAno(ANO_ATUAL);
+    // alguma busca falhou: o gráfico mostra um aviso (os meses sairiam menores que o real)
+    window._mensalIncompleto = !totais || !!totais.erro || manualAno === null;
     if (manualAno) {
         for (var ativ in (manualAno.SEATE || {})) {
             for (var mes in manualAno.SEATE[ativ]) {
@@ -982,13 +984,15 @@ async function renderizarIndicadores() {
     var totalNahoraGeral = 0;
     var totalDigitGeral = 0; // DIGITALIZAÇÃO (só registros, a partir de set/2026)
     
-    await Promise.all(anos.map(function (a) { return obterSeateNahoraPorAno(a); })); // todos os anos ao mesmo tempo
+    // todos os anos ao mesmo tempo; a mesma resposta é usada nas duas voltas abaixo
+    var _totaisDosAnos = await Promise.all(anos.map(function (a) { return obterSeateNahoraPorAno(a); }));
+    var algumIncompleto = _totaisDosAnos.some(function (t) { return t && t.incompleto; });
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
         var seateTotal = 0;
         var nahoraTotal = 0;
         
-        var totaisAno = await obterSeateNahoraPorAno(ano);
+        var totaisAno = _totaisDosAnos[i];
         seateTotal = totaisAno.seateTotal;
         nahoraTotal = totaisAno.nahoraTotal;
         
@@ -1003,7 +1007,7 @@ async function renderizarIndicadores() {
         var seateTotal = 0;
         var nahoraTotal = 0;
         
-        var totaisAno2 = await obterSeateNahoraPorAno(ano);
+        var totaisAno2 = _totaisDosAnos[i];
         seateTotal = totaisAno2.seateTotal;
         nahoraTotal = totaisAno2.nahoraTotal;
         
@@ -1012,22 +1016,42 @@ async function renderizarIndicadores() {
         
         html += '<div class="indicador-card" onclick="abrirModalIndicador(\'' + ano + '\', null)">';
         html += '<div class="indicador-titulo" style="border-bottom-color: ' + cor + ';">' + ano + '</div>';
-        html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
-        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + (digitTotal ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(digitTotal) : '') + '</div>';
-        html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        if (totaisAno2.incompleto) {
+            // a busca deste ano falhou: em vez de um total menor que o real, mostra o aviso
+            html += '<div class="indicador-valor">--</div>';
+            html += '<div class="indicador-footer">Não foi possível carregar os dados deste ano.</div>';
+            html += '<div class="indicador-status">Recarregue a página</div>';
+        } else {
+            html += '<div class="indicador-valor">' + (totalGeral > 0 ? formatarMilhar(totalGeral) : '--') + '</div>';
+            html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(seateTotal) + ' | NAHORA: ' + formatarMilhar(nahoraTotal) + (digitTotal ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(digitTotal) : '') + '</div>';
+            html += '<div class="indicador-status">Clique para ver detalhes</div>';
+        }
         html += '</div>';
     }
     
     var totalGeralFinal = totalSeateGeral + totalNahoraGeral + totalDigitGeral;
     html += '<div class="indicador-card-total" onclick="abrirModalGraficoEvolucao()">';
     html += '<div class="indicador-titulo">TOTAL GERAL</div>';
-    html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
-    html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + (totalDigitGeral ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(totalDigitGeral) : '') + '</div>';
-    html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
+    if (algumIncompleto) {
+        html += '<div class="indicador-valor">--</div>';
+        html += '<div class="indicador-footer">Não foi possível carregar todos os dados.</div>';
+        html += '<div class="indicador-status">Recarregue a página</div>';
+    } else {
+        html += '<div class="indicador-valor">' + formatarMilhar(totalGeralFinal) + '</div>';
+        html += '<div class="indicador-footer">SEATE: ' + formatarMilhar(totalSeateGeral) + ' | NAHORA: ' + formatarMilhar(totalNahoraGeral) + (totalDigitGeral ? ' | DIGITALIZAÇÃO: ' + formatarMilhar(totalDigitGeral) : '') + '</div>';
+        html += '<div class="indicador-status">Clique para ver evolucao anual</div>';
+    }
     html += '</div>';
     
     container.innerHTML = html;
     if (typeof distribuirIndicadores === 'function') distribuirIndicadores(container);
+    // se algum ano não carregou, tenta de novo sozinho (até 3 vezes, a cada 5 s)
+    if (algumIncompleto && (renderizarIndicadores._tentativas || 0) < 3) {
+        renderizarIndicadores._tentativas = (renderizarIndicadores._tentativas || 0) + 1;
+        setTimeout(renderizarIndicadores, 5000);
+    } else if (!algumIncompleto) {
+        renderizarIndicadores._tentativas = 0;
+    }
 }
 
 // ==================== ABRIR MODAL INDICADOR ====================
@@ -1062,6 +1086,12 @@ async function abrirModalIndicador(ano, setor) {
             // servidores) — nunca se sobrepõe ao que já vem dos registros,
             // porque tratam de meses diferentes.
             var manualAnoAtual = await obterDadosAno(ano);
+            // alguma busca falhou: avisa em vez de mostrar números incompletos
+            if ((totaisAnoAtual && totaisAnoAtual.erro) || (manualAnoAtual === null && !anoSoRegistros(ano))) {
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
+                document.getElementById("modalEstatistica").style.display = "block";
+                return;
+            }
             if (manualAnoAtual) {
                 for (var ativManual in (manualAnoAtual.SEATE || {})) {
                     var totalManual = 0;
@@ -1161,7 +1191,7 @@ async function abrirModalIndicador(ano, setor) {
         } else {
             var dadosPre = await obterDadosAno(ano);
             if (!dadosPre) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Dados não disponíveis para este ano.</p>';
+                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
                 document.getElementById("modalEstatistica").style.display = "block";
                 return;
             }
@@ -1259,10 +1289,11 @@ function criarGraficoEvolucao() {
     var temDigitEvolucao = false;
     
     async function montar() {
-    await Promise.all(anos.map(function (a) { return obterSeateNahoraPorAno(a); })); // todos os anos ao mesmo tempo
+    var _totaisDosAnos = await Promise.all(anos.map(function (a) { return obterSeateNahoraPorAno(a); })); // todos os anos ao mesmo tempo
+    var _evolucaoIncompleta = _totaisDosAnos.some(function (t) { return t && t.incompleto; });
     for (var i = 0; i < anos.length; i++) {
         var ano = anos[i];
-        var totaisAno = await obterSeateNahoraPorAno(ano);
+        var totaisAno = _totaisDosAnos[i];
         valoresTotais.push(totaisAno.seateTotal + totaisAno.nahoraTotal + (totaisAno.digitTotal || 0)); if (totaisAno.digitTotal) temDigitEvolucao = true;
     }
     
@@ -1273,6 +1304,7 @@ function criarGraficoEvolucao() {
         window.chartEvolucao = null;
     }
     
+    avisoDadosIncompletos('graficoEvolucaoAnual', _evolucaoIncompleta);
     window.chartEvolucao = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1394,6 +1426,7 @@ async function criarGraficoMensalAnoAtual() {
     var coresMensal = ['#166534','#20703E','#2A7A47','#358551','#3F8F5B','#499A64','#53A46E','#5DAF77','#67B981','#72C48B','#7CCE94','#86D99E']; // verde escuro (Jan) clareando aos poucos até Dez (ainda verde);
     
     if (window.chartMensalAnoAtual) { window.chartMensalAnoAtual.destroy(); }
+    avisoDadosIncompletos('graficoMensalAnoAtual', !!window._mensalIncompleto);
     
     window.chartMensalAnoAtual = new Chart(ctx, {
         type: 'bar',

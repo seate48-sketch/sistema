@@ -404,8 +404,21 @@ function obterTotaisAno(ano) {
         MESES_V.forEach(function(m) { vazio.porMes[m] = 0; });
         return Promise.resolve(vazio);
     }
-    if (!_totaisAnoCache[ano]) { _totaisAnoCache[ano] = dbCarregarTotaisAno(ano); }
+    if (!_totaisAnoCache[ano]) {
+        // se a busca falhar, tenta mais uma vez; se falhar de novo, a falha
+        // NÃO fica guardada — a próxima consulta busca outra vez no servidor
+        _totaisAnoCache[ano] = _buscarComNovaTentativa(function () { return dbCarregarTotaisAno(ano); },
+                                                       function (r) { return !r || r.erro; })
+            .then(function (r) { if (!r || r.erro) delete _totaisAnoCache[ano]; return r; });
+    }
     return _totaisAnoCache[ano];
+}
+// Faz a busca; se a resposta indicar falha, espera um instante e tenta de novo uma vez.
+function _buscarComNovaTentativa(buscar, falhou) {
+    return Promise.resolve(buscar()).then(function (r) {
+        if (!falhou(r)) return r;
+        return new Promise(function (ok) { setTimeout(ok, 800); }).then(buscar);
+    });
 }
 function obterTotaisAnoAtual() { return obterTotaisAno(ANO_ATUAL); }
 
@@ -424,7 +437,12 @@ function obterDadosAno(ano) {
     ano = String(ano);
     // de 2027 em diante não existe digitação manual: nada a somar
     if (anoSoRegistros(ano)) { return Promise.resolve({ SEATE: {}, NAHORA: {} }); }
-    if (!_dadosAnoCache[ano]) { _dadosAnoCache[ano] = dbCarregarDadosAno(ano); }
+    if (!_dadosAnoCache[ano]) {
+        // null = a busca falhou: tenta mais uma vez e não guarda a falha
+        _dadosAnoCache[ano] = _buscarComNovaTentativa(function () { return dbCarregarDadosAno(ano); },
+                                                      function (r) { return r === null || r === undefined; })
+            .then(function (r) { if (r === null || r === undefined) delete _dadosAnoCache[ano]; return r; });
+    }
     return _dadosAnoCache[ano];
 }
 function invalidarCacheDadosAno(ano) {
@@ -447,20 +465,41 @@ async function obterSeateNahoraPorAno(ano) {
         var ambos = await Promise.all([obterTotaisAno(ano), obterDadosAno(ano)]); // ao mesmo tempo
         var t = ambos[0];
         var manual = ambos[1];
+        // alguma das duas buscas falhou: o total sairia menor que o real
+        var incompleto = !t || !!t.erro || (manual === null && !anoSoRegistros(ano));
+        t = t || {};
         var seateManual = 0, nahoraManual = 0;
         if (manual) {
             for (var ativ in manual.SEATE) { for (var m in manual.SEATE[ativ]) seateManual += manual.SEATE[ativ][m] || 0; }
             for (var ativ in manual.NAHORA) { for (var m in manual.NAHORA[ativ]) nahoraManual += manual.NAHORA[ativ][m] || 0; }
         }
         // DIGITALIZAÇÃO: só registros dos servidores (não há dados digitados)
-        return { seateTotal: t.seateTotal + seateManual, nahoraTotal: t.nahoraTotal + nahoraManual, digitTotal: t.digitTotal || 0 };
+        return { seateTotal: (t.seateTotal || 0) + seateManual, nahoraTotal: (t.nahoraTotal || 0) + nahoraManual, digitTotal: t.digitTotal || 0, incompleto: incompleto };
     }
     var dadosAno = await obterDadosAno(ano);
-    if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0, digitTotal: 0 };
+    if (!dadosAno) return { seateTotal: 0, nahoraTotal: 0, digitTotal: 0, incompleto: true };
     var seateTotal = 0, nahoraTotal = 0;
     for (var ativ in dadosAno.SEATE) { for (var m in dadosAno.SEATE[ativ]) seateTotal += dadosAno.SEATE[ativ][m] || 0; }
     for (var ativ in dadosAno.NAHORA) { for (var m in dadosAno.NAHORA[ativ]) nahoraTotal += dadosAno.NAHORA[ativ][m] || 0; }
     return { seateTotal: seateTotal, nahoraTotal: nahoraTotal, digitTotal: 0 };
+}
+
+// ==================== AVISO DE DADOS INCOMPLETOS (GRÁFICOS) ====================
+// Quando uma busca no servidor falha, o gráfico mostraria números menores que
+// os reais sem nenhum sinal. Este aviso aparece logo acima do gráfico nesses casos.
+function avisoDadosIncompletos(canvasId, mostrar) {
+    var cv = document.getElementById(canvasId);
+    if (!cv || !cv.parentNode) return;
+    var id = canvasId + 'AvisoIncompleto';
+    var el = document.getElementById(id);
+    if (!mostrar) { if (el) el.remove(); return; }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = id;
+        el.style.cssText = 'margin:6px 0 8px; padding:6px 10px; border-radius:8px; background:#FEF3C7; color:#92400E; font-size:0.8rem; text-align:center;';
+        cv.parentNode.insertBefore(el, cv);
+    }
+    el.textContent = 'Não foi possível carregar todos os dados — os números deste gráfico podem estar incompletos. Recarregue a página.';
 }
 
 // ==================== TOTAL DE DEZEMBRO DE UM ANO (para a variação de janeiro) ====================
@@ -473,7 +512,9 @@ async function totalDezembroDoAno(ano) {
     ano = parseInt(ano, 10);
     if (isNaN(ano) || ano < 2022) return null;
     var MES = 'Dezembro';
-    var manual = (await obterDadosAno(String(ano))) || { SEATE: {}, NAHORA: {} };
+    var manual = await obterDadosAno(String(ano));
+    if (manual === null && !anoSoRegistros(ano)) return null; // busca falhou: sem base (não compara com um número incompleto)
+    manual = manual || { SEATE: {}, NAHORA: {} };
     var herdado = false, t = null;
     if (anoUsaRegistros(ano)) {
         if (anoSoRegistros(ano)) herdado = true;
@@ -483,6 +524,7 @@ async function totalDezembroDoAno(ano) {
             if (dataMaisAntiga) herdado = parseInt(dataMaisAntiga.slice(0, 4), 10) <= ano; // dezembro já é mês herdado
         }
         if (herdado) t = await obterTotaisAno(String(ano));
+        if (t && t.erro) return null; // busca falhou: sem base
     }
     function setor(dadosManual, porAtivMes) {
         var soma = 0, regs = (herdado && porAtivMes) || {};

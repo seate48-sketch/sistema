@@ -606,7 +606,7 @@ async function dbCarregarTotaisAno(ano) {
             .select('data, atividades, servidores(lotacao)')
             .gte('data', ano + '-01-01')
             .lte('data', ano + '-12-31'); return ordenar ? q.order('data').order('servidor_id') : q; });
-        if (error) { console.error('dbCarregarTotaisAno:', error); return vazio; }
+        if (error) { console.error('dbCarregarTotaisAno:', error); vazio.erro = true; return vazio; }
 
         const resultado = { totalGeral: 0, seateTotal: 0, nahoraTotal: 0, digitTotal: 0, porAtividadeSeate: {}, porAtividadeNahora: {}, porAtividadeDigit: {}, porMes: {}, porAtividadeMesSeate: {}, porAtividadeMesNahora: {}, porAtividadeMesDigit: {} };
         MESES.forEach(m => { resultado.porMes[m] = 0; });
@@ -638,6 +638,7 @@ async function dbCarregarTotaisAno(ano) {
         return resultado;
     } catch(e) {
         console.error('❌ Erro em dbCarregarTotaisAno:', e.message);
+        vazio.erro = true; // falhou: quem chamou não deve guardar esta resposta
         return vazio;
     }
 }
