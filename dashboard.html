@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0F2D52">
-    <link rel="manifest" href="manifest-dashboard.json?v=31">
-    <link rel="icon" href="icons/favicon-32.png?v=31">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=31">
+    <link rel="manifest" href="manifest-dashboard.json?v=32">
+    <link rel="icon" href="icons/favicon-32.png?v=32">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=32">
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=31').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=32').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
     <title>SEATE - Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=31">
+    <link rel="stylesheet" href="style.css?v=32">
     
     <!-- ======================================== -->
     <!-- 1. SUPABASE CDN                         -->
@@ -25,17 +25,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=31"></script>
+    <script src="config.js?v=32"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=31"></script>
+    <script src="supabase-client.js?v=32"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=31"></script>
+    <script src="common.js?v=32"></script>
     
     <!-- ======================================== -->
     <!-- 5. CHART.JS                            -->
@@ -46,7 +46,7 @@
     <!-- 6. HTML2PDF.JS                         -->
     <!-- ======================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="relatorio-estatistico.js?v=31"></script>
+    <script src="relatorio-estatistico.js?v=32"></script>
     
     <style>
         .indicadores-grid { margin-bottom: 24px; }
@@ -1056,209 +1056,22 @@ async function renderizarIndicadores() {
 
 // ==================== ABRIR MODAL INDICADOR ====================
 async function abrirModalIndicador(ano, setor) {
+    // Mesma tabela mês a mês da janela do ano na Principal, somente para
+    // consulta (os números são alterados na Principal ou no registro do servidor).
     try {
-        var isAnoAtual = anoUsaRegistros(ano); // anos com registros dos servidores (2026 em diante)
-        var título = ano;
-        if (setor === "SEATE") {
-            título = ano + " - SEATE";
-        } else if (setor === "NAHORA") {
-            título = ano + " - NAHORA";
-        } else if (setor === "DIGITALIZAÇÃO") {
-            título = ano + " - DIGITALIZAÇÃO";
-        } else {
-            título = ano + " - SEATE + NAHORA";
-        }
-        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatísticos - " + título;
-        
+        document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatísticos (somente consulta) - " + ano + " - SEATE + NAHORA (Mensal)";
         var container = document.getElementById("listaAtividadesEstatistica");
-        var html = '';
-        
-        var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-        
-        if (isAnoAtual) {
-            var totaisAnoAtual = await obterTotaisAno(ano);
-            var seateTotais = Object.assign({}, totaisAnoAtual.porAtividadeSeate);
-            var nahoraTotais = Object.assign({}, totaisAnoAtual.porAtividadeNahora);
-            var digitTotais = Object.assign({}, totaisAnoAtual.porAtividadeDigit || {}); // DIGITALIZAÇÃO: só registros
-
-            // Soma o que o gestor alimentou manualmente em "Dados Estatísticos"
-            // (meses do ano corrente que ainda não têm registro dos
-            // servidores) — nunca se sobrepõe ao que já vem dos registros,
-            // porque tratam de meses diferentes.
-            var manualAnoAtual = await obterDadosAno(ano);
-            // alguma busca falhou: avisa em vez de mostrar números incompletos
-            if ((totaisAnoAtual && totaisAnoAtual.erro) || (manualAnoAtual === null && !anoSoRegistros(ano))) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
-                document.getElementById("modalEstatistica").style.display = "block";
-                return;
-            }
-            if (manualAnoAtual) {
-                for (var ativManual in (manualAnoAtual.SEATE || {})) {
-                    var totalManual = 0;
-                    for (var mesManual in manualAnoAtual.SEATE[ativManual]) { totalManual += manualAnoAtual.SEATE[ativManual][mesManual] || 0; }
-                    seateTotais[ativManual] = (seateTotais[ativManual] || 0) + totalManual;
-                }
-                for (var ativManual2 in (manualAnoAtual.NAHORA || {})) {
-                    var totalManual2 = 0;
-                    for (var mesManual2 in manualAnoAtual.NAHORA[ativManual2]) { totalManual2 += manualAnoAtual.NAHORA[ativManual2][mesManual2] || 0; }
-                    nahoraTotais[ativManual2] = (nahoraTotais[ativManual2] || 0) + totalManual2;
-                }
-            }
-            
-            var seateTotal = 0;
-            var nahoraTotal = 0;
-            
-            var mostrarSeate = (setor === null || setor === "SEATE");
-            var mostrarNahora = (setor === null || setor === "NAHORA");
-            var digitTotal = 0;
-            var mostrarDigit = (setor === null || setor === "DIGITALIZAÇÃO") && Object.keys(digitTotais).length > 0;
-            
-            if (mostrarSeate) {
-                html += '<div class="titulo-secao">SEATE</div>';
-                html += '<div class="tabela-estatistica-container">';
-                html += '<table class="tabela-estatistica">';
-                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
-                
-                var seateItems = [];
-                for (var ativ in seateTotais) {
-                    seateItems.push({ nome: ativ, total: seateTotais[ativ] });
-                    seateTotal += seateTotais[ativ];
-                }
-                seateItems.sort(function(a, b) { return b.total - a.total; });
-                
-                if (seateItems.length === 0) {
-                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para SEATE em ' + ano + '</td></tr>';
-                } else {
-                    for (var i = 0; i < seateItems.length; i++) {
-                        var item = seateItems[i];
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(item.total) + '</td></tr>';
-                    }
-                }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr>';
-                html += '</tbody></table></div>';
-            }
-            
-            if (mostrarNahora) {
-                html += '<div class="titulo-secao">NAHORA</div>';
-                html += '<div class="tabela-estatistica-container">';
-                html += '<table class="tabela-estatistica">';
-                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
-                
-                var nahoraItems = [];
-                for (var ativ in nahoraTotais) {
-                    nahoraItems.push({ nome: ativ, total: nahoraTotais[ativ] });
-                    nahoraTotal += nahoraTotais[ativ];
-                }
-                nahoraItems.sort(function(a, b) { return b.total - a.total; });
-                
-                if (nahoraItems.length === 0) {
-                    html += '<tr><td colspan="2" style="text-align:center; padding:20px; color:#888;">Nenhum registro encontrado para NAHORA em ' + ano + '</td></tr>';
-                } else {
-                    for (var i = 0; i < nahoraItems.length; i++) {
-                        var item = nahoraItems[i];
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(item.nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(item.total) + '</td></tr>';
-                    }
-                }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr>';
-                html += '</tbody></table></div>';
-            }
-            if (mostrarDigit) {
-                html += '<div class="titulo-secao">DIGITALIZAÇÃO</div>';
-                html += '<div class="tabela-estatistica-container">';
-                html += '<table class="tabela-estatistica">';
-                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
-                var digitItems = [];
-                for (var ativD in digitTotais) { digitItems.push({ nome: ativD, total: digitTotais[ativD] }); digitTotal += digitTotais[ativD]; }
-                digitItems.sort(function(a, b) { return b.total - a.total; });
-                for (var iD = 0; iD < digitItems.length; iD++) {
-                    html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(digitItems[iD].nome) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(digitItems[iD].total) + '</td></tr>';
-                }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL DIGITALIZAÇÃO</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(digitTotal) + '</td></tr>';
-                html += '</tbody></table></div>';
-            }
-
-            
-            if (setor === null) {
-                var totalGeralAnoAtual = seateTotal + nahoraTotal + digitTotal;
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-                html += 'TOTAL GERAL ' + ano + (digitTotal ? ' (SEATE + NAHORA + DIGITALIZAÇÃO): ' : ' (SEATE + NAHORA): ') + formatarMilhar(totalGeralAnoAtual);
-                html += '</div>';
-                html += '<div style="margin-top:8px; text-align:right; font-size:0.75rem; color:#888;">Dados herdados automaticamente dos registros dos servidores.</div>';
-            }
-            
-            container.innerHTML = html;
-            
-        } else {
-            var dadosPre = await obterDadosAno(ano);
-            if (!dadosPre) {
-                container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.</p>';
-                document.getElementById("modalEstatistica").style.display = "block";
-                return;
-            }
-            var seateTotal = 0;
-            var nahoraTotal = 0;
-            
-            var mostrarSeate = (setor === null || setor === "SEATE");
-            var mostrarNahora = (setor === null || setor === "NAHORA");
-            
-            if (mostrarSeate) {
-                html += '<div class="titulo-secao">SEATE</div>';
-                html += '<div class="tabela-estatistica-container">';
-                html += '<table class="tabela-estatistica">';
-                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
-                
-                if (dadosPre && dadosPre["SEATE"]) {
-                    var seateData = dadosPre["SEATE"];
-                    for (var ativ in seateData) {
-                        var valor = seateData[ativ];
-                        if (Array.isArray(valor)) {
-                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
-                        } else if (valor && typeof valor === 'object') {
-                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
-                        }
-                        seateTotal += valor;
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
-                    }
-                }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL SEATE</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(seateTotal) + '</td></tr>';
-                html += '</tbody></table></div>';
-            }
-            
-            if (mostrarNahora) {
-                html += '<div class="titulo-secao">NAHORA</div>';
-                html += '<div class="tabela-estatistica-container">';
-                html += '<table class="tabela-estatistica">';
-                html += '<thead><tr><th style="text-align:left; min-width:180px;">Atividade</th><th style="background:var(--destaque); color:var(--azul-marinho);">Total ' + ano + '</th></tr></thead><tbody>';
-                
-                if (dadosPre && dadosPre["NAHORA"]) {
-                    var nahoraData = dadosPre["NAHORA"];
-                    for (var ativ in nahoraData) {
-                        var valor = nahoraData[ativ];
-                        if (Array.isArray(valor)) {
-                            valor = valor.reduce(function(a, b) { return a + b; }, 0);
-                        } else if (valor && typeof valor === 'object') {
-                            valor = Object.values(valor).reduce(function(a, b) { return a + b; }, 0);
-                        }
-                        nahoraTotal += valor;
-                        html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td><td style="text-align:center; font-weight:600;">' + formatarMilhar(valor) + '</td></tr>';
-                    }
-                }
-                html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL NAHORA</td><td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(nahoraTotal) + '</td></tr>';
-                html += '</tbody></table></div>';
-            }
-            
-            if (setor === null) {
-                html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">';
-                html += 'TOTAL GERAL ' + ano + ' (SEATE + NAHORA): ' + formatarMilhar((seateTotal + nahoraTotal));
-                html += '</div>';
-            }
-            
-            container.innerHTML = html;
-        }
-        
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Carregando...</p>';
         document.getElementById("modalEstatistica").style.display = "block";
         anoEstatisticaSelecionado = ano;
-        
+        var res = await montarTabelaMensalAnoConsulta(ano);
+        if (anoEstatisticaSelecionado !== ano) return; // outro ano foi aberto enquanto carregava
+        if (res.erro) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">' + res.erro + '</p>';
+            return;
+        }
+        if (res.comDigit) document.getElementById("modalEstatisticaTitulo").innerText = "Dados Estatísticos (somente consulta) - " + ano + " - SEATE + NAHORA + DIGITALIZAÇÃO (Mensal)";
+        container.innerHTML = res.html;
     } catch(e) {
         console.warn('Erro ao abrir modal indicador:', e.message);
         feedback("Erro ao abrir modal!");

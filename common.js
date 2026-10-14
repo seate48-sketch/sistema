@@ -537,6 +537,125 @@ async function totalDezembroDoAno(ano) {
     return total;
 }
 
+// ==================== TABELA MÊS A MÊS DO ANO (SOMENTE CONSULTA) ====================
+// Usada pelos quadros anuais da Estatística e do Dashboard: a mesma tabela
+// da janela do ano na Principal (mesmas regras e mesmos números), porém só
+// para consulta — sem campos editáveis. Os números são alterados na Principal
+// (meses digitados) ou no registro do servidor (meses que vêm dos registros).
+// Devolve { html, comDigit } ou { erro: 'mensagem' }.
+async function montarTabelaMensalAnoConsulta(ano) {
+    ano = String(ano);
+    var MSG_ERRO = 'Não foi possível carregar os dados deste ano. Verifique sua conexão e tente novamente.';
+    var meses = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    var pDez = Promise.resolve(totalDezembroDoAno(parseInt(ano, 10) - 1)).catch(function () { return null; });
+    var base = await Promise.all([obterAtividadesPorSetor('SEATE'), obterAtividadesPorSetor('NAHORA'), obterDadosAno(ano)]);
+    var atividadesSeate = base[0], atividadesNahora = base[1], dadosAno = base[2];
+    if (atividadesSeate === null || atividadesNahora === null) return { erro: 'Não foi possível carregar a lista de atividades. Verifique sua conexão e tente novamente.' };
+    if (dadosAno === null) return { erro: MSG_ERRO };
+
+    // meses que vêm dos registros dos servidores (mesma regra da Principal)
+    var mesesHerdados = {}, dadosDigit = {};
+    if (anoUsaRegistros(ano)) {
+        var dataMaisAntiga = null;
+        try { dataMaisAntiga = await dbCarregarDataMaisAntigaRegistro(); } catch (e) { dataMaisAntiga = null; }
+        if (dataMaisAntiga === null && !anoSoRegistros(ano)) return { erro: MSG_ERRO };
+        var mesCorte = -1;
+        if (dataMaisAntiga) {
+            var partes = dataMaisAntiga.split('-');
+            if (partes[0] === ano) mesCorte = parseInt(partes[1], 10) - 1;
+            else if (parseInt(partes[0], 10) < parseInt(ano, 10)) mesCorte = 0;
+        }
+        if (anoSoRegistros(ano)) mesCorte = 0;
+        if (mesCorte >= 0) for (var mi = mesCorte; mi < meses.length; mi++) mesesHerdados[meses[mi]] = true;
+        var t = await obterTotaisAno(ano);
+        if (!t || t.erro) return { erro: MSG_ERRO };
+        var mesclar = function (manual, porAtivMes) {
+            var res = {};
+            for (var a in manual) res[a] = Object.assign({}, manual[a]);
+            for (var a2 in porAtivMes) {
+                if (!res[a2]) res[a2] = {};
+                for (var mh in mesesHerdados) res[a2][mh] = (porAtivMes[a2][mh]) || 0;
+            }
+            return res;
+        };
+        dadosAno = {
+            SEATE: mesclar(dadosAno.SEATE || {}, t.porAtividadeMesSeate || {}),
+            NAHORA: mesclar(dadosAno.NAHORA || {}, t.porAtividadeMesNahora || {})
+        };
+        dadosDigit = mesclar({}, t.porAtividadeMesDigit || {});
+    }
+
+    // atividades com dados mas fora da lista cadastrada também entram
+    var listaSeate = atividadesSeate.slice(), listaNahora = atividadesNahora.slice();
+    Object.keys(dadosAno.SEATE || {}).forEach(function (a) { if (listaSeate.indexOf(a) === -1) listaSeate.push(a); });
+    Object.keys(dadosAno.NAHORA || {}).forEach(function (a) { if (listaNahora.indexOf(a) === -1) listaNahora.push(a); });
+    var listaDigit = [];
+    try { listaDigit = ((await obterAtividadesPorSetor('DIGITALIZAÇÃO')) || []).slice(); } catch (eDg) { listaDigit = []; }
+    Object.keys(dadosDigit).forEach(function (a) { if (listaDigit.indexOf(a) === -1) listaDigit.push(a); });
+    var comDigit = anoUsaRegistros(ano) && Object.keys(dadosDigit).length > 0;
+
+    var html = '';
+    var cab = '<th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>' +
+              '<th style="background:var(--destaque); color:var(--azul-marinho);">TOTAL</th>';
+    function tabelaSetor(nome, lista, dados, tudoRegistro) {
+        var totalSetor = 0, porMes = {};
+        meses.forEach(function (m) { porMes[m] = 0; });
+        html += '<div class="titulo-secao">📍 ' + nome + '</div>';
+        html += '<div class="tabela-estatistica-container"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">Atividade</th>' + cab + '</tr></thead><tbody>';
+        lista.forEach(function (ativ) {
+            var totalLinha = 0;
+            html += '<tr><td style="text-align:left; font-weight:500; color:var(--azul-marinho);">' + escapeHtml(ativ) + '</td>';
+            meses.forEach(function (m) {
+                var v = (dados[ativ] && dados[ativ][m]) || 0;
+                totalLinha += v; porMes[m] += v;
+                var herdado = tudoRegistro || !!mesesHerdados[m];
+                html += '<td style="text-align:center;' + (herdado ? ' background:#eef2f6; color:#5a6b7a;' : '') + '">' + formatarMilhar(v) + '</td>';
+            });
+            html += '<td style="text-align:center; font-weight:700; color:var(--azul-institucional); background:var(--cinza-suave);">' + formatarMilhar(totalLinha) + '</td></tr>';
+            totalSetor += totalLinha;
+        });
+        html += '<tr style="font-weight:700; background:var(--cinza-suave);"><td style="text-align:left; color:var(--azul-marinho);">TOTAL ' + nome + '</td>';
+        meses.forEach(function (m) { html += '<td style="text-align:center;">' + formatarMilhar(porMes[m]) + '</td>'; });
+        html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(totalSetor) + '</td></tr>';
+        html += '</tbody></table></div>';
+        return { total: totalSetor, porMes: porMes };
+    }
+    var rS = tabelaSetor('SEATE', listaSeate, dadosAno.SEATE || {}, false);
+    var rN = tabelaSetor('NAHORA', listaNahora, dadosAno.NAHORA || {}, false);
+    var rD = comDigit ? tabelaSetor('DIGITALIZAÇÃO', listaDigit, dadosDigit, true) : { total: 0, porMes: {} };
+
+    // Total Mensal Combinado + variação em relação ao mês anterior
+    var dez = await pDez;
+    var tot = meses.map(function (m) { return (rS.porMes[m] || 0) + (rN.porMes[m] || 0) + (rD.porMes[m] || 0); });
+    html += '<div class="tabela-estatistica-container" style="margin-top:8px;"><table class="tabela-estatistica"><thead><tr><th style="text-align:left; min-width:180px;">SEATE + NAHORA' + (comDigit ? ' + DIGITALIZAÇÃO' : '') + '</th>' + cab + '</tr></thead><tbody>';
+    html += '<tr style="font-weight:700; background:#FFF3CD;"><td style="text-align:left; color:var(--azul-marinho);">Total Mensal Combinado</td>';
+    var totalAno = 0;
+    tot.forEach(function (v) { totalAno += v; html += '<td style="text-align:center;">' + formatarMilhar(v) + '</td>'; });
+    html += '<td style="text-align:center; background:var(--destaque); color:var(--azul-marinho);">' + formatarMilhar(totalAno) + '</td></tr>';
+    html += '<tr style="font-size:0.7rem; color:#475569;"><td style="text-align:left;">Variação vs mês anterior</td>';
+    for (var k = 0; k < 12; k++) {
+        var anterior = k > 0 ? tot[k - 1] : dez;
+        var txt = '–', cor = '';
+        if (anterior !== null && anterior !== undefined && (tot[k] || anterior)) {
+            var vtxt = variacaoMesAnterior(tot[k], anterior);
+            if (vtxt !== 'sem base de comparação' && vtxt !== 'sem dados no mês') {
+                txt = vtxt;
+                cor = vtxt.charAt(0) === '▲' ? '#15803D' : (vtxt.charAt(0) === '▼' ? '#B91C1C' : '');
+            }
+        }
+        html += '<td style="text-align:center;' + (cor ? ' color:' + cor + ';' : '') + '"' +
+                (k === 0 && dez !== null && dez !== undefined ? ' title="Em relação a dezembro do ano anterior (' + formatarMilhar(dez) + ')"' : '') + '>' + txt + '</td>';
+    }
+    html += '<td></td></tr></tbody></table></div>';
+
+    html += '<div style="margin-top:16px; padding:12px; background:var(--destaque); border-radius:12px; text-align:center; font-weight:700; color:var(--azul-marinho);">' +
+            'TOTAL GERAL ' + ano + (comDigit ? ' (SEATE + NAHORA + DIGITALIZAÇÃO)' : ' (SEATE + NAHORA)') + ': ' + formatarMilhar(rS.total + rN.total + rD.total) + '</div>';
+    html += '<div style="margin-top:8px; padding:10px; background:var(--cinza-suave); border-radius:10px; font-size:0.8rem; color:#555;">ℹ️ Somente consulta. ' +
+            (anoUsaRegistros(ano) ? 'Os meses em cinza vêm dos registros dos servidores (para corrigir, altere o registro do servidor). ' : '') +
+            (anoSoRegistros(ano) ? '' : 'Os meses digitados são alterados na tela Principal, em "Dados Estatísticos e Indicadores".') + '</div>';
+    return { html: html, comDigit: comDigit };
+}
+
 // ==================== ATIVIDADES POR SETOR (MESMA LISTA DE "ADICIONAR/ATIVIDADES") ====================
 var _atividadesPorSetorCache = {};
 function obterAtividadesPorSetor(setor) {
