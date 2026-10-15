@@ -2574,3 +2574,38 @@ window.salvarDadosEstatisticaModal = salvarDadosEstatisticaModal;
 window.abrirModalAnaliseAtividade = abrirModalAnaliseAtividade;
 window.criarModalAnaliseAtividade = criarModalAnaliseAtividade;
 window.fecharModalAnaliseAtividade = fecharModalAnaliseAtividade;
+
+// ==================== AVISO DE "SEM INTERNET" (todas as telas) ====================
+// Sem conexão, a tela abre pela cópia guardada (aplicativo/PWA), mas os dados
+// vêm sempre do banco — então mostramos uma faixa explicando por que não
+// aparecem. Some sozinha quando a conexão volta.
+(function avisoSemInternet() {
+    if (typeof window === 'undefined' || !window.addEventListener) return;
+    function faixa() {
+        var el = document.getElementById('avisoSemInternet');
+        if (!el && document.body) {
+            el = document.createElement('div');
+            el.id = 'avisoSemInternet';
+            el.setAttribute('role', 'status');
+            el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:100000;display:none;' +
+                'background:#92400E;color:#fff;text-align:center;font-size:0.85rem;font-weight:600;' +
+                'padding:10px 14px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -2px 10px rgba(0,0,0,.2);';
+            el.textContent = 'Sem conexão com a internet — os dados aparecem quando a conexão voltar.';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+    function atualizar() {
+        var el = faixa();
+        if (el) el.style.display = (navigator.onLine === false) ? 'block' : 'none';
+    }
+    window.addEventListener('offline', atualizar);
+    window.addEventListener('online', function () {
+        atualizar();
+        // a conexão voltou: recarrega a tela para buscar os dados de novo
+        // (só se a página tinha aberto sem internet)
+        if (window._abriuSemInternet) location.reload();
+    });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { window._abriuSemInternet = navigator.onLine === false; atualizar(); });
+    else { window._abriuSemInternet = navigator.onLine === false; atualizar(); }
+})();
