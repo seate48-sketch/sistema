@@ -1419,7 +1419,7 @@
         var fundo = document.createElement('div');
         fundo.id = 'stsFundo';
         fundo.innerHTML = '<div class="sts-caixa" role="dialog" aria-modal="true">' +
-            '<h3>Status em lote — ' + esc(nome) + '</h3>' +
+            '<h3 id="stsTitulo">Status em lote — ' + esc(nome) + '</h3>' +
             '<div class="sts-sub">Coloca um status nos dias úteis do período que <b>não têm lançamentos</b> (vazios ou com outro status). Dias com lançamentos não são alterados. A entrega do relatório é opcional.</div>' +
             '<div class="sts-grade">' +
                 '<div><label>Mês</label><select id="stsMes">' + NOMES_MES_ST.map(function (m, i) { return '<option value="' + i + '">' + m + '</option>'; }).join('') + '</select></div>' +
@@ -1427,9 +1427,10 @@
                 '<div><label>Status</label><select id="stsStatus">' + STATUS_LOTE.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select></div>' +
                 '<div><label>Período (dias)</label><div style="display:flex;gap:6px;align-items:center;"><select id="stsDe"></select><span>a</span><select id="stsAte"></select></div></div>' +
             '</div>' +
-            '<div class="sts-acao"><label><input type="radio" name="stsAcao" value="aplicar" checked> Aplicar status</label><label><input type="radio" name="stsAcao" value="remover"> Remover este status</label></div>' +
+            '<div class="sts-acao"><label><input type="radio" name="stsAcao" value="aplicar" checked> Aplicar status</label><label><input type="radio" name="stsAcao" value="remover"> Remover este status</label>' +
+                '<label title="Ex.: feriado — o mesmo status e período para todos os servidores de uma vez"><input type="checkbox" id="stsTodos"> Todos os servidores</label></div>' +
             '<div class="sts-previa" id="stsPrevia">Calculando...</div>' +
-            '<div class="sts-entregar" id="stsEntregarBox"><input type="checkbox" id="stsEntregar" checked><label for="stsEntregar">Entregar o relatório do mês em nome do servidor (conta para o avanço automático do mês de referência)</label></div>' +
+            '<div class="sts-entregar" id="stsEntregarBox"><input type="checkbox" id="stsEntregar"><label for="stsEntregar">Entregar o relatório do mês em nome do servidor (conta para o avanço automático do mês de referência)</label></div>' +
             '<div class="sts-msg" id="stsMsg"></div>' +
             '<div class="sts-botoes"><button type="button" class="b-fechar" id="stsFechar">Fechar</button><button type="button" class="b-aplicar" id="stsAplicar" disabled>Aplicar</button></div>' +
             '</div>';
@@ -1439,9 +1440,22 @@
         $('stsFechar').onclick = function () { fundo.remove(); };
         fundo.addEventListener('click', function (e) { if (e.target === fundo) fundo.remove(); });
 
+        // registros já carregados, por servidor (o da linha agora; os demais
+        // só se o gestor marcar "Todos os servidores")
+        var registrosPor = {};
         var registros = null;
         try { registros = await dbCarregarRegistros(nome); } catch (e) { registros = null; }
         if (registros === null) { $('stsPrevia').textContent = 'Não foi possível carregar os registros deste servidor. Verifique a conexão e tente novamente.'; return; }
+        registrosPor[nome] = registros;
+        var falhaCarga = [];   // servidores cujos registros não carregaram (modo "todos")
+        var carregandoTodos = false;
+
+        function todosMarcado() { return !!($('stsTodos') && $('stsTodos').checked); }
+        function nomesAlvo() {
+            if (!todosMarcado()) return [nome];
+            var lista = (typeof servidores !== 'undefined' && Array.isArray(servidores) && servidores.length) ? servidores.slice() : [nome];
+            return lista;
+        }
 
         function preencherDias() {
             var m = +$('stsMes').value, a = +$('stsAno').value || anoRef;
@@ -1451,91 +1465,139 @@
             $('stsDe').innerHTML = opts; $('stsAte').innerHTML = opts;
             $('stsDe').value = Math.min(de, ult); $('stsAte').value = Math.min(ate, ult);
         }
+        // plano de UM servidor (mesmas regras de sempre)
+        function planoServidor(regs, base) {
+            var alvo = [], comLanc = 0, outroStatus = 0, jaTem = 0, vazios = 0;
+            for (var d = base.de; d <= base.ate; d++) {
+                var dt = new Date(base.a, base.m, d);
+                if (dt.getDay() === 0 || dt.getDay() === 6) continue;
+                var iso = base.a + '-' + p2(base.m + 1) + '-' + p2(d);
+                var reg = regs[iso];
+                var aus = reg ? String(reg.ausencia || '').trim() : '';
+                var tot = totalAtiv(reg);
+                if (base.remover) {
+                    if (base.status && aus === base.status && tot === 0) alvo.push(iso); // (com "Ativo" não há o que remover)
+                } else if (tot > 0) comLanc++;
+                else if (!base.status) { if (aus) { outroStatus++; alvo.push(iso); } else jaTem++; } // "Ativo": tira o status
+                else if (aus === base.status) jaTem++;
+                else if (aus) { outroStatus++; alvo.push(iso); } // troca de status (sem lançamentos): nada é apagado
+                else { vazios++; alvo.push(iso); }
+            }
+            return { alvo: alvo, comLanc: comLanc, outroStatus: outroStatus, jaTem: jaTem, vazios: vazios };
+        }
+        // plano do servidor da linha ou de todos (somado)
         function plano() {
             var m = +$('stsMes').value, a = +$('stsAno').value;
             var de = +$('stsDe').value, ate = +$('stsAte').value;
             if (de > ate) { var t = de; de = ate; ate = t; }
-            var status = $('stsStatus').value;
-            var remover = document.querySelector('input[name="stsAcao"]:checked').value === 'remover';
-            var alvo = [], comLanc = 0, outroStatus = 0, jaTem = 0, vazios = 0;
-            for (var d = de; d <= ate; d++) {
-                var dt = new Date(a, m, d);
-                if (dt.getDay() === 0 || dt.getDay() === 6) continue;
-                var iso = a + '-' + p2(m + 1) + '-' + p2(d);
-                var reg = registros[iso];
-                var aus = reg ? String(reg.ausencia || '').trim() : '';
-                var tot = totalAtiv(reg);
-                if (remover) {
-                    if (status && aus === status && tot === 0) alvo.push(iso); // (com "Ativo" não há o que remover)
-                } else if (tot > 0) comLanc++;
-                else if (!status) { if (aus) { outroStatus++; alvo.push(iso); } else jaTem++; } // "Ativo": tira o status
-                else if (aus === status) jaTem++;
-                else if (aus) { outroStatus++; alvo.push(iso); } // troca de status (sem lançamentos): nada é apagado
-                else { vazios++; alvo.push(iso); }
-            }
-            return { m: m, a: a, de: de, ate: ate, status: status, remover: remover, alvo: alvo, comLanc: comLanc, outroStatus: outroStatus, jaTem: jaTem, vazios: vazios };
+            var base = { m: m, a: a, de: de, ate: ate, status: $('stsStatus').value,
+                         remover: document.querySelector('input[name="stsAcao"]:checked').value === 'remover' };
+            var p = { m: m, a: a, de: de, ate: ate, status: base.status, remover: base.remover, todos: todosMarcado(),
+                      porServidor: [], alvo: [], comLanc: 0, outroStatus: 0, jaTem: 0, vazios: 0, servidoresComAlvo: 0 };
+            nomesAlvo().forEach(function (n) {
+                var regs = registrosPor[n];
+                if (!regs) return; // não carregou (avisado na prévia)
+                var ps = planoServidor(regs, base);
+                p.porServidor.push({ nome: n, alvo: ps.alvo });
+                ps.alvo.forEach(function (iso) { p.alvo.push({ nome: n, iso: iso }); });
+                p.comLanc += ps.comLanc; p.outroStatus += ps.outroStatus; p.jaTem += ps.jaTem; p.vazios += ps.vazios;
+                if (ps.alvo.length) p.servidoresComAlvo++;
+            });
+            return p;
         }
         function rotuloStatus(v) { var o = STATUS_LOTE.filter(function (x) { return x[0] === v; })[0]; return o ? o[1] : v; }
         function atualizarPrevia() {
+            if (carregandoTodos) return;
             var p = plano();
             var periodo = p2(p.de) + ' a ' + p2(p.ate) + '/' + p2(p.m + 1) + '/' + p.a;
+            var emQuem = p.todos ? ' em <b>' + p.servidoresComAlvo + '</b> de ' + nomesAlvo().length + ' servidor(es)' : '';
             var h;
             if (p.remover) {
-                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) com o status <b>' + esc(rotuloStatus(p.status)) + '</b> (sem lançamentos) voltarão a ficar vazios — período ' + periodo + '.';
+                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) com o status <b>' + esc(rotuloStatus(p.status)) + '</b> (sem lançamentos) voltarão a ficar vazios' + emQuem + ' — período ' + periodo + '.';
             } else {
                 var det = [];
                 if (p.vazios) det.push(p.vazios + ' vazio(s)');
                 if (!p.status) { det = []; if (p.outroStatus) det.push(p.outroStatus + ' saindo de outro status'); }
                 if (p.outroStatus && p.status) det.push(p.outroStatus + ' trocando de outro status');
-                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) receberão <b>' + esc(rotuloStatus(p.status)) + '</b>' + (det.length ? ' (' + det.join(' + ') + ')' : '') + ' — período ' + periodo + '.';
+                h = '<b>' + p.alvo.length + '</b> dia(s) útil(eis) receberão <b>' + esc(rotuloStatus(p.status)) + '</b>' + (det.length ? ' (' + det.join(' + ') + ')' : '') + emQuem + ' — período ' + periodo + '.';
                 var ex = [];
                 if (p.comLanc) ex.push(p.comLanc + ' com lançamentos');
                 if (p.jaTem) ex.push(p.jaTem + ' já com ' + esc(rotuloStatus(p.status)));
                 if (ex.length) h += '<br>Não serão alterados: ' + ex.join(', ') + '.';
-                if (!p.status && p.alvo.length) h += '<br><i>Esses dias voltam a ficar em aberto para o servidor preencher.</i>';
-                if (!p.alvo.length && (!p.status || !$('stsEntregar').checked)) {
+                if (!p.status && p.alvo.length) h += '<br><i>Esses dias voltam a ficar em aberto para ' + (p.todos ? 'os servidores preencherem' : 'o servidor preencher') + '.</i>';
+                if (!p.alvo.length && (!p.status || p.todos || !$('stsEntregar').checked)) {
                     h += (p.jaTem && !p.comLanc)
                         ? '<br><b>Todos os dias úteis do período já estão com ' + esc(rotuloStatus(p.status)) + ' — nada a alterar.</b>'
                         : '<br><b>Nada a alterar: os dias úteis do período já têm lançamentos ou já estão com ' + esc(rotuloStatus(p.status)) + '.</b>';
                 }
             }
+            if (p.todos && falhaCarga.length) h += '<br><span style="color:#B91C1C;">Não foi possível carregar os registros de: ' + falhaCarga.map(esc).join(', ') + ' — esses servidores ficam de fora. Feche e abra de novo para tentar outra vez.</span>';
             $('stsPrevia').innerHTML = h;
-            $('stsEntregarBox').style.display = (p.remover || !p.status) ? 'none' : ''; // "Ativo" deixa dias a preencher: não há o que entregar
+            // entrega do relatório: só para um servidor por vez (nunca para todos de uma vez)
+            $('stsEntregarBox').style.display = (p.remover || !p.status || p.todos) ? 'none' : ''; // "Ativo" deixa dias a preencher: não há o que entregar
             var b = $('stsAplicar');
             b.textContent = p.remover ? 'Remover status' : 'Aplicar';
             b.classList.toggle('remover', p.remover);
-            b.disabled = !p.alvo.length && (p.remover || !p.status || !$('stsEntregar').checked);
+            b.disabled = !p.alvo.length && (p.remover || !p.status || p.todos || !$('stsEntregar').checked);
+        }
+        async function aoMarcarTodos() {
+            var todos = todosMarcado();
+            $('stsTitulo').textContent = 'Status em lote — ' + (todos ? 'Todos os servidores' : nome);
+            if (todos) {
+                $('stsEntregar').checked = false; // a entrega é sempre servidor por servidor
+                var faltam = nomesAlvo().filter(function (n) { return !registrosPor[n]; });
+                if (faltam.length) {
+                    carregandoTodos = true;
+                    $('stsAplicar').disabled = true;
+                    $('stsPrevia').textContent = 'Carregando os registros de ' + faltam.length + ' servidor(es)...';
+                    var res = await Promise.all(faltam.map(function (n) {
+                        return Promise.resolve(dbCarregarRegistros(n)).catch(function () { return null; });
+                    }));
+                    falhaCarga = [];
+                    faltam.forEach(function (n, i) { if (res[i] === null || res[i] === undefined) falhaCarga.push(n); else registrosPor[n] = res[i]; });
+                    carregandoTodos = false;
+                }
+            }
+            atualizarPrevia();
         }
         preencherDias(); $('stsDe').value = 1; $('stsAte').value = new Date(anoRef, mesRef + 1, 0).getDate();
         ['stsMes', 'stsAno'].forEach(function (id) { $(id).onchange = function () { $('stsDe').value = 1; $('stsAte').value = 31; preencherDias(); $('stsAte').value = new Date(+$('stsAno').value, +$('stsMes').value + 1, 0).getDate(); atualizarPrevia(); }; });
         ['stsStatus', 'stsDe', 'stsAte', 'stsEntregar'].forEach(function (id) { $(id).onchange = atualizarPrevia; });
+        $('stsTodos').onchange = aoMarcarTodos;
         document.querySelectorAll('input[name="stsAcao"]').forEach(function (r) { r.onchange = atualizarPrevia; });
         atualizarPrevia();
 
         $('stsAplicar').onclick = async function () {
+            if (carregandoTodos) return;
             var p = plano();
-            var b = this; b.disabled = true; $('stsFechar').disabled = true;
+            var b = this; b.disabled = true; $('stsFechar').disabled = true; $('stsTodos').disabled = true;
             var msg = $('stsMsg'); msg.className = 'sts-msg'; msg.textContent = '';
-            var falhas = 0, feitos = 0;
+            var falhas = 0, feitos = 0, servidoresFeitos = {}, servidoresFalha = {};
             for (var i = 0; i < p.alvo.length; i++) {
                 b.textContent = (p.remover ? 'Removendo ' : 'Aplicando ') + (i + 1) + '/' + p.alvo.length + '...';
-                var iso = p.alvo[i], ok = false;
+                var quem = p.alvo[i].nome, iso = p.alvo[i].iso, ok = false;
+                var regs = registrosPor[quem];
+                var ativExist = (regs[iso] && regs[iso].atividades) || {};
+                var ficaVazio = p.remover || (!p.status && !Object.keys(ativExist).length);
                 try {
-                    var ativExist = (registros[iso] && registros[iso].atividades) || {};
-                    var ficaVazio = p.remover || (!p.status && !Object.keys(ativExist).length);
-                    if (ficaVazio) ok = await dbExcluirRegistroDia(nome, iso);
-                    else ok = await dbSalvarRegistroDia(nome, iso, ativExist, p.status);
+                    if (ficaVazio) ok = await dbExcluirRegistroDia(quem, iso);
+                    else ok = await dbSalvarRegistroDia(quem, iso, ativExist, p.status);
                 } catch (e) { ok = false; }
                 if (ok) {
-                    feitos++;
-                    if (ficaVazio) delete registros[iso];
-                    else registros[iso] = { atividades: ativExist, ausencia: p.status };
-                } else falhas++;
+                    feitos++; servidoresFeitos[quem] = true;
+                    if (ficaVazio) delete regs[iso];
+                    else regs[iso] = { atividades: ativExist, ausencia: p.status };
+                } else { falhas++; servidoresFalha[quem] = true; }
             }
-            var texto = (p.remover ? 'Status removido de ' : 'Status aplicado em ') + feitos + ' dia(s).';
+            var nServ = Object.keys(servidoresFeitos).length;
+            var texto = (p.remover ? 'Status removido de ' : 'Status aplicado em ') + feitos + ' dia(s)' + (p.todos ? ' de ' + nServ + ' servidor(es)' : '') + '.';
             var erro = falhas > 0;
-            if (falhas) texto += ' ' + falhas + ' dia(s) não puderam ser gravados (verifique a conexão ou se o script 18 foi executado no banco).';
-            if (!p.remover && p.status && !falhas && $('stsEntregar').checked) {
+            if (falhas) {
+                texto += ' ' + falhas + ' dia(s) não puderam ser gravados' +
+                         (p.todos ? ' (' + Object.keys(servidoresFalha).map(esc).join(', ') + ')' : '') +
+                         ' — verifique a conexão e tente de novo.';
+            }
+            if (!p.todos && !p.remover && p.status && !falhas && $('stsEntregar').checked) {
                 b.textContent = 'Entregando relatório...';
                 try {
                     var r = await db.rpc('entregar_relatorio', { p_servidor: nome, p_ano: p.a, p_mes: p.m + 1 });
@@ -1558,7 +1620,7 @@
             }
             msg.className = 'sts-msg ' + (erro ? 'erro' : 'ok');
             msg.innerHTML = texto;
-            $('stsFechar').disabled = false;
+            $('stsFechar').disabled = false; $('stsTodos').disabled = false;
             atualizarPrevia();
             try { if (typeof renderizarAcessoRapido === 'function') renderizarAcessoRapido(); } catch (e2) {}
         };
