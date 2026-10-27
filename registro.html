@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="SEATE">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="icon" href="icons/favicon-32.png?v=34">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=34">
+    <link rel="icon" href="icons/favicon-32.png?v=35">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=35">
     <script>
     // Manifest dinâmico: cada servidor tem seu próprio link
     // (registro.html?user=Nome) — o manifest precisa refletir ESSA
@@ -46,7 +46,7 @@
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('service-worker.js?v=34').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
+            navigator.serviceWorker.register('service-worker.js?v=35').catch(function(e) { console.warn('Falha ao registrar service worker:', e); });
         });
     }
     </script>
@@ -60,17 +60,17 @@
     <!-- ======================================== -->
     <!-- 2. CONFIGURAÇÃO CENTRALIZADA (NOVO)     -->
     <!-- ======================================== -->
-    <script src="config.js?v=34"></script>
+    <script src="config.js?v=35"></script>
     
     <!-- ======================================== -->
     <!-- 3. SUPABASE CLIENT                      -->
     <!-- ======================================== -->
-    <script src="supabase-client.js?v=34"></script>
+    <script src="supabase-client.js?v=35"></script>
     
     <!-- ======================================== -->
     <!-- 4. COMMON.JS                            -->
     <!-- ======================================== -->
-    <script src="common.js?v=34"></script>
+    <script src="common.js?v=35"></script>
     
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif}
@@ -1222,6 +1222,6 @@ window.editarComunicadoSupervisor = function(t) {
 };
 window.onbeforeunload = function() { pararVerificacaoPeriodica(); };
 </script>
-<script src="entrega-relatorio.js?v=34"></script>
+<script src="entrega-relatorio.js?v=35"></script>
 </body>
 </html>

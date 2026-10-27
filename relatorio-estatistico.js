@@ -23,6 +23,7 @@
     var MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     var LARGURA = 718;       // largura útil de uma página A4 retrato (margens de 10 mm), em px
+    var LARGURA_PAISAGEM = 1047; // largura útil de uma página A4 deitada (margens de 10 mm), em px
     var ALTURA_GRAFICO = 330;
 
     function esc(t) {
@@ -433,9 +434,11 @@
         return (v > 0 ? '+' : '') + v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
     }
 
-    async function gerarPDF(conteudo, arquivo) {
+    async function gerarPDF(conteudo, arquivo, opcoes) {
+        var paisagem = !!(opcoes && opcoes.paisagem);
+        var larg = paisagem ? LARGURA_PAISAGEM : LARGURA;
         var box = document.createElement('div');
-        box.style.cssText = 'position:absolute;left:0;top:0;width:' + LARGURA + 'px;background:#fff;z-index:-1;pointer-events:none;';
+        box.style.cssText = 'position:absolute;left:0;top:0;width:' + larg + 'px;background:#fff;z-index:-1;pointer-events:none;';
         box.innerHTML = '<style>' + CSS + '</style><div class="rel-doc">' + conteudo + '</div>';
         document.body.appendChild(box);
         try {
@@ -446,8 +449,8 @@
                 margin: 10,
                 filename: arquivo,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: LARGURA, windowWidth: LARGURA, scrollX: 0, scrollY: 0, x: 0, y: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, width: larg, windowWidth: larg, scrollX: 0, scrollY: 0, x: 0, y: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: paisagem ? 'landscape' : 'portrait' },
                 pagebreak: { mode: ['css'], avoid: ['.rel-bloco', '.rel-cab', 'tr', '.rel-rodape', '.rel-resumo-txt'] }
             }).from(box.querySelector('.rel-doc')));
         } finally {
@@ -1550,6 +1553,144 @@
         baixarCSV(L, 'resumo_' + MESES[u.m].toLowerCase() + '_' + u.ano + '.csv');
         avisar('Arquivo gerado.');
     }
+
+
+    // =====================================================================
+    // RELATÓRIO "ATIVIDADES MENSAIS" (botões abaixo do gráfico mensal)
+    // Totais de cada atividade em cada mês do ano em vigência, separados
+    // por setor (lotação de quem executou), com o total geral por setor e a
+    // variação em relação ao mês anterior. Mesmos números das barras do
+    // gráfico (registros dos servidores + o que foi digitado em Dados Estatísticos).
+    // =====================================================================
+    var MES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    function somaLista(arr) { return arr.reduce(function (x, y) { return x + y; }, 0); }
+    async function montarAtividadesMensais() {
+        var ano = parseInt(anoAtual(), 10);
+        var base = await Promise.all([
+            obterTotaisAno(String(ano)),
+            obterDadosAno(String(ano)),
+            (typeof totalDezembroDoAno === 'function') ? Promise.resolve(totalDezembroDoAno(ano - 1)).catch(function () { return null; }) : Promise.resolve(null)
+        ]);
+        var t = base[0], manual = base[1];
+        if (!t || t.erro || manual === null) return null; // alguma busca falhou: não gera relatório incompleto
+        manual = manual || { SEATE: {}, NAHORA: {} };
+        var fontes = [
+            { nome: 'SEATE', regs: t.porAtividadeMesSeate || {}, dig: manual.SEATE || {} },
+            { nome: 'NAHORA', regs: t.porAtividadeMesNahora || {}, dig: manual.NAHORA || {} },
+            { nome: 'DIGITALIZAÇÃO', regs: t.porAtividadeMesDigit || {}, dig: {} }
+        ];
+        var res = { ano: ano, setores: [], dezAnterior: base[2] };
+        var somaSetores = MESES_CHAVE.map(function () { return 0; });
+        fontes.forEach(function (st) {
+            var ativ = {};
+            [st.regs, st.dig].forEach(function (fonte) {
+                Object.keys(fonte).forEach(function (a) {
+                    if (!ativ[a]) ativ[a] = MESES_CHAVE.map(function () { return 0; });
+                    MESES_CHAVE.forEach(function (mk, i) { ativ[a][i] += +((fonte[a] || {})[mk]) || 0; });
+                });
+            });
+            var linhas = Object.keys(ativ).map(function (a) { return { nome: a, meses: ativ[a], total: somaLista(ativ[a]) }; })
+                .filter(function (l) { return l.total > 0; })
+                .sort(function (a, b) { return a.nome.localeCompare(b.nome); });
+            var totMes = MESES_CHAVE.map(function (mk, i) { return linhas.reduce(function (x, l) { return x + l.meses[i]; }, 0); });
+            totMes.forEach(function (v, i) { somaSetores[i] += v; });
+            if (linhas.length) res.setores.push({ nome: st.nome, linhas: linhas, totMes: totMes, total: somaLista(totMes) });
+        });
+        // total de cada mês = barra do gráfico; diferença (lotação fora dos 3 setores) vai em "Outros"
+        var totalMes = MESES_CHAVE.map(function (mk) {
+            var v = +((t.porMes || {})[mk]) || 0;
+            ['SEATE', 'NAHORA'].forEach(function (s) {
+                var d = manual[s] || {};
+                Object.keys(d).forEach(function (a) { v += +((d[a] || {})[mk]) || 0; });
+            });
+            return v;
+        });
+        var outros = totalMes.map(function (v, i) { return Math.max(0, v - somaSetores[i]); });
+        res.outros = outros.some(function (v) { return v > 0; }) ? outros : null;
+        res.totalMes = totalMes;
+        res.totalAno = somaLista(totalMes);
+        res.variacao = totalMes.map(function (v, i) {
+            var ant = i > 0 ? totalMes[i - 1] : res.dezAnterior;
+            if (ant === null || ant === undefined || (!v && !ant)) return '–';
+            var txt = (typeof variacaoMesAnterior === 'function') ? variacaoMesAnterior(v, ant) : varMes(v, ant);
+            return (txt === 'sem base de comparação' || txt === 'sem dados no mês') ? '–' : txt;
+        });
+        return res;
+    }
+
+    var gerandoMensais = false;
+    async function gerarPDFAtividadesMensais() {
+        if (gerandoMensais) return;
+        if (typeof html2pdf === 'undefined') { avisar('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
+        gerandoMensais = true;
+        avisar('Gerando relatório...');
+        try {
+            var u = await montarAtividadesMensais();
+            if (!u) { avisar('Não foi possível carregar os dados agora. Verifique sua conexão e tente novamente.'); return; }
+            var cabMeses = MES_CURTO.map(function (m) { return '<th class="n">' + m + '</th>'; }).join('') + '<th class="n">Total</th>';
+            var col = '<colgroup><col style="width:21%">' + MES_CURTO.map(function () { return '<col>'; }).join('') + '<col style="width:7.5%"></colgroup>';
+            var celulas = function (arr, total) { return arr.map(function (v) { return '<td class="n">' + num(v) + '</td>'; }).join('') + '<td class="n"><b>' + num(total) + '</b></td>'; };
+            var h = cabecalho('Atividades Mensais — ' + u.ano, [['Ano', String(u.ano)], ['Setores', u.setores.map(function (s) { return s.nome; }).join(', ') || '—'], ['Gerado em', agora()]]);
+            h += '<style>.rel-mensal .rel-tab{font-size:9.5px;}.rel-mensal .rel-tab td,.rel-mensal .rel-tab th{padding:2px 4px;}.rel-mensal .rel-bloco{margin-bottom:10px;}</style><div class="rel-mensal">';
+            if (!u.setores.length) h += '<div class="rel-vazio">Nenhuma atividade lançada em ' + u.ano + '.</div>';
+            u.setores.forEach(function (st) {
+                h += '<div class="rel-bloco"><div class="rel-secao">' + esc(st.nome) + '</div>' +
+                     '<table class="rel-tab">' + col + '<thead><tr><th>Atividade</th>' + cabMeses + '</tr></thead><tbody>' +
+                     st.linhas.map(function (l) { return '<tr><td>' + esc(l.nome) + '</td>' + celulas(l.meses, l.total) + '</tr>'; }).join('') +
+                     '<tr class="rel-total"><td>TOTAL ' + esc(st.nome) + '</td>' + celulas(st.totMes, st.total) + '</tr>' +
+                     '</tbody></table></div>';
+            });
+            h += '<div class="rel-bloco"><div class="rel-secao">Total geral por setor</div>' +
+                 '<table class="rel-tab">' + col + '<thead><tr><th>Setor</th>' + cabMeses + '</tr></thead><tbody>' +
+                 u.setores.map(function (st) { return '<tr><td>' + esc(st.nome) + '</td>' + celulas(st.totMes, st.total) + '</tr>'; }).join('') +
+                 (u.outros ? '<tr><td>Outros</td>' + celulas(u.outros, somaLista(u.outros)) + '</tr>' : '') +
+                 '<tr class="rel-total"><td>TOTAL GERAL</td>' + celulas(u.totalMes, u.totalAno) + '</tr>' +
+                 '<tr><td style="color:#475569;">Variação vs mês anterior</td>' + u.variacao.map(function (v) {
+                     var cor = v.charAt(0) === '▲' ? '#15803D' : (v.charAt(0) === '▼' ? '#B91C1C' : '#475569');
+                     return '<td class="n" style="color:' + cor + ';">' + esc(v) + '</td>';
+                 }).join('') + '<td></td></tr>' +
+                 '</tbody></table>' +
+                 '<p class="rel-subtitulo" style="margin-top:4px;">Janeiro é comparado com dezembro de ' + (u.ano - 1) + '. "–" = sem base de comparação ou mês sem dados. Os números de cada servidor entram no setor da sua lotação.</p></div>';
+            h += '</div>' + rodape();
+            await gerarPDF(h, 'Atividades_Mensais_' + u.ano + '.pdf', { paisagem: true });
+            avisar('Relatório gerado com sucesso!');
+        } catch (e) {
+            console.error('Atividades mensais (PDF):', e);
+            avisar('Erro ao gerar o relatório. Tente novamente.');
+        } finally {
+            gerandoMensais = false;
+        }
+    }
+
+    async function exportarCSVAtividadesMensais() {
+        try {
+            var u = await montarAtividadesMensais();
+            if (!u) { avisar('Não foi possível carregar os dados agora. Verifique sua conexão e tente novamente.'); return; }
+            var cab = MESES.concat(['Total']);
+            var L = [['Atividades Mensais', String(u.ano)], []];
+            u.setores.forEach(function (st) {
+                L.push([st.nome]);
+                L.push(['Atividade'].concat(cab));
+                st.linhas.forEach(function (l) { L.push([l.nome].concat(l.meses, [l.total])); });
+                L.push(['TOTAL ' + st.nome].concat(st.totMes, [st.total]));
+                L.push([]);
+            });
+            L.push(['Total geral por setor']);
+            L.push(['Setor'].concat(cab));
+            u.setores.forEach(function (st) { L.push([st.nome].concat(st.totMes, [st.total])); });
+            if (u.outros) L.push(['Outros'].concat(u.outros, [somaLista(u.outros)]));
+            L.push(['TOTAL GERAL'].concat(u.totalMes, [u.totalAno]));
+            L.push(['Variação vs mês anterior'].concat(u.variacao, ['']));
+            baixarCSV(L, 'atividades_mensais_' + u.ano + '.csv');
+            avisar('Arquivo gerado.');
+        } catch (e) {
+            console.error('Atividades mensais (CSV):', e);
+            avisar('Erro ao gerar o arquivo. Tente novamente.');
+        }
+    }
+
+    window.gerarPDFAtividadesMensais = gerarPDFAtividadesMensais;
+    window.exportarCSVAtividadesMensais = exportarCSVAtividadesMensais;
 
     window.abrirResumoMes = abrirResumoMes;
     window.fecharResumoMes = fecharResumoMes;
