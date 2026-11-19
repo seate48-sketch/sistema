@@ -360,7 +360,7 @@
             box = document.createElement('div');
             box.style.cssText = 'position:absolute;left:0;top:0;width:' + LARGURA + 'px;background:#fff;z-index:-1;pointer-events:none;';
             box.innerHTML = html;
-            document.body.appendChild(box);
+            { var _guardaPdf = document.createElement('div'); _guardaPdf.className = 'guarda-pdf'; _guardaPdf.style.cssText = 'position:fixed;left:-200000px;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;'; _guardaPdf.appendChild(box); document.body.appendChild(_guardaPdf); } // fora da tela: o html2pdf copia o conteúdo para a área invisível dele; o original não aparece mais no canto da página
             // espera as imagens dos gráficos carregarem
             await Promise.all(Array.prototype.map.call(box.querySelectorAll('img'), function (img) {
                 return img.complete ? Promise.resolve() : new Promise(function (ok) { img.onload = img.onerror = ok; });
@@ -379,7 +379,7 @@
             console.error('Relatório estatístico:', e);
             avisar('Erro ao gerar o relatório. Tente novamente.');
         } finally {
-            if (box && box.parentNode) box.parentNode.removeChild(box);
+            if (box && box.parentNode) { var _gp = box.parentNode; _gp.removeChild(box); if (_gp !== document.body && _gp.parentNode) _gp.parentNode.removeChild(_gp); }
             gerando = false;
         }
     }
@@ -440,7 +440,7 @@
         var box = document.createElement('div');
         box.style.cssText = 'position:absolute;left:0;top:0;width:' + larg + 'px;background:#fff;z-index:-1;pointer-events:none;';
         box.innerHTML = '<style>' + CSS + '</style><div class="rel-doc">' + conteudo + '</div>';
-        document.body.appendChild(box);
+        { var _guardaPdf = document.createElement('div'); _guardaPdf.className = 'guarda-pdf'; _guardaPdf.style.cssText = 'position:fixed;left:-200000px;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;'; _guardaPdf.appendChild(box); document.body.appendChild(_guardaPdf); } // fora da tela: o html2pdf copia o conteúdo para a área invisível dele; o original não aparece mais no canto da página
         try {
             await Promise.all(Array.prototype.map.call(box.querySelectorAll('img'), function (img) {
                 return img.complete ? Promise.resolve() : new Promise(function (ok) { img.onload = img.onerror = ok; });
@@ -454,7 +454,7 @@
                 pagebreak: { mode: ['css'], avoid: ['.rel-bloco', '.rel-cab', 'tr', '.rel-rodape', '.rel-resumo-txt'] }
             }).from(box.querySelector('.rel-doc')));
         } finally {
-            if (box.parentNode) box.parentNode.removeChild(box);
+            if (box && box.parentNode) { var _gp = box.parentNode; _gp.removeChild(box); if (_gp !== document.body && _gp.parentNode) _gp.parentNode.removeChild(_gp); }
         }
     }
 

@@ -599,7 +599,7 @@
         box.style.cssText = 'position:absolute;left:0;top:0;width:' + largura + 'px;background:#fff;z-index:-1;pointer-events:none;';
         box.innerHTML = htmlRelatorio(m);
         box.firstChild.style.padding = '0 6px'; // folga para as bordas da tabela não encostarem na margem
-        document.body.appendChild(box);
+        { var _guardaPdf = document.createElement('div'); _guardaPdf.className = 'guarda-pdf'; _guardaPdf.style.cssText = 'position:fixed;left:-200000px;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;'; _guardaPdf.appendChild(box); document.body.appendChild(_guardaPdf); } // fora da tela: o html2pdf copia o conteúdo para a área invisível dele; o original não aparece mais no canto da página
         try {
             await carregarHtml2pdf();
             await salvarPdfSemBranco(html2pdf().set({
@@ -615,7 +615,7 @@
             console.error('Relatório PDF:', e);
             avisar('Não foi possível gerar o PDF. Tente novamente.');
         } finally {
-            document.body.removeChild(box);
+            if (box && box.parentNode) { var _gp = box.parentNode; _gp.removeChild(box); if (_gp !== document.body && _gp.parentNode) _gp.parentNode.removeChild(_gp); }
             btn.disabled = false;
             btn.textContent = textoOriginal;
         }
@@ -893,7 +893,7 @@
 
             box.style.cssText = 'position:absolute;left:0;top:0;width:' + largura + 'px;background:#fff;z-index:-1;pointer-events:none;';
             box.innerHTML = '<div class="rel-doc" style="padding:0 6px;">' + h + '</div>';
-            document.body.appendChild(box);
+            { var _guardaPdf = document.createElement('div'); _guardaPdf.className = 'guarda-pdf'; _guardaPdf.style.cssText = 'position:fixed;left:-200000px;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;'; _guardaPdf.appendChild(box); document.body.appendChild(_guardaPdf); } // fora da tela: o html2pdf copia o conteúdo para a área invisível dele; o original não aparece mais no canto da página
             await carregarHtml2pdf();
             await salvarPdfSemBranco(html2pdf().set({
                 margin: 10,
@@ -908,7 +908,7 @@
             console.error('PDF Dados Estatísticos:', e);
             avisar('Não foi possível gerar o PDF. Tente novamente.');
         } finally {
-            if (box.parentNode) box.parentNode.removeChild(box);
+            if (box && box.parentNode) { var _gp = box.parentNode; _gp.removeChild(box); if (_gp !== document.body && _gp.parentNode) _gp.parentNode.removeChild(_gp); }
             gerandoDadosAno = false;
         }
     }
