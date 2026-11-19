@@ -160,6 +160,16 @@
         var anos = getAnosDisponiveis().map(Number).sort(function (a, b) { return a - b; });
         var historico = await lerTudo(T.DADOS_HISTORICOS, 'ano, setor, atividade, mes, valor',
             function (q) { return q.order('ano').order('setor').order('atividade').order('mes'); });
+        // ordem: ano → setor → atividade → mês do calendário (o mês é texto no
+        // banco e, ordenado pelo banco, sairia em ordem alfabética)
+        var idxMes = {};
+        MESES_CHAVE.forEach(function (m, i) { idxMes[m] = i; idxMes[m.toLowerCase()] = i; });
+        idxMes['Março'] = 2; idxMes['março'] = 2;
+        function posMes(m) { var k = String(m || ''); return idxMes[k] !== undefined ? idxMes[k] : (idxMes[k.toLowerCase()] !== undefined ? idxMes[k.toLowerCase()] : 99); }
+        historico.sort(function (x, y) {
+            return (String(x.ano) < String(y.ano) ? -1 : String(x.ano) > String(y.ano) ? 1 : 0) ||
+                   ordenarPt(x.setor, y.setor) || ordenarPt(x.atividade, y.atividade) || (posMes(x.mes) - posMes(y.mes));
+        });
         var atividadesCad = await lerTudo(T.ATIVIDADES, '*', function (q) { return q.order('nome'); });
         var listas = await Promise.all([obterAtividadesPorSetor('SEATE'), obterAtividadesPorSetor('NAHORA'), obterAtividadesPorSetor('DIGITALIZAÇÃO')]);
         if (listas[0] === null || listas[1] === null) throw new Error('Falha ao ler a lista de atividades');
