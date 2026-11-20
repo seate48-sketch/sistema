@@ -360,6 +360,97 @@
         return wb;
     }
 
+
+    // ------------------------------------------------------------------
+    // 3) BACKUP TÉCNICO: todas as tabelas, exatamente como estão no banco,
+    //    para a restauração automática (restaurar-backup.html).
+    //    - colunas iguais às do banco (select *);
+    //    - ligações com servidor/atividade também pelo NOME (colunas
+    //      "ref_servidor" / "ref_atividade"), pois os códigos internos
+    //      mudam num banco novo;
+    //    - textos longos (JSON) divididos em partes de até 30.000 letras
+    //      (limite de uma célula do Excel): coluna, coluna__2, coluna__3...
+    // ------------------------------------------------------------------
+    var TABELAS_TECNICO = [
+        { t: 'servidores', sel: '*', ord: 'nome' },
+        { t: 'atividades', sel: '*', ord: 'nome' },
+        { t: 'atribuicoes', sel: '*, servidores(nome), atividades(nome)', ord: 'servidor_id' },
+        { t: 'registros', sel: '*, servidores(nome)', ord: 'data', ord2: 'servidor_id' },
+        { t: 'dados_historicos', sel: '*', ord: 'ano', ord2: 'atividade' },
+        { t: 'estatisticas_trava', sel: '*', ord: 'ano' },
+        { t: 'configuracao', sel: '*', ord: 'id' },
+        { t: 'relatorios_entregues', sel: '*, servidores(nome)', ord: 'ano', ord2: 'mes' },
+        { t: 'avancos_mes_referencia', sel: '*', ord: 'id' },
+        { t: 'obs_servidores', sel: '*, servidores(nome)', ord: 'ano', ord2: 'mes' },
+        { t: 'comunicados', sel: '*', ord: 'ordem' },
+        { t: 'mensagem_emergente', sel: '*', ord: 'id' },
+        { t: 'mensagens_individuais', sel: '*, servidores(nome)', ord: 'id' },
+        { t: 'lista_visualizacao', sel: '*, servidores(nome)', ord: 'id' }
+    ];
+    var PARTE = 30000;
+    var VAZIO = '(texto vazio)';   // marca: célula vazia = null; esta marca = texto vazio ''
+    function textoCelula(v) {
+        if (v === null || v === undefined) return '';
+        if (v === '') return VAZIO;   // texto vazio (diferente de "sem valor")
+        if (typeof v === 'object') return JSON.stringify(v);
+        if (typeof v === 'boolean') return v ? 'true' : 'false';
+        return String(v);
+    }
+    async function montarArquivoTecnico() {
+        var wb = XLSX.utils.book_new(), usados = {};
+        var resumo = [];
+        var abas = [];
+        for (var i = 0; i < TABELAS_TECNICO.length; i++) {
+            var cfg = TABELAS_TECNICO[i];
+            var dados = await lerTudo(cfg.t, cfg.sel, function (q) { q = q.order(cfg.ord); return cfg.ord2 ? q.order(cfg.ord2) : q; });
+            // colunas: as do banco + referências por nome
+            var cols = [];
+            dados.forEach(function (r) { Object.keys(r).forEach(function (k) {
+                if (k === 'servidores') return;                              // junção (nome do servidor) -> vai para ref_servidor
+                if (k === 'atividades' && cfg.t === 'atribuicoes') return;   // junção (nome da atividade) -> vai para ref_atividade
+                if (cols.indexOf(k) === -1) cols.push(k);
+            }); });
+            var temServ = dados.some(function (r) { return r.servidores && typeof r.servidores === 'object'; });
+            var temAtiv = cfg.t === 'atribuicoes';
+            // partes de textos longos
+            var partes = {};
+            dados.forEach(function (r) { cols.forEach(function (k) {
+                var n = Math.ceil(textoCelula(r[k]).length / PARTE);
+                if (n > (partes[k] || 1)) partes[k] = n;
+            }); });
+            var cab = [];
+            cols.forEach(function (k) { cab.push(k); for (var p = 2; p <= (partes[k] || 1); p++) cab.push(k + '__' + p); });
+            if (temServ) cab.push('ref_servidor');
+            if (temAtiv) cab.push('ref_atividade');
+            var linhas = dados.map(function (r) {
+                var l = [];
+                cols.forEach(function (k) {
+                    var tx = textoCelula(r[k]), n = partes[k] || 1;
+                    for (var p = 0; p < n; p++) l.push(tx.slice(p * PARTE, (p + 1) * PARTE));
+                });
+                if (temServ) l.push(r.servidores && r.servidores.nome ? r.servidores.nome : '');
+                if (temAtiv) l.push(r.atividades && r.atividades.nome ? r.atividades.nome : '');
+                return l;
+            });
+            abas.push({ nome: cfg.t, cab: cab, linhas: linhas });
+            resumo.push([cfg.t, linhas.length]);
+        }
+        var leia = [['SEATE — BACKUP TÉCNICO (para restauração)'], ['Gerado em', new Date().toLocaleString('pt-BR')],
+                    ['Formato', 'seate-backup-tecnico-v1'], [],
+                    ['Use este arquivo na página restaurar-backup.html do sistema: ela gera um script SQL que devolve todos os dados a um banco novo.'],
+                    ['Antes, crie a estrutura do banco com o script 00_criar_banco_completo.sql.'],
+                    ['Célula vazia = sem valor (null). A marca "(texto vazio)" = texto em branco.'], [],
+                    ['tabela', 'linhas']].concat(resumo);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(leia), nomeAba('LEIA-ME', usados));
+        abas.forEach(function (a) {
+            var ws = XLSX.utils.aoa_to_sheet([a.cab].concat(a.linhas.map(function (l) { return l.map(function (v) { return v; }); })), { raw: true });
+            // tudo como texto, para nada ser convertido pelo Excel (datas, zeros à esquerda, etc.)
+            Object.keys(ws).forEach(function (ref) { if (ref.charAt(0) !== '!' && ws[ref].t !== 's') { ws[ref].t = 's'; ws[ref].v = String(ws[ref].v); } });
+            XLSX.utils.book_append_sheet(wb, ws, nomeAba(a.nome, usados));
+        });
+        return wb;
+    }
+
     async function gerarBackupGeral() {
         if (gerando) return;
         if (typeof db === 'undefined' || !db || typeof _lerTodasPaginas !== 'function') {
@@ -377,11 +468,16 @@
             if (dataMaisAntiga === null) throw new Error('Falha ao ler o início dos registros');
             var wb1 = await montarArquivoAtividades(dataMaisAntiga);
             var wb2 = await montarArquivoServidores();
+            var wb3 = await montarArquivoTecnico();
             var dia = hojeISO();
+            var pausa = function () { return new Promise(function (ok) { setTimeout(ok, 700); }); }; // alguns navegadores bloqueiam downloads seguidos
             XLSX.writeFile(wb1, 'SEATE_Backup_Atividades_' + dia + '.xlsx');
-            await new Promise(function (ok) { setTimeout(ok, 600); }); // alguns navegadores bloqueiam dois downloads seguidos
+            await pausa();
             XLSX.writeFile(wb2, 'SEATE_Backup_Servidores_' + dia + '.xlsx');
-            avisar('Backup gerado: 2 arquivos de Excel baixados.');
+            await pausa();
+            XLSX.writeFile(wb3, 'SEATE_Backup_Tecnico_' + dia + '.xlsx');
+            try { localStorage.setItem('seate_ultimo_backup', new Date().toISOString()); } catch (e) {} // usado pelo lembrete do Assistente na Principal
+            avisar('Backup gerado: 3 arquivos de Excel baixados.');
         } catch (e) {
             console.error('Backup geral:', e);
             avisar('Não foi possível gerar o backup (' + (e && e.message ? e.message : 'erro') + '). Verifique a conexão e tente novamente.');
@@ -392,4 +488,19 @@
     }
 
     window.gerarBackupGeral = gerarBackupGeral;
+
+    // vindo do lembrete do Assistente (estatistica.html#backup): destaca o botão
+    function destacarBotaoBackup() {
+        if (location.hash !== '#backup') return;
+        var btn = document.getElementById('btnBackupGeral');
+        if (!btn) return;
+        btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var sombra = btn.style.boxShadow, n = 0;
+        var t = setInterval(function () {
+            btn.style.boxShadow = (n % 2 === 0) ? '0 0 0 4px rgba(246,180,75,0.85)' : sombra;
+            if (++n >= 8) { clearInterval(t); btn.style.boxShadow = sombra; }
+        }, 450);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(destacarBotaoBackup, 600); });
+    else setTimeout(destacarBotaoBackup, 600);
 })();

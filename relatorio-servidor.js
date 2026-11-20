@@ -1313,6 +1313,84 @@
         return true;
     }
 
+    // ---- lembrete do Assistente: Backup Geral atrasado ----
+    // A data do último Backup Geral fica guardada neste navegador (gravada
+    // pela tela Estatística ao gerar o backup). Se passou de 7 dias (ou se
+    // nunca foi feito aqui), o Assistente avisa o gestor, no máximo 1 vez por dia.
+    var DIAS_LEMBRETE_BACKUP = 7;
+    function falasBackup(ultimo) {
+        var h = new Date().getHours();
+        var saud = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+        var f = [saud + ', ' + NOME_GESTOR + '! Tudo bem por aí?'];
+        if (!ultimo) {
+            f.push('Não encontrei nenhum <b>Backup Geral</b> feito neste computador. O backup guarda uma cópia de todos os números do sistema, para o caso de algum problema com o banco de dados.');
+        } else {
+            var dias = Math.floor((new Date() - ultimo) / 86400000);
+            var dataTxt = pad2(ultimo.getDate()) + '/' + pad2(ultimo.getMonth() + 1) + '/' + ultimo.getFullYear();
+            f.push('O último <b>Backup Geral</b> foi feito há <b>' + dias + ' dias</b> (' + dataTxt + '). Recomendo fazer um novo para manter a cópia de segurança em dia.');
+        }
+        f.push('Clique em <b>FAZER BACKUP</b> para ir até a tela Estatística. Se preferir deixar para depois, basta clicar em <b>SAIR</b>. Bom trabalho!');
+        return f;
+    }
+    function mostrarLembreteBackup(ultimo) {
+        garantirEstiloAssistente();
+        var el = document.createElement('div');
+        el.id = 'lembreteGestor';
+        el.innerHTML = '<div class="lg-caixa" role="dialog" aria-live="polite">' +
+            '<div class="lg-topo"><div class="lg-avatar">🤖</div><div><div class="lg-nome">Assistente SEATE</div><div class="lg-status">● online</div></div></div>' +
+            '<div class="lg-balao" id="lgBalao"><div class="lg-pontos"><span></span><span></span><span></span></div></div>' +
+            '<div class="lg-rodape" style="margin-top:14px;"><div class="lg-botoes">' +
+            '<button type="button" id="lgSair">SAIR</button>' +
+            '<button type="button" class="lg-principal" id="lgBackup">FAZER BACKUP</button></div></div></div>';
+        document.body.appendChild(el);
+        var terminou = false, timers = [];
+        function fim(irBackup) {
+            if (terminou) return;
+            terminou = true;
+            timers.forEach(clearTimeout);
+            if (el.parentNode) el.parentNode.removeChild(el);
+            if (irBackup) location.href = 'estatistica.html#backup';
+        }
+        document.getElementById('lgSair').addEventListener('click', function () { fim(false); });
+        document.getElementById('lgBackup').addEventListener('click', function () { fim(true); });
+        var falas = falasBackup(ultimo);
+        timers.push(setTimeout(function () {
+            var balao = document.getElementById('lgBalao');
+            if (!balao || terminou) return;
+            balao.innerHTML = '';
+            var li = 0;
+            (function proxima() {
+                if (terminou || li >= falas.length) return;
+                var html = falas[li++];
+                var tmp = document.createElement('div'); tmp.innerHTML = html;
+                var texto = tmp.textContent, k = 0;
+                var linha = document.createElement('div');
+                balao.appendChild(linha);
+                (function letra() {
+                    if (terminou) return;
+                    k += 2;
+                    linha.innerHTML = esc(texto.slice(0, k)) + '<span class="lg-cursor"></span>';
+                    if (k < texto.length) timers.push(setTimeout(letra, 22));
+                    else { linha.innerHTML = html; timers.push(setTimeout(proxima, 250)); }
+                })();
+            })();
+        }, 900));
+    }
+    function verificarLembreteBackup() {
+        var hoje = new Date();
+        var chaveDia = 'seate_lembrete_backup_' + hoje.getFullYear() + '-' + pad2(hoje.getMonth() + 1) + '-' + pad2(hoje.getDate());
+        var ultimo = null;
+        try {
+            if (localStorage.getItem(chaveDia)) return false;
+            var v = localStorage.getItem('seate_ultimo_backup');
+            if (v) { var d = new Date(v); if (!isNaN(d)) ultimo = d; }
+        } catch (e) { return false; }
+        if (ultimo && (hoje - ultimo) < DIAS_LEMBRETE_BACKUP * 86400000) return false;
+        try { localStorage.setItem(chaveDia, '1'); } catch (e) {}
+        mostrarLembreteBackup(ultimo);
+        return true;
+    }
+
     function verificarAberturaAutomatica() {
         var hoje = new Date();
         if (hoje.getDate() < 2) return false;
@@ -1340,7 +1418,10 @@
                 setTimeout(function () {
                     // um assistente por vez: se o lembrete do dia 2 apareceu,
                     // o aviso de atraso fica para o próximo acesso
-                    if (!verificarAberturaAutomatica()) verificarAvisoAtraso();
+                    // e o lembrete de backup só aparece se nenhum outro apareceu
+                    if (!verificarAberturaAutomatica()) {
+                        verificarAvisoAtraso().then(function (mostrou) { if (!mostrou) verificarLembreteBackup(); });
+                    }
                 }, 800);
             }
             else if (tentativas > 600) clearInterval(t); // desiste após ~10 min
@@ -1357,7 +1438,7 @@
         mostrarLembreteGestor(anoRef, mesRef + 1, function () { abrirRelatoriosEntregues(); });
     }
     window.botaoRelatoriosEntregues = botaoRelatoriosEntregues;
-    window._atrasos = { calcular: calcularAtrasos, verificar: verificarAvisoAtraso, mostrar: mostrarAvisoAtraso }; // (testes)
+    window._atrasos = { calcular: calcularAtrasos, verificar: verificarAvisoAtraso, mostrar: mostrarAvisoAtraso, backup: verificarLembreteBackup }; // (testes)
     window.abrirRelatoriosEntregues = abrirRelatoriosEntregues;
     // =====================================================================
     // STATUS EM LOTE (botão "Status" na tabela de Status dos Servidores)

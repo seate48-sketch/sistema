@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>SEATE - Restaurar backup</title>
+    <style>
+        :root { --azul: #0F2D52; --azul2: #1E4A72; --cinza: #F1F3F5; --borda: #D9DEE5; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f6; color: #1f2937; }
+        header { background: linear-gradient(135deg, var(--azul), var(--azul2)); color: #fff; padding: 18px 16px; }
+        header h1 { margin: 0; font-size: 1.25rem; }
+        header p { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.85; }
+        main { max-width: 860px; margin: 18px auto; padding: 0 16px 40px; }
+        .card { background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+        h2 { font-size: 1rem; color: var(--azul); margin: 0 0 10px; }
+        ol { margin: 0; padding-left: 20px; line-height: 1.6; font-size: 0.9rem; }
+        .aviso { background: #FFF3CD; border-left: 4px solid #d97706; padding: 10px 12px; border-radius: 8px; font-size: 0.85rem; }
+        input[type=file] { margin: 8px 0 12px; }
+        button { background: var(--azul2); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 600; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: default; }
+        table { border-collapse: collapse; width: 100%; font-size: 0.85rem; margin-top: 10px; }
+        th, td { border: 1px solid var(--borda); padding: 5px 8px; text-align: left; }
+        th { background: var(--cinza); }
+        td.n { text-align: right; }
+        #msg { margin-top: 10px; font-size: 0.9rem; }
+        .erro { color: #B91C1C; } .ok { color: #15803D; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>SEATE — Restaurar backup</h1>
+    <p>Gera o script que devolve todos os dados do Backup Geral a um banco de dados novo.</p>
+</header>
+<main>
+    <div class="card">
+        <h2>Quando usar</h2>
+        <p class="aviso">Somente se o banco de dados do sistema tiver sido perdido ou precisar ser recriado. Esta página <b>não acessa o banco</b>: ela apenas lê o arquivo de backup no seu computador e monta um script SQL para você rodar no Supabase.</p>
+        <h2 style="margin-top:14px;">Passo a passo</h2>
+        <ol>
+            <li>No projeto Supabase novo (ou vazio), abra o <b>SQL Editor</b> e rode o script <b>00_criar_banco_completo.sql</b> (estrutura do banco).</li>
+            <li>Aqui, escolha o arquivo <b>SEATE_Backup_Tecnico_AAAA-MM-DD.xlsx</b> (baixado pelo botão Backup Geral) e clique em <b>Gerar script de restauração</b>.</li>
+            <li>No SQL Editor, cole o conteúdo do arquivo <b>restaurar_dados_….sql</b> baixado e clique em <b>Run</b>. No fim aparece a contagem de linhas de cada tabela, para conferir com a tabela abaixo.</li>
+            <li>No Supabase, em <b>Authentication</b>, crie de novo o usuário (e-mail e senha) do gestor.</li>
+            <li>Se o endereço do projeto Supabase mudou, atualize a URL e a chave pública em <b>config.js</b> e publique o site.</li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h2>Gerar o script</h2>
+        <input type="file" id="arquivo" accept=".xlsx">
+        <br>
+        <button id="btnGerar" disabled>Gerar script de restauração</button>
+        <div id="msg"></div>
+        <div id="resumo"></div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+(function () {
+    'use strict';
+    // ordem de restauração (respeita as ligações entre tabelas)
+    var ORDEM = ['servidores', 'atividades', 'atribuicoes', 'registros', 'dados_historicos', 'estatisticas_trava',
+                 'obs_servidores', 'comunicados', 'mensagem_emergente', 'mensagens_individuais', 'lista_visualizacao',
+                 'avancos_mes_referencia', 'relatorios_entregues', 'configuracao'];
+    // tabelas sem chave natural: são esvaziadas antes, para não duplicar se o script rodar duas vezes
+    var SUBSTITUIR = ['configuracao', 'comunicados', 'mensagem_emergente', 'mensagens_individuais', 'lista_visualizacao', 'avancos_mes_referencia'];
+    var LOTE = 300;
+    var arquivo = document.getElementById('arquivo'), btn = document.getElementById('btnGerar');
+    var msg = document.getElementById('msg'), resumoEl = document.getElementById('resumo');
+
+    arquivo.onchange = function () { btn.disabled = !arquivo.files.length; msg.textContent = ''; resumoEl.innerHTML = ''; };
+
+    function lit(v) {
+        if (v === null || v === undefined || v === '') return 'null';
+        if (v === '(texto vazio)') return "''";   // marca do backup para texto vazio
+        return "'" + String(v).replace(/'/g, "''") + "'";
+    }
+    function ident(n) { return '"' + String(n).replace(/"/g, '""') + '"'; }
+
+    function lerAba(ws) {
+        var linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+        if (!linhas.length) return { cab: [], dados: [] };
+        var cab = linhas[0].map(String);
+        // junta as partes de textos longos (coluna, coluna__2, coluna__3 ...)
+        var base = [], idx = {};
+        cab.forEach(function (c, i) {
+            var m = /^(.*)__(\d+)$/.exec(c);
+            var nome = m ? m[1] : c;
+            if (!(nome in idx)) { idx[nome] = []; base.push(nome); }
+            idx[nome].push(i);
+        });
+        var dados = linhas.slice(1).filter(function (l) { return l.some(function (v) { return String(v) !== ''; }); }).map(function (l) {
+            var o = {};
+            base.forEach(function (n) { o[n] = idx[n].map(function (i) { return l[i] == null ? '' : String(l[i]); }).join(''); });
+            return o;
+        });
+        return { cab: base, dados: dados };
+    }
+
+    function gerarSQL(wb) {
+        var nomes = wb.SheetNames;
+        var leia = nomes.indexOf('LEIA-ME') >= 0 ? XLSX.utils.sheet_to_json(wb.Sheets['LEIA-ME'], { header: 1, raw: false, defval: '' }) : [];
+        var formato = (leia.filter(function (l) { return l[0] === 'Formato'; })[0] || [])[1];
+        if (formato !== 'seate-backup-tecnico-v1') throw new Error('Este não parece ser o arquivo SEATE_Backup_Tecnico (aba LEIA-ME/Formato não encontrada).');
+        var geradoEm = (leia.filter(function (l) { return l[0] === 'Gerado em'; })[0] || [])[1] || '';
+
+        var out = [], contagem = [];
+        out.push('-- ============================================================');
+        out.push('-- SEATE - Restauração de dados (gerado pela página restaurar-backup.html)');
+        out.push('-- Backup de origem gerado em: ' + geradoEm);
+        out.push('-- Pré-requisito: estrutura criada com 00_criar_banco_completo.sql.');
+        out.push('-- Pode ser executado mais de uma vez (não duplica dados).');
+        out.push('-- ============================================================');
+        out.push('begin;');
+        out.push("do $x$ begin alter table public.relatorios_entregues disable trigger user; exception when others then null; end $x$; -- não dispara o avanço automático do mês durante a restauração");
+
+        ORDEM.forEach(function (t) {
+            if (nomes.indexOf(t) === -1) { contagem.push([t, 0, 'aba não encontrada']); return; }
+            var aba = lerAba(wb.Sheets[t]);
+            var cols = aba.cab.filter(function (c) {
+                return c !== 'id' && c !== 'ref_servidor' && c !== 'ref_atividade';
+            });
+            out.push('');
+            out.push('-- ---------- ' + t + ' (' + aba.dados.length + ' linhas) ----------');
+            if (SUBSTITUIR.indexOf(t) >= 0) out.push('delete from public.' + t + ';');
+            contagem.push([t, aba.dados.length, '']);
+            if (!aba.dados.length) return;
+            for (var i = 0; i < aba.dados.length; i += LOTE) {
+                var lote = aba.dados.slice(i, i + LOTE).map(function (r) {
+                    return '(' + cols.map(function (c) {
+                        if (c === 'servidor_id') {
+                            var nome = r.ref_servidor || (t === 'relatorios_entregues' ? r.servidor_nome : '');
+                            return nome ? '(select id from public.servidores where nome = ' + lit(nome) + ' limit 1)' : 'null';
+                        }
+                        if (c === 'atividade_id') {
+                            return r.ref_atividade ? '(select id from public.atividades where nome = ' + lit(r.ref_atividade) + ' limit 1)' : 'null';
+                        }
+                        return lit(r[c]);
+                    }).join(', ') + ')';
+                });
+                out.push('insert into public.' + t + ' (' + cols.map(ident).join(', ') + ') values');
+                out.push(lote.join(',\n') + (SUBSTITUIR.indexOf(t) >= 0 ? ';' : '\non conflict do nothing;'));
+            }
+        });
+
+        out.push('');
+        out.push("do $x$ begin alter table public.relatorios_entregues enable trigger user; exception when others then null; end $x$;");
+        out.push('commit;');
+        out.push('');
+        out.push('-- Conferência: compare com a tabela da página de restauração');
+        out.push(ORDEM.map(function (t) { return "select '" + t + "' as tabela, count(*) as linhas from public." + t; }).join('\nunion all ') + ';');
+        return { sql: out.join('\n') + '\n', contagem: contagem, geradoEm: geradoEm };
+    }
+
+    btn.onclick = function () {
+        var f = arquivo.files[0];
+        if (!f) return;
+        if (typeof XLSX === 'undefined') { msg.innerHTML = '<span class="erro">Não foi possível carregar a biblioteca de Excel. Verifique a internet e recarregue a página.</span>'; return; }
+        btn.disabled = true; msg.textContent = 'Lendo o arquivo...';
+        var leitor = new FileReader();
+        leitor.onload = function (e) {
+            try {
+                var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellText: true, cellDates: false });
+                var r = gerarSQL(wb);
+                var blob = new Blob([r.sql], { type: 'text/plain;charset=utf-8' });
+                var a = document.createElement('a');
+                var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+                a.href = URL.createObjectURL(blob);
+                a.download = 'restaurar_dados_' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '.sql';
+                document.body.appendChild(a); a.click(); a.remove();
+                msg.innerHTML = '<span class="ok">Script gerado e baixado (' + (blob.size / 1024).toFixed(0) + ' KB). Backup de origem: ' + (r.geradoEm || '—') + '.</span>';
+                resumoEl.innerHTML = '<table><thead><tr><th>Tabela</th><th>Linhas</th><th></th></tr></thead><tbody>' +
+                    r.contagem.map(function (c) { return '<tr><td>' + c[0] + '</td><td class="n">' + c[1].toLocaleString('pt-BR') + '</td><td>' + c[2] + '</td></tr>'; }).join('') +
+                    '</tbody></table>';
+            } catch (err) {
+                msg.innerHTML = '<span class="erro">' + (err && err.message ? err.message : 'Erro ao ler o arquivo.') + '</span>';
+            } finally {
+                btn.disabled = false;
+            }
+        };
+        leitor.readAsArrayBuffer(f);
+    };
+})();
+</script>
+</body>
+</html>
