@@ -107,7 +107,7 @@
         if (formato !== 'seate-backup-tecnico-v1') throw new Error('Este não parece ser o arquivo SEATE_Backup_Tecnico (aba LEIA-ME/Formato não encontrada).');
         var geradoEm = (leia.filter(function (l) { return l[0] === 'Gerado em'; })[0] || [])[1] || '';
 
-        var out = [], contagem = [];
+        var out = [], contagem = [], presentes = [];
         out.push('-- ============================================================');
         out.push('-- SEATE - Restauração de dados (gerado pela página restaurar-backup.html)');
         out.push('-- Backup de origem gerado em: ' + geradoEm);
@@ -118,8 +118,10 @@
         out.push("do $x$ begin alter table public.relatorios_entregues disable trigger user; exception when others then null; end $x$; -- não dispara o avanço automático do mês durante a restauração");
 
         ORDEM.forEach(function (t) {
-            if (nomes.indexOf(t) === -1) { contagem.push([t, 0, 'aba não encontrada']); return; }
+            if (nomes.indexOf(t) === -1) { contagem.push([t, 0, 'não existia no banco de origem']); return; }
             var aba = lerAba(wb.Sheets[t]);
+            if (!aba.dados.length) { contagem.push([t, 0, '']); return; }   // nada a restaurar
+            presentes.push(t);
             var cols = aba.cab.filter(function (c) {
                 return c !== 'id' && c !== 'ref_servidor' && c !== 'ref_atividade';
             });
@@ -127,7 +129,6 @@
             out.push('-- ---------- ' + t + ' (' + aba.dados.length + ' linhas) ----------');
             if (SUBSTITUIR.indexOf(t) >= 0) out.push('delete from public.' + t + ';');
             contagem.push([t, aba.dados.length, '']);
-            if (!aba.dados.length) return;
             for (var i = 0; i < aba.dados.length; i += LOTE) {
                 var lote = aba.dados.slice(i, i + LOTE).map(function (r) {
                     return '(' + cols.map(function (c) {
@@ -151,7 +152,7 @@
         out.push('commit;');
         out.push('');
         out.push('-- Conferência: compare com a tabela da página de restauração');
-        out.push(ORDEM.map(function (t) { return "select '" + t + "' as tabela, count(*) as linhas from public." + t; }).join('\nunion all ') + ';');
+        if (presentes.length) out.push(presentes.map(function (t) { return "select '" + t + "' as tabela, count(*) as linhas from public." + t; }).join('\nunion all ') + ';');
         return { sql: out.join('\n') + '\n', contagem: contagem, geradoEm: geradoEm };
     }
 

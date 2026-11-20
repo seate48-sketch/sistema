@@ -402,7 +402,17 @@
         var abas = [];
         for (var i = 0; i < TABELAS_TECNICO.length; i++) {
             var cfg = TABELAS_TECNICO[i];
-            var dados = await lerTudo(cfg.t, cfg.sel, function (q) { q = q.order(cfg.ord); return cfg.ord2 ? q.order(cfg.ord2) : q; });
+            var dados;
+            try {
+                dados = await lerTudo(cfg.t, cfg.sel, function (q) { q = q.order(cfg.ord); return cfg.ord2 ? q.order(cfg.ord2) : q; });
+            } catch (e) {
+                // tabela que não existe neste banco (ex.: recurso nunca usado): registra e segue
+                if (/does not exist|could not find|schema cache|not found/i.test(e && e.message || '')) {
+                    resumo.push([cfg.t, 'não existe neste banco']);
+                    continue;
+                }
+                throw e;
+            }
             // colunas: as do banco + referências por nome
             var cols = [];
             dados.forEach(function (r) { Object.keys(r).forEach(function (k) {
